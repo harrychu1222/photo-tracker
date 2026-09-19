@@ -5,7 +5,7 @@ work, and progress status, with a filterable shared gallery. Built with React + 
 Tailwind, backed by Supabase (auth, database, storage). Access is invite-only via
 shared codes.
 
-## 1. Set up Supabase (5–10 min)
+## 1. Set up Supabase (5–10 min) new commit
 
 1. In your Supabase project dashboard, go to **Storage** → **New bucket**. Name it
    exactly `photos`, and leave it **private** (not public).
