@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    /* Respect the iPhone notch/home-indicator safe areas in standalone mode */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  :focus-visible {
+    outline: 2px solid #D98E1F;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .status-dot {
+    @apply inline-block h-2.5 w-2.5 rounded-full;
+  }
+}
