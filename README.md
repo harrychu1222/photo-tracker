@@ -5,7 +5,7 @@ work, and progress status, with a filterable shared gallery. Built with React + 
 Tailwind, backed by Supabase (auth, database, storage). Access is invite-only via
 shared codes.
 
-## 1. Set up Supabase (5–10 min) new commit
+## 1. Set up Supabase (5–10 min)
 
 1. In your Supabase project dashboard, go to **Storage** → **New bucket**. Name it
    exactly `photos`, and leave it **private** (not public).
@@ -14,6 +14,10 @@ shared codes.
    trigger, and all Row Level Security policies (including the storage bucket
    policies — the `insert into storage.buckets` line in that script only fills in the
    bucket if it isn't already there, so running it after step 1 is fine).
+   - **Already had this app running before?** Your existing database won't have the
+     newer `room`, `quoting_status`, `lat`, and `lng` columns. Run
+     `supabase/migration_2_room_quoting_map.sql` once — it only adds columns and
+     never touches existing data.
 3. Go to **Authentication** → **Providers** → confirm **Email** is enabled. Under
    **Authentication** → **URL Configuration**, add your dev URL
    (`http://localhost:5173`) and your future production URL as Redirect URLs.
@@ -96,11 +100,26 @@ src/
 supabase/schema.sql      run once in the Supabase SQL editor
 ```
 
+## Current features
+
+- Upload from camera **or** photo library (no forced camera capture)
+- Location, Room, and Category of work as separate fields
+- Progress status (Not started / In progress / Complete / Blocked)
+- Quoting status (Pending quotation / Quoted / Rejected), optional per photo
+- Free-form tags
+- Dropdown filters for location, room, category, and tags, plus toggle filters for
+  progress and quoting status, plus a text search box
+- Map view — plots any photo with GPS coordinates attached (opt-in per upload via the
+  "Attach my current GPS location" checkbox)
+- Before/after comparison — pick any two photos in Gallery view via "Compare", then
+  drag the slider
+
 ## Ideas for later
 
 - Offline capture (queue uploads locally when there's no signal, sync when back online)
-- Before/after photo comparisons for the same location over time
-- A map view pinning photos by GPS location
 - Role-based permissions (e.g. viewer vs. uploader vs. admin) beyond "owns the photo"
 - PDF/report export of a filtered set of photos
 - Push notifications when new photos are added
+- Bulk upload with client-side image compression
+- Auto-suggest location/room/category from past entries as you type
+- CSV export of photo metadata for reporting

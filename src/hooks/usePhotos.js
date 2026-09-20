@@ -49,7 +49,7 @@ export function usePhotos(userId) {
     return () => supabase.removeChannel(channel)
   }, [fetchPhotos])
 
-  async function uploadPhoto({ file, location, category, status, tags, notes }) {
+  async function uploadPhoto({ file, location, room, category, status, quotingStatus, tags, notes, lat, lng }) {
     if (!userId) throw new Error('Not signed in')
 
     const ext = file.name.split('.').pop()
@@ -65,10 +65,14 @@ export function usePhotos(userId) {
       user_id: userId,
       storage_path: path,
       location: location.trim(),
+      room: room?.trim() || '',
       category: category.trim(),
       status,
+      quoting_status: quotingStatus || null,
       tags,
-      notes: notes?.trim() || null
+      notes: notes?.trim() || null,
+      lat: lat ?? null,
+      lng: lng ?? null
     })
     if (insertError) throw insertError
 

@@ -25,10 +25,14 @@ create table if not exists public.photos (
   user_id uuid not null references auth.users(id) on delete cascade,
   storage_path text not null,          -- path inside the 'photos' storage bucket
   location text not null default '',
+  room text not null default '',
   category text not null default '',
   status text not null default 'todo', -- 'todo' | 'progress' | 'done' | 'blocked'
+  quoting_status text,                 -- null | 'pending_quotation' | 'quoted' | 'rejected'
   tags text[] not null default '{}',   -- free-form extra tags
   notes text,
+  lat double precision,
+  lng double precision,
   created_at timestamptz not null default now()
 );
 
@@ -106,6 +110,7 @@ alter table public.invite_codes enable row level security;
 alter table public.photos enable row level security;
 
 -- Any signed-in (permitted) user can see who else's on the team.
+drop policy if exists "profiles are readable by authenticated users" on public.profiles;
 create policy "profiles are readable by authenticated users"
   on public.profiles for select
   to authenticated
@@ -117,21 +122,25 @@ create policy "profiles are readable by authenticated users"
 
 -- Shared team gallery: every permitted user can see every photo,
 -- but can only add/change/remove their own.
+drop policy if exists "photos are readable by authenticated users" on public.photos;
 create policy "photos are readable by authenticated users"
   on public.photos for select
   to authenticated
   using (true);
 
+drop policy if exists "users can insert their own photos" on public.photos;
 create policy "users can insert their own photos"
   on public.photos for insert
   to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "users can update their own photos" on public.photos;
 create policy "users can update their own photos"
   on public.photos for update
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "users can delete their own photos" on public.photos;
 create policy "users can delete their own photos"
   on public.photos for delete
   to authenticated
@@ -145,6 +154,7 @@ insert into storage.buckets (id, name, public)
 values ('photos', 'photos', false)
 on conflict (id) do nothing;
 
+drop policy if exists "authenticated users can view site photos" on storage.objects;
 create policy "authenticated users can view site photos"
   on storage.objects for select
   to authenticated
@@ -152,11 +162,13 @@ create policy "authenticated users can view site photos"
 
 -- Uploads must live under a folder named for the uploader's own user id,
 -- e.g. "3fa1.../my-photo.jpg" — the app's upload code does this automatically.
+drop policy if exists "users can upload into their own folder" on storage.objects;
 create policy "users can upload into their own folder"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
 
+drop policy if exists "users can delete their own uploads" on storage.objects;
 create policy "users can delete their own uploads"
   on storage.objects for delete
   to authenticated

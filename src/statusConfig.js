@@ -8,3 +8,13 @@ export const STATUSES = [
 export function statusMeta(value) {
   return STATUSES.find((s) => s.value === value) ?? STATUSES[0]
 }
+
+export const QUOTING_STATUSES = [
+  { value: 'pending_quotation', label: 'Pending quotation', color: '#8598A6' },
+  { value: 'quoted', label: 'Quoted', color: '#3E6FD9' },
+  { value: 'rejected', label: 'Rejected', color: '#C0503E' }
+]
+
+export function quotingStatusMeta(value) {
+  return QUOTING_STATUSES.find((s) => s.value === value) ?? null
+}

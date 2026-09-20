@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import TagInput from './TagInput'
-import { STATUSES } from '../../statusConfig'
+import { STATUSES, QUOTING_STATUSES, quotingStatusMeta } from '../../statusConfig'
 import { useAuth } from '../../context/AuthContext'
 
 export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
@@ -8,16 +8,28 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
   const isOwner = user?.id === photo.user_id
   const [editing, setEditing] = useState(false)
   const [location, setLocation] = useState(photo.location)
+  const [room, setRoom] = useState(photo.room || '')
   const [category, setCategory] = useState(photo.category)
   const [status, setStatus] = useState(photo.status)
+  const [quotingStatus, setQuotingStatus] = useState(photo.quoting_status || '')
   const [tags, setTags] = useState(photo.tags)
   const [notes, setNotes] = useState(photo.notes || '')
   const [saving, setSaving] = useState(false)
 
+  const qMeta = quotingStatusMeta(photo.quoting_status)
+
   async function handleSave() {
     setSaving(true)
     try {
-      await onUpdate(photo.id, { location, category, status, tags, notes: notes || null })
+      await onUpdate(photo.id, {
+        location,
+        room,
+        category,
+        status,
+        quoting_status: quotingStatus || null,
+        tags,
+        notes: notes || null
+      })
       setEditing(false)
     } finally {
       setSaving(false)
@@ -55,6 +67,14 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
               />
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
+              <input
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>
               <input
                 value={category}
@@ -71,6 +91,31 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
                     onClick={() => setStatus(s.value)}
                     className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
                       status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                    }`}
+                  >
+                    <span className="status-dot" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink-800">Quoting status</label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setQuotingStatus('')}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    quotingStatus === '' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                  }`}
+                >
+                  None
+                </button>
+                {QUOTING_STATUSES.map((s) => (
+                  <button
+                    key={s.value}
+                    onClick={() => setQuotingStatus(s.value)}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                      quotingStatus === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                     }`}
                   >
                     <span className="status-dot" style={{ backgroundColor: s.color }} />
@@ -114,10 +159,25 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
               <p className="text-xs uppercase tracking-wide text-ink-400">Location</p>
               <p className="text-base text-ink-900">{photo.location || '—'}</p>
             </div>
+            {photo.room && (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-400">Room</p>
+                <p className="text-base text-ink-900">{photo.room}</p>
+              </div>
+            )}
             <div>
               <p className="text-xs uppercase tracking-wide text-ink-400">Category</p>
               <p className="text-base text-ink-900">{photo.category || '—'}</p>
             </div>
+            {qMeta && (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-400">Quoting status</p>
+                <p className="flex items-center gap-1.5 text-base text-ink-900">
+                  <span className="status-dot" style={{ backgroundColor: qMeta.color }} />
+                  {qMeta.label}
+                </p>
+              </div>
+            )}
             {photo.notes && (
               <div>
                 <p className="text-xs uppercase tracking-wide text-ink-400">Notes</p>
