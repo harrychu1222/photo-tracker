@@ -46,28 +46,34 @@ export default function TimelineView({ photos, options, onOpen }) {
   return (
     <div className="px-4 py-4">
       <div className="mb-4 grid grid-cols-2 gap-2">
-        <select
-          value={location}
-          onChange={(e) => {
-            setLocation(e.target.value)
-            setRoom('')
-          }}
-          className={selectClass}
-        >
-          {options.locations.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select value={room} onChange={(e) => setRoom(e.target.value)} className={selectClass}>
-          <option value="">All rooms</option>
-          {roomsForLocation.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ink-500">Project</label>
+          <select
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value)
+              setRoom('')
+            }}
+            className={selectClass}
+          >
+            {options.locations.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ink-500">Room</label>
+          <select value={room} onChange={(e) => setRoom(e.target.value)} className={selectClass}>
+            <option value="">All rooms</option>
+            {roomsForLocation.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {grouped.length === 0 && (

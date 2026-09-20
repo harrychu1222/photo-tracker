@@ -20,6 +20,13 @@ shared codes.
      never touches existing data. Then also run
      `supabase/migration_3_taken_at.sql` for the photo-taken-date column used by
      the timeline view.
+   - **If you deploy new app code before running a migration**, you may briefly see
+     a banner like "column photos.taken_at does not exist" and existing photos may
+     seem to disappear. Your data is safe — it's just an ordering query failing.
+     The app now falls back automatically and keeps working with older photos while
+     you go run the pending migration; new uploads will too, though without the
+     newer field until the migration is applied. Running the migration clears it up
+     immediately, no re-deploy needed.
 3. Go to **Authentication** → **Providers** → confirm **Email** is enabled. Under
    **Authentication** → **URL Configuration**, add your dev URL
    (`http://localhost:5173`) and your future production URL as Redirect URLs.
@@ -105,19 +112,32 @@ supabase/schema.sql      run once in the Supabase SQL editor
 ## Current features
 
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)
-- Location, Room, and Category of work as separate fields
+- Project, Room, and Category of work as separate fields (the underlying database
+  column is still named `location` — only the on-screen label changed — so no
+  migration was needed for this rename)
 - Progress status (Not started / In progress / Complete / Blocked)
 - Quoting status (Pending quotation / Quoted / Rejected), optional per photo
 - Free-form tags
-- Map location per photo: skip it, use your current GPS, or type in coordinates manually
-- Dropdown filters for location, room, category, and tags, plus toggle filters for
+- Map location per photo: skip it, use your current GPS, or search for an address
+  (autocomplete via OpenStreetMap's free Nominatim geocoder — type a few letters and
+  pick a suggestion, or just leave your typed text and the app will try to resolve it)
+- Dropdown filters for project, room, category, and tags, plus toggle filters for
   progress and quoting status, plus a text search box
 - Map view — plots any photo with coordinates attached
-- Timeline view — pick a location (and optionally a room) to see its photos in order
+- Timeline view — pick a project (and optionally a room) to see its photos in order
   by the date the photo was actually **taken** (read from the photo's EXIF data), not
   when it happened to be uploaded
 - Before/after comparison — pick any two photos in Gallery view via "Compare", then
   drag the slider
+
+### A note on the address search
+
+Nominatim is free and needs no API key, which fits a free-tier project, but it's
+rate-limited and meant for light use (roughly one search per second). That's plenty
+for a small team adding photos one at a time. If this app ever needs heavy/bulk
+geocoding, swap in a paid provider (e.g. Google Places Autocomplete, which needs a
+Google Cloud billing account and an API key) in `src/components/Photos/AddressAutocomplete.jsx`
+— the rest of the app only cares that it gets back `{ address, lat, lng }`.
 
 ### A note on the "taken" date
 

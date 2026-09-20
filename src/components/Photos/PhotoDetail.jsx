@@ -59,7 +59,7 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
         {editing ? (
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-800">Location</label>
+              <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -156,7 +156,7 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
         ) : (
           <div className="space-y-3">
             <div>
-              <p className="text-xs uppercase tracking-wide text-ink-400">Location</p>
+              <p className="text-xs uppercase tracking-wide text-ink-400">Project</p>
               <p className="text-base text-ink-900">{photo.location || '—'}</p>
             </div>
             {photo.room && (

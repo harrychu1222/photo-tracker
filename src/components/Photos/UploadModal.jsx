@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import TagInput from './TagInput'
+import AddressAutocomplete from './AddressAutocomplete'
 import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
 export default function UploadModal({ onClose, onUpload }) {
@@ -14,11 +15,11 @@ export default function UploadModal({ onClose, onUpload }) {
   const [tags, setTags] = useState([])
   const [notes, setNotes] = useState('')
 
-  // 'none' | 'gps' | 'manual'
+  // 'none' | 'gps' | 'address'
   const [locationMode, setLocationMode] = useState('none')
   const [coords, setCoords] = useState(null)
-  const [manualLat, setManualLat] = useState('')
-  const [manualLng, setManualLng] = useState('')
+  const [addressText, setAddressText] = useState('')
+  const [addressCoords, setAddressCoords] = useState(null) // set once a suggestion is picked
   const [locating, setLocating] = useState(false)
 
   const [error, setError] = useState(null)
@@ -62,13 +63,27 @@ export default function UploadModal({ onClose, onUpload }) {
     )
   }
 
-  function resolveCoords() {
-    if (locationMode === 'gps') return coords
-    if (locationMode === 'manual') {
-      const lat = parseFloat(manualLat)
-      const lng = parseFloat(manualLng)
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+  async function resolveCoords() {
+    if (locationMode === 'gps') return coords ?? { lat: undefined, lng: undefined }
+
+    if (locationMode === 'address') {
+      if (addressCoords) return addressCoords // a suggestion was picked — already geocoded
+      const typed = addressText.trim()
+      if (!typed) return { lat: undefined, lng: undefined }
+      // They typed an address but never picked a suggestion — try once to
+      // resolve it anyway so it can still show up on the map.
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(typed)}`
+        )
+        const results = await res.json()
+        if (results[0]) return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) }
+      } catch {
+        // Non-blocking — the photo still saves, it just won't have a map pin.
+      }
+      return { lat: undefined, lng: undefined }
     }
+
     return { lat: undefined, lng: undefined }
   }
 
@@ -78,16 +93,12 @@ export default function UploadModal({ onClose, onUpload }) {
       setError('Choose at least one photo first.')
       return
     }
-    if (locationMode === 'manual' && (manualLat === '' || manualLng === '')) {
-      setError('Enter both latitude and longitude, or switch to a different location option.')
-      return
-    }
 
     setError(null)
     setSaving(true)
     setProgress(files.length > 1 ? { done: 0, total: files.length } : null)
 
-    const { lat, lng } = resolveCoords()
+    const { lat, lng } = await resolveCoords()
 
     try {
       await onUpload({
@@ -167,7 +178,7 @@ export default function UploadModal({ onClose, onUpload }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-800">Location</label>
+            <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
             <input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -271,33 +282,33 @@ export default function UploadModal({ onClose, onUpload }) {
               </button>
               <button
                 type="button"
-                onClick={() => handleLocationMode('manual')}
+                onClick={() => handleLocationMode('address')}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                  locationMode === 'manual' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                  locationMode === 'address' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >
-                Enter coordinates
+                Search address
               </button>
             </div>
 
-            {locationMode === 'manual' && (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  step="any"
-                  value={manualLat}
-                  onChange={(e) => setManualLat(e.target.value)}
-                  placeholder="Latitude"
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
+            {locationMode === 'address' && (
+              <div className="mt-2">
+                <AddressAutocomplete
+                  value={addressText}
+                  onChange={(text) => {
+                    setAddressText(text)
+                    setAddressCoords(null) // typing invalidates a previously picked suggestion
+                  }}
+                  onSelect={({ address, lat, lng }) => {
+                    setAddressText(address)
+                    setAddressCoords({ lat, lng })
+                  }}
                 />
-                <input
-                  type="number"
-                  step="any"
-                  value={manualLng}
-                  onChange={(e) => setManualLng(e.target.value)}
-                  placeholder="Longitude"
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
-                />
+                <p className="mt-1 text-xs text-ink-400">
+                  {addressCoords
+                    ? 'Address selected ✓'
+                    : "Pick a suggestion, or just leave your typed address — we'll try to place it on the map."}
+                </p>
               </div>
             )}
           </div>

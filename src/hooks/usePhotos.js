@@ -13,12 +13,21 @@ export function usePhotos(userId) {
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('photos')
       .select('*')
       .order('taken_at', { ascending: false, nullsFirst: false })
 
-    if (error) {
+    // If migration_3_taken_at.sql hasn't been run yet on this database, fall
+    // back to the old ordering instead of leaving the gallery empty.
+    if (error?.code === '42703') {
+      ;({ data, error } = await supabase.from('photos').select('*').order('created_at', { ascending: false }))
+      if (!error) {
+        setError('Note: run supabase/migration_3_taken_at.sql to enable the Timeline view and taken-date sorting.')
+      }
+    }
+
+    if (error && data === undefined) {
       setError(error.message)
       setLoading(false)
       return
@@ -70,7 +79,7 @@ export function usePhotos(userId) {
 
         const takenAt = await getTakenAt(file)
 
-        const { error: insertError } = await supabase.from('photos').insert({
+        const payload = {
           user_id: userId,
           storage_path: path,
           location: location.trim(),
@@ -83,7 +92,17 @@ export function usePhotos(userId) {
           lat: lat ?? null,
           lng: lng ?? null,
           taken_at: takenAt.toISOString()
-        })
+        }
+
+        let { error: insertError } = await supabase.from('photos').insert(payload)
+
+        // Column not migrated yet on this database — retry without it rather
+        // than failing the whole upload.
+        if (insertError?.code === '42703') {
+          const { taken_at, ...withoutTakenAt } = payload
+          ;({ error: insertError } = await supabase.from('photos').insert(withoutTakenAt))
+        }
+
         if (insertError) throw insertError
       } catch (err) {
         failures.push({ file: file.name, message: err.message })

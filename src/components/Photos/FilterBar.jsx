@@ -13,7 +13,7 @@ export default function FilterBar({ filters, onChange, options }) {
       <input
         value={filters.search}
         onChange={(e) => update({ search: e.target.value })}
-        placeholder="Search location, room, or category…"
+        placeholder="Search project, room, or category…"
         className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm focus:border-signal-500"
       />
 
@@ -23,7 +23,7 @@ export default function FilterBar({ filters, onChange, options }) {
           onChange={(e) => update({ location: e.target.value })}
           className={selectClass}
         >
-          <option value="">All locations</option>
+          <option value="">All projects</option>
           {options.locations.map((v) => (
             <option key={v} value={v}>
               {v}
