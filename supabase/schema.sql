@@ -33,10 +33,12 @@ create table if not exists public.photos (
   notes text,
   lat double precision,
   lng double precision,
+  taken_at timestamptz,                -- from the photo's EXIF data, when available
   created_at timestamptz not null default now()
 );
 
 create index if not exists photos_created_at_idx on public.photos (created_at desc);
+create index if not exists photos_taken_at_idx on public.photos (taken_at desc);
 create index if not exists photos_tags_idx on public.photos using gin (tags);
 
 -- ---------- Invite-code gated signup ----------

@@ -4,8 +4,8 @@ import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
 export default function UploadModal({ onClose, onUpload }) {
   const fileInputRef = useRef(null)
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
+  const [files, setFiles] = useState([])
+  const [previews, setPreviews] = useState([])
   const [location, setLocation] = useState('')
   const [room, setRoom] = useState('')
   const [category, setCategory] = useState('')
@@ -13,29 +13,38 @@ export default function UploadModal({ onClose, onUpload }) {
   const [quotingStatus, setQuotingStatus] = useState('')
   const [tags, setTags] = useState([])
   const [notes, setNotes] = useState('')
-  const [attachLocation, setAttachLocation] = useState(false)
+
+  // 'none' | 'gps' | 'manual'
+  const [locationMode, setLocationMode] = useState('none')
   const [coords, setCoords] = useState(null)
+  const [manualLat, setManualLat] = useState('')
+  const [manualLng, setManualLng] = useState('')
   const [locating, setLocating] = useState(false)
+
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [progress, setProgress] = useState(null) // { done, total }
 
-  function handleFile(e) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    setFile(f)
-    setPreview(URL.createObjectURL(f))
+  function handleFiles(e) {
+    const list = Array.from(e.target.files || [])
+    if (!list.length) return
+    setFiles(list)
+    setPreviews(list.map((f) => URL.createObjectURL(f)))
   }
 
-  function handleAttachLocationToggle(e) {
-    const checked = e.target.checked
-    setAttachLocation(checked)
-    if (!checked) {
-      setCoords(null)
-      return
-    }
+  function removeFile(index) {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviews((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleLocationMode(mode) {
+    setLocationMode(mode)
+    setError(null)
+    if (mode !== 'gps') return
+
     if (!navigator.geolocation) {
       setError('Location is not available on this device/browser.')
-      setAttachLocation(false)
+      setLocationMode('none')
       return
     }
     setLocating(true)
@@ -46,24 +55,43 @@ export default function UploadModal({ onClose, onUpload }) {
       },
       () => {
         setError('Could not get your location. Check location permissions.')
-        setAttachLocation(false)
+        setLocationMode('none')
         setLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
   }
 
+  function resolveCoords() {
+    if (locationMode === 'gps') return coords
+    if (locationMode === 'manual') {
+      const lat = parseFloat(manualLat)
+      const lng = parseFloat(manualLng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+    return { lat: undefined, lng: undefined }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!file) {
-      setError('Choose a photo first.')
+    if (!files.length) {
+      setError('Choose at least one photo first.')
       return
     }
+    if (locationMode === 'manual' && (manualLat === '' || manualLng === '')) {
+      setError('Enter both latitude and longitude, or switch to a different location option.')
+      return
+    }
+
     setError(null)
     setSaving(true)
+    setProgress(files.length > 1 ? { done: 0, total: files.length } : null)
+
+    const { lat, lng } = resolveCoords()
+
     try {
       await onUpload({
-        file,
+        files,
         location,
         room,
         category,
@@ -71,8 +99,9 @@ export default function UploadModal({ onClose, onUpload }) {
         quotingStatus,
         tags,
         notes,
-        lat: coords?.lat,
-        lng: coords?.lng
+        lat,
+        lng,
+        onProgress: (done, total) => setProgress({ done, total })
       })
       onClose()
     } catch (err) {
@@ -86,7 +115,7 @@ export default function UploadModal({ onClose, onUpload }) {
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 sm:items-center">
       <div className="max-h-[92vh] w-full max-w-app overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-ink-900">Add photo</h2>
+          <h2 className="text-lg font-semibold text-ink-900">Add photos</h2>
           <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
             ×
           </button>
@@ -94,17 +123,31 @@ export default function UploadModal({ onClose, onUpload }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            {preview ? (
-              <img src={preview} alt="Selected preview" className="mb-2 h-48 w-full rounded-lg object-cover" />
-            ) : null}
-            {/* No `capture` attribute here on purpose — this lets iOS/Android show
-                the full picker (Photo Library, Browse, or camera), instead of
-                jumping straight into the camera. */}
+            {previews.length > 0 && (
+              <div className="mb-2 grid grid-cols-4 gap-1.5">
+                {previews.map((src, i) => (
+                  <div key={src} className="relative aspect-square overflow-hidden rounded-lg">
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white"
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* No `capture` attribute — lets the picker offer Photo Library as
+                well as the camera. `multiple` enables bulk selection/upload. */}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleFile}
+              multiple
+              onChange={handleFiles}
               className="hidden"
             />
             <button
@@ -112,8 +155,15 @@ export default function UploadModal({ onClose, onUpload }) {
               onClick={() => fileInputRef.current?.click()}
               className="w-full rounded-lg border border-dashed border-ink-200 py-3 text-sm font-medium text-ink-600"
             >
-              {file ? 'Choose a different photo' : 'Choose or take a photo'}
+              {files.length
+                ? `${files.length} photo${files.length > 1 ? 's' : ''} selected — tap to change`
+                : 'Choose or take photos (you can select several)'}
             </button>
+            {files.length > 1 && (
+              <p className="mt-1.5 text-xs text-ink-400">
+                The details below will be applied to all {files.length} photos.
+              </p>
+            )}
           </div>
 
           <div>
@@ -198,10 +248,59 @@ export default function UploadModal({ onClose, onUpload }) {
             <TagInput tags={tags} onChange={setTags} />
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-ink-700">
-            <input type="checkbox" checked={attachLocation} onChange={handleAttachLocationToggle} />
-            {locating ? 'Getting your location…' : coords ? 'Location attached ✓' : 'Attach my current GPS location (for map view)'}
-          </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-ink-800">Map location (optional)</label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleLocationMode('none')}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  locationMode === 'none' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                }`}
+              >
+                None
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLocationMode('gps')}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  locationMode === 'gps' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                }`}
+              >
+                {locating ? 'Getting GPS…' : coords && locationMode === 'gps' ? 'Current GPS ✓' : 'Use current GPS'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLocationMode('manual')}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  locationMode === 'manual' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                }`}
+              >
+                Enter coordinates
+              </button>
+            </div>
+
+            {locationMode === 'manual' && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  step="any"
+                  value={manualLat}
+                  onChange={(e) => setManualLat(e.target.value)}
+                  placeholder="Latitude"
+                  className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
+                />
+                <input
+                  type="number"
+                  step="any"
+                  value={manualLng}
+                  onChange={(e) => setManualLng(e.target.value)}
+                  placeholder="Longitude"
+                  className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
+                />
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Notes (optional)</label>
@@ -215,12 +314,30 @@ export default function UploadModal({ onClose, onUpload }) {
 
           {error && <p className="text-sm text-status-blocked">{error}</p>}
 
+          {progress && (
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-ink-100">
+                <div
+                  className="h-full bg-signal-500 transition-all"
+                  style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-ink-500">
+                Uploading {progress.done} of {progress.total}…
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={saving}
             className="w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-white disabled:opacity-60"
           >
-            {saving ? 'Uploading…' : 'Save photo'}
+            {saving
+              ? 'Uploading…'
+              : files.length > 1
+              ? `Save ${files.length} photos`
+              : 'Save photo'}
           </button>
         </form>
       </div>

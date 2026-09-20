@@ -4,10 +4,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // See README.md for how to generate real icon files before you deploy.
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          leaflet: ['leaflet', 'react-leaflet'],
+          supabase: ['@supabase/supabase-js']
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // we register manually in main.jsx for a guaranteed reload on update
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Site Log — Photo Tracker',
@@ -26,6 +37,12 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // A new service worker takes control immediately instead of waiting
+        // for every open tab/app instance to close first — this is what was
+        // causing "I deployed but nothing changed" on iOS.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // App-shell caching only — photo data always goes to the network so
         // the gallery never shows stale/duplicate uploads.
         globPatterns: ['**/*.{js,css,html,svg,ico}'],

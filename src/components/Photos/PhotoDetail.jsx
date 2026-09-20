@@ -193,7 +193,10 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
                 ))}
               </div>
             )}
-            <p className="text-xs text-ink-400">{new Date(photo.created_at).toLocaleString()}</p>
+            <p className="text-xs text-ink-400">
+              Taken {new Date(photo.taken_at || photo.created_at).toLocaleString()}
+              {photo.taken_at && ` · Added ${new Date(photo.created_at).toLocaleDateString()}`}
+            </p>
 
             {isOwner && (
               <div className="flex gap-2 pt-2">

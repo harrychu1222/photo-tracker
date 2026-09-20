@@ -17,7 +17,9 @@ shared codes.
    - **Already had this app running before?** Your existing database won't have the
      newer `room`, `quoting_status`, `lat`, and `lng` columns. Run
      `supabase/migration_2_room_quoting_map.sql` once — it only adds columns and
-     never touches existing data.
+     never touches existing data. Then also run
+     `supabase/migration_3_taken_at.sql` for the photo-taken-date column used by
+     the timeline view.
 3. Go to **Authentication** → **Providers** → confirm **Email** is enabled. Under
    **Authentication** → **URL Configuration**, add your dev URL
    (`http://localhost:5173`) and your future production URL as Redirect URLs.
@@ -102,17 +104,29 @@ supabase/schema.sql      run once in the Supabase SQL editor
 
 ## Current features
 
-- Upload from camera **or** photo library (no forced camera capture)
+- Upload from camera **or** photo library, one photo or several at once (bulk upload)
 - Location, Room, and Category of work as separate fields
 - Progress status (Not started / In progress / Complete / Blocked)
 - Quoting status (Pending quotation / Quoted / Rejected), optional per photo
 - Free-form tags
+- Map location per photo: skip it, use your current GPS, or type in coordinates manually
 - Dropdown filters for location, room, category, and tags, plus toggle filters for
   progress and quoting status, plus a text search box
-- Map view — plots any photo with GPS coordinates attached (opt-in per upload via the
-  "Attach my current GPS location" checkbox)
+- Map view — plots any photo with coordinates attached
+- Timeline view — pick a location (and optionally a room) to see its photos in order
+  by the date the photo was actually **taken** (read from the photo's EXIF data), not
+  when it happened to be uploaded
 - Before/after comparison — pick any two photos in Gallery view via "Compare", then
   drag the slider
+
+### A note on the "taken" date
+
+Most phone photos embed a capture date/time in their EXIF metadata, and the app reads
+that automatically on upload (`src/lib/exif.js`). If a photo has no EXIF data at all
+(e.g. a screenshot, or an image that's been re-saved/edited by another app and lost its
+metadata), the app falls back to the file's last-modified time, which is usually close
+enough. There's no way to recover an original capture date for a photo that never had
+one — in that rare case you can manually correct it by re-uploading the original file.
 
 ## Ideas for later
 
@@ -120,6 +134,6 @@ supabase/schema.sql      run once in the Supabase SQL editor
 - Role-based permissions (e.g. viewer vs. uploader vs. admin) beyond "owns the photo"
 - PDF/report export of a filtered set of photos
 - Push notifications when new photos are added
-- Bulk upload with client-side image compression
+- Client-side image compression before upload (saves storage + bandwidth on big bulk uploads)
 - Auto-suggest location/room/category from past entries as you type
 - CSV export of photo metadata for reporting

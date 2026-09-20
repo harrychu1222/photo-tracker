@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, PHOTOS_BUCKET } from '../supabaseClient'
+import { getTakenAt } from '../lib/exif'
 
 const SIGNED_URL_TTL = 60 * 60 // 1 hour, refreshed on every fetch
 
@@ -15,7 +16,7 @@ export function usePhotos(userId) {
     const { data, error } = await supabase
       .from('photos')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('taken_at', { ascending: false, nullsFirst: false })
 
     if (error) {
       setError(error.message)
@@ -49,34 +50,56 @@ export function usePhotos(userId) {
     return () => supabase.removeChannel(channel)
   }, [fetchPhotos])
 
-  async function uploadPhoto({ file, location, room, category, status, quotingStatus, tags, notes, lat, lng }) {
+  async function uploadPhotos({ files, location, room, category, status, quotingStatus, tags, notes, lat, lng, onProgress }) {
     if (!userId) throw new Error('Not signed in')
 
-    const ext = file.name.split('.').pop()
-    const path = `${userId}/${crypto.randomUUID()}.${ext}`
+    const total = files.length
+    let done = 0
+    const failures = []
 
-    const { error: uploadError } = await supabase.storage.from(PHOTOS_BUCKET).upload(path, file, {
-      cacheControl: '3600',
-      upsert: false
-    })
-    if (uploadError) throw uploadError
+    for (const file of files) {
+      try {
+        const ext = file.name.split('.').pop()
+        const path = `${userId}/${crypto.randomUUID()}.${ext}`
 
-    const { error: insertError } = await supabase.from('photos').insert({
-      user_id: userId,
-      storage_path: path,
-      location: location.trim(),
-      room: room?.trim() || '',
-      category: category.trim(),
-      status,
-      quoting_status: quotingStatus || null,
-      tags,
-      notes: notes?.trim() || null,
-      lat: lat ?? null,
-      lng: lng ?? null
-    })
-    if (insertError) throw insertError
+        const { error: uploadError } = await supabase.storage.from(PHOTOS_BUCKET).upload(path, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+        if (uploadError) throw uploadError
+
+        const takenAt = await getTakenAt(file)
+
+        const { error: insertError } = await supabase.from('photos').insert({
+          user_id: userId,
+          storage_path: path,
+          location: location.trim(),
+          room: room?.trim() || '',
+          category: category.trim(),
+          status,
+          quoting_status: quotingStatus || null,
+          tags,
+          notes: notes?.trim() || null,
+          lat: lat ?? null,
+          lng: lng ?? null,
+          taken_at: takenAt.toISOString()
+        })
+        if (insertError) throw insertError
+      } catch (err) {
+        failures.push({ file: file.name, message: err.message })
+      } finally {
+        done += 1
+        onProgress?.(done, total)
+      }
+    }
 
     await fetchPhotos()
+
+    if (failures.length) {
+      throw new Error(
+        `${total - failures.length} of ${total} uploaded. Failed: ${failures.map((f) => f.file).join(', ')}`
+      )
+    }
   }
 
   async function updatePhoto(id, updates) {
@@ -92,5 +115,5 @@ export function usePhotos(userId) {
     await fetchPhotos()
   }
 
-  return { photos, loading, error, uploadPhoto, updatePhoto, deletePhoto, refresh: fetchPhotos }
+  return { photos, loading, error, uploadPhotos, updatePhoto, deletePhoto, refresh: fetchPhotos }
 }

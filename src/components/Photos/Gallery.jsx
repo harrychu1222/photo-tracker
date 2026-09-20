@@ -3,6 +3,7 @@ import FilterBar from './FilterBar'
 import PhotoCard from './PhotoCard'
 import PhotoDetail from './PhotoDetail'
 import MapView from './MapView'
+import TimelineView from './TimelineView'
 import CompareView from './CompareView'
 
 const emptyFilters = { search: '', location: '', room: '', category: '', tag: '', status: null, quotingStatus: null }
@@ -81,6 +82,14 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete }) 
           >
             Map
           </button>
+          <button
+            onClick={() => setView('timeline')}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              view === 'timeline' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+            }`}
+          >
+            Timeline
+          </button>
         </div>
 
         {view === 'gallery' && (
@@ -95,11 +104,13 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete }) 
         )}
       </div>
 
-      <FilterBar filters={filters} onChange={setFilters} options={options} />
+      {view !== 'timeline' && <FilterBar filters={filters} onChange={setFilters} options={options} />}
 
-      {view === 'map' ? (
-        <MapView photos={filtered} onOpen={setOpenPhoto} />
-      ) : (
+      {view === 'map' && <MapView photos={filtered} onOpen={setOpenPhoto} />}
+
+      {view === 'timeline' && <TimelineView photos={photos} options={options} onOpen={setOpenPhoto} />}
+
+      {view === 'gallery' && (
         <div className="px-4 py-4 pb-24">
           {loading && <p className="py-10 text-center text-sm text-ink-400">Loading photos…</p>}
           {error && <p className="py-10 text-center text-sm text-status-blocked">{error}</p>}
