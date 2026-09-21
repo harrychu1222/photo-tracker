@@ -9,9 +9,16 @@ export default function CompareView({ photoA, photoB, onClose }) {
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-black">
-      <div className="flex items-center justify-between px-4 py-3 text-white">
-        <button onClick={onClose} className="text-2xl leading-none" aria-label="Close">
-          ×
+      <div
+        className="flex items-center justify-between px-4 pb-3 text-white"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+      >
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1 rounded-full bg-white/10 py-2 pl-2 pr-3 text-sm font-medium"
+          aria-label="Back"
+        >
+          <span className="text-xl leading-none">←</span> Back
         </button>
         <button
           onClick={() => setSwapped((s) => !s)}

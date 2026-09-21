@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuth } from './context/AuthContext'
 import Login from './components/Auth/Login'
 import SignUp from './components/Auth/SignUp'
@@ -13,6 +13,15 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false)
 
   const { photos, loading: photosLoading, error, uploadPhotos, updatePhoto, deletePhoto } = usePhotos(user?.id)
+
+  const suggestions = useMemo(() => {
+    const uniq = (values) => Array.from(new Set(values.filter(Boolean))).sort()
+    return {
+      locations: uniq(photos.map((p) => p.location)),
+      rooms: uniq(photos.map((p) => p.room)),
+      categories: uniq(photos.map((p) => p.category))
+    }
+  }, [photos])
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-ink-400">Loading…</div>
@@ -30,7 +39,9 @@ export default function App() {
     <div className="mx-auto min-h-screen max-w-app bg-white">
       <Header onAddPhoto={() => setShowUpload(true)} />
       <Gallery photos={photos} loading={photosLoading} error={error} onUpdate={updatePhoto} onDelete={deletePhoto} />
-      {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUpload={uploadPhotos} />}
+      {showUpload && (
+        <UploadModal onClose={() => setShowUpload(false)} onUpload={uploadPhotos} suggestions={suggestions} />
+      )}
     </div>
   )
 }

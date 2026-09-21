@@ -71,12 +71,14 @@ Push this folder to a GitHub repo, then import it into **Vercel** (or Netlify):
 4. Deploy. Add the resulting `https://your-app.vercel.app` URL to Supabase's
    Redirect URLs list (Authentication → URL Configuration) too.
 
-### Add real app icons
+### App icon
 
-The PWA manifest expects PNG icons at `public/icons/icon-192.png`,
-`icon-512.png`, and `icon-512-maskable.png` — see `public/icons/README.md` for the
-quickest way to generate them from a logo or the included placeholder SVG. Without
-them the app still works, just with a generic icon on the home screen.
+A simple, flat, modern camera mark has been generated for you, in the app's own
+slate/amber palette — no extra step needed, it's already in `public/icons/`
+(`icon-192.png`, `icon-512.png`, `icon-512-maskable.png`) and set as the favicon.
+The source vector is `branding/icon-master.svg` if you ever want to tweak the design
+(colors are the same hex values as `tailwind.config.js`) and re-export new PNGs at
+those same three sizes/filenames.
 
 ### Add to iPhone home screen
 

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import TagInput from './TagInput'
+import SuggestInput from './SuggestInput'
 import { STATUSES, QUOTING_STATUSES, quotingStatusMeta } from '../../statusConfig'
 import { useAuth } from '../../context/AuthContext'
 
-export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
+export default function PhotoDetail({ photo, onClose, onUpdate, onDelete, suggestions = {} }) {
   const { user } = useAuth()
   const isOwner = user?.id === photo.user_id
   const [editing, setEditing] = useState(false)
@@ -17,6 +18,28 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
   const [saving, setSaving] = useState(false)
 
   const qMeta = quotingStatusMeta(photo.quoting_status)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    if (!photo.url) return
+    setDownloading(true)
+    try {
+      const res = await fetch(photo.url)
+      const blob = await res.blob()
+      const ext = photo.storage_path.split('.').pop() || 'jpg'
+      const namePart = [photo.location, photo.room].filter(Boolean).join('-').replace(/\s+/g, '_') || 'photo'
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${namePart}-${photo.id.slice(0, 8)}.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -53,34 +76,30 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete }) {
         </div>
 
         {photo.url && (
-          <img src={photo.url} alt={photo.location} className="mb-4 h-56 w-full rounded-lg object-cover" />
+          <img src={photo.url} alt={photo.location} className="mb-2 h-56 w-full rounded-lg object-cover" />
         )}
+
+        <button
+          onClick={handleDownload}
+          disabled={downloading || !photo.url}
+          className="mb-4 w-full rounded-lg border border-ink-200 py-2 text-sm font-medium text-ink-600 disabled:opacity-60"
+        >
+          {downloading ? 'Downloading…' : 'Download photo'}
+        </button>
 
         {editing ? (
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
-              />
+              <SuggestInput value={location} onChange={setLocation} options={suggestions.locations || []} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
-              <input
-                value={room}
-                onChange={(e) => setRoom(e.target.value)}
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
-              />
+              <SuggestInput value={room} onChange={setRoom} options={suggestions.rooms || []} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
-              />
+              <SuggestInput value={category} onChange={setCategory} options={suggestions.categories || []} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Progress status</label>

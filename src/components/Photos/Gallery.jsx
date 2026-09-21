@@ -155,6 +155,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete }) 
           onClose={() => setOpenPhoto(null)}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          suggestions={options}
         />
       )}
 

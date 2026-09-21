@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import TagInput from './TagInput'
 import AddressAutocomplete from './AddressAutocomplete'
+import SuggestInput from './SuggestInput'
 import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
-export default function UploadModal({ onClose, onUpload }) {
+export default function UploadModal({ onClose, onUpload, suggestions = {} }) {
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
@@ -179,31 +180,31 @@ export default function UploadModal({ onClose, onUpload }) {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
-            <input
+            <SuggestInput
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={setLocation}
+              options={suggestions.locations || []}
               placeholder="e.g. Site A"
-              className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
-            <input
+            <SuggestInput
               value={room}
-              onChange={(e) => setRoom(e.target.value)}
+              onChange={setRoom}
+              options={suggestions.rooms || []}
               placeholder="e.g. Room 3 / Kitchen"
-              className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>
-            <input
+            <SuggestInput
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={setCategory}
+              options={suggestions.categories || []}
               placeholder="e.g. Electrical"
-              className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
             />
           </div>
 
