@@ -1,14 +1,23 @@
 import { useState } from 'react'
 import TagInput from './TagInput'
 import SuggestInput from './SuggestInput'
+import ProjectPicker from './ProjectPicker'
 import { STATUSES, QUOTING_STATUSES, quotingStatusMeta } from '../../statusConfig'
 import { useAuth } from '../../context/AuthContext'
 
-export default function PhotoDetail({ photo, onClose, onUpdate, onDelete, suggestions = {} }) {
+export default function PhotoDetail({
+  photo,
+  onClose,
+  onUpdate,
+  onDelete,
+  suggestions = {},
+  projects = [],
+  onCreateProject
+}) {
   const { user } = useAuth()
   const isOwner = user?.id === photo.user_id
   const [editing, setEditing] = useState(false)
-  const [location, setLocation] = useState(photo.location)
+  const [projectId, setProjectId] = useState(photo.project_id || '')
   const [room, setRoom] = useState(photo.room || '')
   const [category, setCategory] = useState(photo.category)
   const [status, setStatus] = useState(photo.status)
@@ -44,8 +53,13 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete, sugges
   async function handleSave() {
     setSaving(true)
     try {
+      const chosen = projects.find((p) => p.id === projectId)
+      const projectChanged = projectId !== (photo.project_id || '')
       await onUpdate(photo.id, {
-        location,
+        project_id: projectId || null,
+        // If the project wasn't touched, keep the existing text exactly as it was
+        // (including old photos that were never linked to a project record).
+        location: projectChanged ? chosen?.name || '' : photo.location,
         room,
         category,
         status,
@@ -91,7 +105,12 @@ export default function PhotoDetail({ photo, onClose, onUpdate, onDelete, sugges
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
-              <SuggestInput value={location} onChange={setLocation} options={suggestions.locations || []} />
+              <ProjectPicker
+                projects={projects}
+                value={projectId}
+                onChange={setProjectId}
+                onCreate={onCreateProject}
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>

@@ -2,13 +2,14 @@ import { useRef, useState } from 'react'
 import TagInput from './TagInput'
 import AddressAutocomplete from './AddressAutocomplete'
 import SuggestInput from './SuggestInput'
+import ProjectPicker from './ProjectPicker'
 import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
-export default function UploadModal({ onClose, onUpload, suggestions = {} }) {
+export default function UploadModal({ onClose, onUpload, suggestions = {}, projects = [], onCreateProject }) {
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
-  const [location, setLocation] = useState('')
+  const [projectId, setProjectId] = useState('')
   const [room, setRoom] = useState('')
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('progress')
@@ -104,7 +105,10 @@ export default function UploadModal({ onClose, onUpload, suggestions = {} }) {
     try {
       await onUpload({
         files,
-        location,
+        projectId,
+        // The project's name is also stored on each photo as plain text, so older
+        // views and any export keep working even if the project is later deleted.
+        location: projects.find((p) => p.id === projectId)?.name || '',
         room,
         category,
         status,
@@ -180,11 +184,11 @@ export default function UploadModal({ onClose, onUpload, suggestions = {} }) {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Project</label>
-            <SuggestInput
-              value={location}
-              onChange={setLocation}
-              options={suggestions.locations || []}
-              placeholder="e.g. Site A"
+            <ProjectPicker
+              projects={projects}
+              value={projectId}
+              onChange={setProjectId}
+              onCreate={onCreateProject}
             />
           </div>
 

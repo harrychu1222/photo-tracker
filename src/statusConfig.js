@@ -9,6 +9,17 @@ export function statusMeta(value) {
   return STATUSES.find((s) => s.value === value) ?? STATUSES[0]
 }
 
+export const PROJECT_STATUSES = [
+  { value: 'quoting', label: 'Quoting', color: '#3E6FD9' },
+  { value: 'active', label: 'Active', color: '#D98E1F' },
+  { value: 'on_hold', label: 'On hold', color: '#8598A6' },
+  { value: 'complete', label: 'Complete', color: '#3E8E5D' }
+]
+
+export function projectStatusMeta(value) {
+  return PROJECT_STATUSES.find((s) => s.value === value) ?? PROJECT_STATUSES[1]
+}
+
 export const QUOTING_STATUSES = [
   { value: 'pending_quotation', label: 'Pending quotation', color: '#8598A6' },
   { value: 'quoted', label: 'Quoted', color: '#3E6FD9' },

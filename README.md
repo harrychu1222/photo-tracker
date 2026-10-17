@@ -20,6 +20,17 @@ shared codes.
      never touches existing data. Then also run
      `supabase/migration_3_taken_at.sql` for the photo-taken-date column used by
      the timeline view.
+   - **Projects & roles (stage 1 of project management):** run
+     `supabase/migration_4_projects_roles.sql` once, **before** deploying the matching
+     app code. It adds admin/crew roles, a real Projects table, and links your
+     existing photos to projects (every project name you've already typed becomes a
+     project; nothing is deleted). Everyone starts as **crew**. Then run this one line
+     separately, with the email you log in with, and sign out and back in:
+     `update public.profiles set role = 'admin' where email = 'YOUR-LOGIN-EMAIL';`
+   - **Admin vs crew invite codes:** `invite_codes` now has a `role` column
+     (`crew` by default). Add a row with `role = admin` to create an admin invite code.
+     The role is read from the database, never from the browser, so it can't be
+     self-assigned.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -113,6 +124,15 @@ supabase/schema.sql      run once in the Supabase SQL editor
 
 ## Current features
 
+- **Projects tab:** a bottom tab bar switches between Photos and Projects. Projects
+  are real records (name, client, site address, status, dates, notes) with a wider
+  layout on a computer. Pick a project (or add one on the spot) when uploading or
+  editing a photo; renaming a project renames it on all its photos. Admins also see
+  a Money section per project (budget, markup %, GST toggle) that crew cannot read —
+  it lives in its own database table protected by security rules, not just hidden on screen.
+- Coming in the next stages: tasks and progress (stage 2), materials/labour costing
+  and a Team screen (stage 3), then the Gantt chart.
+
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)
 - Project, Room, and Category of work as separate fields (the underlying database
   column is still named `location` — only the on-screen label changed — so no
@@ -153,7 +173,6 @@ one — in that rare case you can manually correct it by re-uploading the origin
 ## Ideas for later
 
 - Offline capture (queue uploads locally when there's no signal, sync when back online)
-- Role-based permissions (e.g. viewer vs. uploader vs. admin) beyond "owns the photo"
 - PDF/report export of a filtered set of photos
 - Push notifications when new photos are added
 - Client-side image compression before upload (saves storage + bandwidth on big bulk uploads)

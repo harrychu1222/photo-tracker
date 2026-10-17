@@ -8,7 +8,7 @@ import CompareView from './CompareView'
 
 const emptyFilters = { search: '', location: '', room: '', category: '', tag: '', status: null, quotingStatus: null }
 
-export default function Gallery({ photos, loading, error, onUpdate, onDelete }) {
+export default function Gallery({ photos, loading, error, onUpdate, onDelete, projects, onCreateProject }) {
   const [filters, setFilters] = useState(emptyFilters)
   const [openPhoto, setOpenPhoto] = useState(null)
   const [view, setView] = useState('gallery') // 'gallery' | 'map'
@@ -139,7 +139,10 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete }) 
       )}
 
       {compareMode && selected.length === 2 && (
-        <div className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-app border-t border-ink-100 bg-white p-3">
+        <div
+          className="fixed inset-x-0 z-10 mx-auto max-w-app border-t border-ink-100 bg-white p-3"
+          style={{ bottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }}
+        >
           <button
             onClick={() => setComparing(true)}
             className="w-full rounded-lg bg-signal-500 py-3 text-sm font-medium text-white"
@@ -156,6 +159,8 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete }) 
           onUpdate={onUpdate}
           onDelete={onDelete}
           suggestions={options}
+          projects={projects}
+          onCreateProject={onCreateProject}
         />
       )}
 

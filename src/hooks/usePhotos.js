@@ -59,7 +59,7 @@ export function usePhotos(userId) {
     return () => supabase.removeChannel(channel)
   }, [fetchPhotos])
 
-  async function uploadPhotos({ files, location, room, category, status, quotingStatus, tags, notes, lat, lng, onProgress }) {
+  async function uploadPhotos({ files, projectId, location, room, category, status, quotingStatus, tags, notes, lat, lng, onProgress }) {
     if (!userId) throw new Error('Not signed in')
 
     const total = files.length
@@ -82,6 +82,7 @@ export function usePhotos(userId) {
         const payload = {
           user_id: userId,
           storage_path: path,
+          project_id: projectId || null,
           location: location.trim(),
           room: room?.trim() || '',
           category: category.trim(),
@@ -96,11 +97,11 @@ export function usePhotos(userId) {
 
         let { error: insertError } = await supabase.from('photos').insert(payload)
 
-        // Column not migrated yet on this database — retry without it rather
-        // than failing the whole upload.
+        // A column isn't migrated yet on this database — retry without the newer
+        // columns rather than failing the whole upload.
         if (insertError?.code === '42703') {
-          const { taken_at, ...withoutTakenAt } = payload
-          ;({ error: insertError } = await supabase.from('photos').insert(withoutTakenAt))
+          const { taken_at, project_id, ...legacy } = payload
+          ;({ error: insertError } = await supabase.from('photos').insert(legacy))
         }
 
         if (insertError) throw insertError
