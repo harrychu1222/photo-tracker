@@ -141,7 +141,7 @@ export default function ProjectForm({
             <legend className="px-1 text-sm font-semibold text-ink-800">Money (admins only)</legend>
             <div className="space-y-3">
               <div>
-                <label className={labelClass}>Budget (internal cost ceiling, optional)</label>
+                <label className={labelClass}>Target cost (internal ceiling, optional)</label>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -154,7 +154,7 @@ export default function ProjectForm({
                 />
               </div>
               <div>
-                <label className={labelClass}>Markup on estimated cost (%)</label>
+                <label className={labelClass}>Markup (%)</label>
                 <input
                   type="number"
                   inputMode="decimal"

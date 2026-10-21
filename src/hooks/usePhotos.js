@@ -4,6 +4,10 @@ import { getTakenAt } from '../lib/exif'
 
 const SIGNED_URL_TTL = 60 * 60 // 1 hour, refreshed on every fetch
 
+// A column the app expects isn't in the database yet (a migration hasn't been run).
+// Postgres reports 42703; the Supabase API reports PGRST204 when inserting.
+const isMissingColumn = (err) => err?.code === '42703' || err?.code === 'PGRST204'
+
 export function usePhotos(userId) {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +63,7 @@ export function usePhotos(userId) {
     return () => supabase.removeChannel(channel)
   }, [fetchPhotos])
 
-  async function uploadPhotos({ files, projectId, location, room, category, status, quotingStatus, tags, notes, lat, lng, onProgress }) {
+  async function uploadPhotos({ files, projectId, roomId, taskId, location, room, category, status, quotingStatus, tags, notes, lat, lng, onProgress }) {
     if (!userId) throw new Error('Not signed in')
 
     const total = files.length
@@ -83,6 +87,8 @@ export function usePhotos(userId) {
           user_id: userId,
           storage_path: path,
           project_id: projectId || null,
+          room_id: roomId || null,
+          task_id: taskId || null,
           location: location.trim(),
           room: room?.trim() || '',
           category: category.trim(),
@@ -97,11 +103,16 @@ export function usePhotos(userId) {
 
         let { error: insertError } = await supabase.from('photos').insert(payload)
 
-        // A column isn't migrated yet on this database — retry without the newer
-        // columns rather than failing the whole upload.
-        if (insertError?.code === '42703') {
-          const { taken_at, project_id, ...legacy } = payload
-          ;({ error: insertError } = await supabase.from('photos').insert(legacy))
+        // A column isn't migrated yet on this database — retry without the newest
+        // columns first (keeping the project link), then without the older ones too,
+        // rather than failing the whole upload.
+        if (isMissingColumn(insertError)) {
+          const { room_id, task_id, ...withoutStage2 } = payload
+          ;({ error: insertError } = await supabase.from('photos').insert(withoutStage2))
+          if (isMissingColumn(insertError)) {
+            const { taken_at, project_id, ...legacy } = withoutStage2
+            ;({ error: insertError } = await supabase.from('photos').insert(legacy))
+          }
         }
 
         if (insertError) throw insertError

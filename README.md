@@ -31,6 +31,15 @@ shared codes.
      (`crew` by default). Add a row with `role = admin` to create an admin invite code.
      The role is read from the database, never from the browser, so it can't be
      self-assigned.
+   - **Rooms & tasks (stage 2 of project management):** run
+     `supabase/migration_5_rooms_tasks.sql` once, **before** deploying the matching app
+     code (it needs migration 4 first). It adds a real list of rooms per project and a
+     tasks table, and links photos to rooms and tasks. Rooms you've already typed on
+     photos become real rooms automatically (capitalisation and stray spaces are merged,
+     so "Kitchen" and "kitchen " become one room); nothing is deleted and it is safe to
+     run twice. Rooms and tasks contain no money, so everyone signed in can see them and
+     crew can add rooms and tasks and update progress on site. Only an admin, or whoever
+     added a room or task, can delete it.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -128,10 +137,20 @@ supabase/schema.sql      run once in the Supabase SQL editor
   are real records (name, client, site address, status, dates, notes) with a wider
   layout on a computer. Pick a project (or add one on the spot) when uploading or
   editing a photo; renaming a project renames it on all its photos. Admins also see
-  a Money section per project (budget, markup %, GST toggle) that crew cannot read —
+  a Money section per project (target cost, markup %, GST toggle) that crew cannot read —
   it lives in its own database table protected by security rules, not just hidden on screen.
-- Coming in the next stages: tasks and progress (stage 2), materials/labour costing
-  and a Team screen (stage 3), then the Gantt chart.
+- **Tasks and rooms:** open a project to see its Tasks tab (the project's to-do list).
+  Each task has a room, a status (To do / In progress / Done / Blocked), a progress
+  slider, planned start/end dates, planned man-hours, actual start/end dates, an optional
+  "waiting on" task, notes and photos. Ticking a task done (or changing its status)
+  stamps the actual dates for you, and each task shows how it is tracking against plan
+  ("Overdue by 3 days", "Finished 1 day early", "4 days so far"). The Rooms button lists,
+  renames, adds and deletes the project's rooms. The project list shows tasks done and an
+  overall progress bar per project. When you add or edit a photo, choosing a project lets
+  you pick one of its rooms and (optionally) one of its tasks.
+- Coming in the next stages: materials, equipment and planned costs (stage 3), expenses
+  and the target / quote / actual header (stage 4), time entries for actual man-hours
+  (stage 5), then the Gantt chart.
 
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)
 - Project, Room, and Category of work as separate fields (the underlying database

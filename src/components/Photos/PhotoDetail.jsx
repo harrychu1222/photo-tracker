@@ -2,8 +2,11 @@ import { useState } from 'react'
 import TagInput from './TagInput'
 import SuggestInput from './SuggestInput'
 import ProjectPicker from './ProjectPicker'
+import RoomPicker from '../Projects/RoomPicker'
+import TaskPicker from '../Projects/TaskPicker'
 import { STATUSES, QUOTING_STATUSES, quotingStatusMeta } from '../../statusConfig'
 import { useAuth } from '../../context/AuthContext'
+import { useWork } from '../../context/WorkContext'
 
 export default function PhotoDetail({
   photo,
@@ -17,8 +20,12 @@ export default function PhotoDetail({
   const { user } = useAuth()
   const isOwner = user?.id === photo.user_id
   const [editing, setEditing] = useState(false)
+  const { roomsById, tasksById } = useWork()
   const [projectId, setProjectId] = useState(photo.project_id || '')
-  const [room, setRoom] = useState(photo.room || '')
+  const [roomId, setRoomId] = useState(photo.room_id || '')
+  const [taskId, setTaskId] = useState(photo.task_id || '')
+  const [room, setRoom] = useState(photo.room || '') // typed room, only used when no project is chosen
+  const taskName = photo.task_id ? tasksById[photo.task_id]?.name : ''
   const [category, setCategory] = useState(photo.category)
   const [status, setStatus] = useState(photo.status)
   const [quotingStatus, setQuotingStatus] = useState(photo.quoting_status || '')
@@ -55,12 +62,19 @@ export default function PhotoDetail({
     try {
       const chosen = projects.find((p) => p.id === projectId)
       const projectChanged = projectId !== (photo.project_id || '')
+      // With a project, the room comes from that project's rooms. A photo that has a project
+      // but no room record yet keeps its old typed room unless the room was changed.
+      const roomText = projectId
+        ? roomsById[roomId]?.name || (roomId === (photo.room_id || '') && !projectChanged ? photo.room : '')
+        : room
       await onUpdate(photo.id, {
         project_id: projectId || null,
+        room_id: projectId ? roomId || null : null,
+        task_id: projectId ? taskId || null : null,
         // If the project wasn't touched, keep the existing text exactly as it was
         // (including old photos that were never linked to a project record).
         location: projectChanged ? chosen?.name || '' : photo.location,
-        room,
+        room: roomText,
         category,
         status,
         quoting_status: quotingStatus || null,
@@ -108,14 +122,32 @@ export default function PhotoDetail({
               <ProjectPicker
                 projects={projects}
                 value={projectId}
-                onChange={setProjectId}
+                onChange={(id) => {
+                  setProjectId(id)
+                  // A room and task belong to one project, so clear them if the project changes.
+                  setRoomId('')
+                  setTaskId('')
+                }}
                 onCreate={onCreateProject}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
-              <SuggestInput value={room} onChange={setRoom} options={suggestions.rooms || []} />
-            </div>
+            {projectId ? (
+              <>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
+                  <RoomPicker projectId={projectId} value={roomId} onChange={setRoomId} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink-800">Task (optional)</label>
+                  <TaskPicker projectId={projectId} value={taskId} onChange={setTaskId} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
+                <SuggestInput value={room} onChange={setRoom} options={suggestions.rooms || []} />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>
               <SuggestInput value={category} onChange={setCategory} options={suggestions.categories || []} />
@@ -201,6 +233,12 @@ export default function PhotoDetail({
               <div>
                 <p className="text-xs uppercase tracking-wide text-ink-400">Room</p>
                 <p className="text-base text-ink-900">{photo.room}</p>
+              </div>
+            )}
+            {taskName && (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-ink-400">Task</p>
+                <p className="text-base text-ink-900">{taskName}</p>
               </div>
             )}
             <div>

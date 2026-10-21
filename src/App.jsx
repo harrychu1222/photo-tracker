@@ -9,6 +9,7 @@ import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
 import { usePhotos } from './hooks/usePhotos'
 import { useProjects } from './hooks/useProjects'
+import { useWork } from './context/WorkContext'
 
 export default function App() {
   const { user, loading, isAdmin } = useAuth()
@@ -20,15 +21,19 @@ export default function App() {
   const projectsApi = useProjects(user?.id, isAdmin)
   const { projects, projectsById, createProject } = projectsApi
 
-  // Show each photo under its project's current name, so renaming a project
-  // renames it everywhere. Photos with no project record keep their own text.
+  const { roomsById } = useWork()
+
+  // Show each photo under its project's and room's current names, so renaming either
+  // renames it everywhere. Photos with no project or room record keep their own text.
   const photosWithProject = useMemo(
     () =>
       photos.map((p) => {
         const project = p.project_id ? projectsById[p.project_id] : null
-        return project ? { ...p, location: project.name } : p
+        const room = p.room_id ? roomsById[p.room_id] : null
+        if (!project && !room) return p
+        return { ...p, location: project ? project.name : p.location, room: room ? room.name : p.room }
       }),
-    [photos, projectsById]
+    [photos, projectsById, roomsById]
   )
 
   const suggestions = useMemo(() => {

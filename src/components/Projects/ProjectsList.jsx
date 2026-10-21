@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
 import { PROJECT_STATUSES, projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange } from '../../lib/format'
+import { taskProgress } from '../../lib/tasks'
+import { useWork } from '../../context/WorkContext'
 
 export default function ProjectsList({ projects, photoCounts, loading, error, onOpen, onNew }) {
+  const { tasksByProject } = useWork()
   const [statusFilter, setStatusFilter] = useState(null)
   const [search, setSearch] = useState('')
 
@@ -72,6 +75,7 @@ export default function ProjectsList({ projects, photoCounts, loading, error, on
           const status = projectStatusMeta(p.status)
           const count = photoCounts[p.id] || 0
           const dates = fmtDateRange(p.start_date, p.end_date)
+          const progress = taskProgress(tasksByProject[p.id] || [])
           return (
             <button
               key={p.id}
@@ -91,8 +95,19 @@ export default function ProjectsList({ projects, photoCounts, loading, error, on
                 </p>
               )}
               <p className="mt-2 text-xs text-ink-400">
-                {[dates, `${count} photo${count === 1 ? '' : 's'}`].filter(Boolean).join('  ·  ')}
+                {[
+                  dates,
+                  progress.total > 0 ? `${progress.done}/${progress.total} tasks done` : null,
+                  `${count} photo${count === 1 ? '' : 's'}`
+                ]
+                  .filter(Boolean)
+                  .join('  ·  ')}
               </p>
+              {progress.total > 0 && (
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100">
+                  <div className="h-full rounded-full bg-signal-500" style={{ width: `${progress.percent}%` }} />
+                </div>
+              )}
             </button>
           )
         })}

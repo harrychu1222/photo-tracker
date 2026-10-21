@@ -20,6 +20,17 @@ export function projectStatusMeta(value) {
   return PROJECT_STATUSES.find((s) => s.value === value) ?? PROJECT_STATUSES[1]
 }
 
+export const TASK_STATUSES = [
+  { value: 'todo', label: 'To do', color: '#8598A6' },
+  { value: 'in_progress', label: 'In progress', color: '#D98E1F' },
+  { value: 'done', label: 'Done', color: '#3E8E5D' },
+  { value: 'blocked', label: 'Blocked', color: '#C0503E' }
+]
+
+export function taskStatusMeta(value) {
+  return TASK_STATUSES.find((s) => s.value === value) ?? TASK_STATUSES[0]
+}
+
 export const QUOTING_STATUSES = [
   { value: 'pending_quotation', label: 'Pending quotation', color: '#8598A6' },
   { value: 'quoted', label: 'Quoted', color: '#3E6FD9' },

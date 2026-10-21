@@ -3,14 +3,20 @@ import TagInput from './TagInput'
 import AddressAutocomplete from './AddressAutocomplete'
 import SuggestInput from './SuggestInput'
 import ProjectPicker from './ProjectPicker'
+import RoomPicker from '../Projects/RoomPicker'
+import TaskPicker from '../Projects/TaskPicker'
+import { useWork } from '../../context/WorkContext'
 import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
 export default function UploadModal({ onClose, onUpload, suggestions = {}, projects = [], onCreateProject }) {
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
+  const { roomsById } = useWork()
   const [projectId, setProjectId] = useState('')
-  const [room, setRoom] = useState('')
+  const [roomId, setRoomId] = useState('')
+  const [taskId, setTaskId] = useState('')
+  const [room, setRoom] = useState('') // typed room, only used when no project is chosen
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('progress')
   const [quotingStatus, setQuotingStatus] = useState('')
@@ -106,10 +112,12 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
       await onUpload({
         files,
         projectId,
-        // The project's name is also stored on each photo as plain text, so older
-        // views and any export keep working even if the project is later deleted.
+        roomId,
+        taskId,
+        // The project's and room's names are also stored on each photo as plain text, so
+        // older views and any export keep working even if they are later deleted.
         location: projects.find((p) => p.id === projectId)?.name || '',
-        room,
+        room: projectId ? roomsById[roomId]?.name || '' : room,
         category,
         status,
         quotingStatus,
@@ -187,20 +195,38 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
             <ProjectPicker
               projects={projects}
               value={projectId}
-              onChange={setProjectId}
+              onChange={(id) => {
+                setProjectId(id)
+                // A room and task belong to one project, so clear them if the project changes.
+                setRoomId('')
+                setTaskId('')
+              }}
               onCreate={onCreateProject}
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
-            <SuggestInput
-              value={room}
-              onChange={setRoom}
-              options={suggestions.rooms || []}
-              placeholder="e.g. Room 3 / Kitchen"
-            />
-          </div>
+          {projectId ? (
+            <>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
+                <RoomPicker projectId={projectId} value={roomId} onChange={setRoomId} />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink-800">Task (optional)</label>
+                <TaskPicker projectId={projectId} value={taskId} onChange={setTaskId} />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-ink-800">Room</label>
+              <SuggestInput
+                value={room}
+                onChange={setRoom}
+                options={suggestions.rooms || []}
+                placeholder="e.g. Room 3 / Kitchen"
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>

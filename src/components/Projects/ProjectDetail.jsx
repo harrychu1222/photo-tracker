@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import PhotoCard from '../Photos/PhotoCard'
 import PhotoDetail from '../Photos/PhotoDetail'
+import TasksTab from './TasksTab'
+import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
 
@@ -19,6 +21,9 @@ export default function ProjectDetail({
   onCreateProject
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
+  const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
+  const { tasksByProject } = useWork()
+  const taskCount = (tasksByProject[project.id] || []).length
   const status = projectStatusMeta(project.status)
   const dates = fmtDateRange(project.start_date, project.end_date)
 
@@ -75,7 +80,7 @@ export default function ProjectDetail({
               <p className="mb-2 text-xs font-semibold text-ink-800">Money (admins only)</p>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-ink-600">Budget</dt>
+                  <dt className="text-ink-600">Target cost</dt>
                   <dd className="text-ink-900">{fmtMoney(finance?.budget)}</dd>
                 </div>
                 <div className="flex justify-between">
@@ -92,20 +97,38 @@ export default function ProjectDetail({
         </div>
 
         <div className="mt-6 md:mt-0">
-          <h3 className="mb-3 text-sm font-semibold text-ink-800">
-            Photos ({photos.length})
-          </h3>
-          {photos.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-600">
-              No photos linked to this project yet. Pick this project when you add photos.
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {photos.map((photo) => (
-                <PhotoCard key={photo.id} photo={photo} onOpen={setOpenPhoto} />
-              ))}
-            </div>
-          )}
+          <div className="mb-4 flex gap-1.5 border-b border-ink-100 pb-3">
+            {[
+              { id: 'tasks', label: `Tasks (${taskCount})` },
+              { id: 'photos', label: `Photos (${photos.length})` }
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                aria-current={tab === t.id ? 'page' : undefined}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium ${
+                  tab === t.id ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'tasks' && <TasksTab project={project} photos={photos} />}
+
+          {tab === 'photos' &&
+            (photos.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-600">
+                No photos linked to this project yet. Pick this project when you add photos.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {photos.map((photo) => (
+                  <PhotoCard key={photo.id} photo={photo} onOpen={setOpenPhoto} />
+                ))}
+              </div>
+            ))}
         </div>
       </div>
 

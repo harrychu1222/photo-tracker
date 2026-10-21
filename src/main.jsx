@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { WorkProvider } from './context/WorkContext.jsx'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 
@@ -12,7 +13,9 @@ registerSW({ immediate: true, onNeedRefresh: () => window.location.reload() })
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <WorkProvider>
+        <App />
+      </WorkProvider>
     </AuthProvider>
   </React.StrictMode>
 )
