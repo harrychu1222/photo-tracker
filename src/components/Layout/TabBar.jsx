@@ -1,5 +1,18 @@
 const TABS = [
   {
+    id: 'projects',
+    label: 'Projects',
+    icon: (
+      <path
+        d="M4 7a2 2 0 0 1 2-2h3.5l2 2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    )
+  },
+  {
     id: 'photos',
     label: 'Photos',
     icon: (
@@ -13,21 +26,23 @@ const TABS = [
     )
   },
   {
-    id: 'projects',
-    label: 'Projects',
+    id: 'team',
+    label: 'Team',
+    adminOnly: true,
     icon: (
       <path
-        d="M4 7a2 2 0 0 1 2-2h3.5l2 2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7z"
+        d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7 1a2.5 2.5 0 1 0 0-5M3.5 19a5.5 5.5 0 0 1 11 0M15.5 14.2A4.5 4.5 0 0 1 20.5 19"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     )
   }
 ]
 
-export default function TabBar({ tab, onChange, widthClass }) {
+export default function TabBar({ tab, onChange, widthClass, isAdmin }) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-10 border-t border-ink-100 bg-white/95 backdrop-blur"
@@ -35,7 +50,7 @@ export default function TabBar({ tab, onChange, widthClass }) {
       aria-label="Main"
     >
       <div className={`mx-auto flex ${widthClass}`}>
-        {TABS.map((t) => (
+        {TABS.filter((t) => !t.adminOnly || isAdmin).map((t) => (
           <button
             key={t.id}
             onClick={() => onChange(t.id)}

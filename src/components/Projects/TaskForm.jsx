@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import RoomPicker from './RoomPicker'
+import TaskCosts from './TaskCosts'
+import { dependentsOf } from '../../lib/deps'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { TASK_STATUSES } from '../../statusConfig'
@@ -12,7 +14,7 @@ const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 // Create (task = null) or edit one task of a project.
 export default function TaskForm({ project, task, projectTasks, photos = [], onClose }) {
   const { user, isAdmin } = useAuth()
-  const { createTask, updateTask, deleteTask } = useWork()
+  const { createTask, updateTask, deleteTask, roomsById } = useWork()
 
   const [name, setName] = useState(task?.name || '')
   const [roomId, setRoomId] = useState(task?.room_id || '')
@@ -30,7 +32,9 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
   const [error, setError] = useState(null)
 
   const canDelete = !!task && (isAdmin || task.created_by === user?.id)
-  const otherTasks = projectTasks.filter((t) => t.id !== task?.id)
+  // Tasks that already wait on this one (directly or down a chain) can't be waited on, or it would loop.
+  const loopIds = task ? dependentsOf(projectTasks, task.id) : new Set()
+  const otherTasks = projectTasks.filter((t) => t.id !== task?.id && !loopIds.has(t.id))
 
   // Changing status (or progress) also fills in / clears the actual dates, so the plan-vs-actual
   // numbers stay honest. Everything it sets can still be edited by hand before saving.
@@ -69,8 +73,8 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
     if (plannedStart && plannedEnd && plannedEnd < plannedStart) return setError('Planned end is before planned start.')
     if (actualStart && actualEnd && actualEnd < actualStart) return setError('Actual end is before actual start.')
     if (hours !== '' && Number(hours) < 0) return setError('Planned hours cannot be negative.')
-    if (blockedBy && task && projectTasks.find((t) => t.id === blockedBy)?.blocked_by === task.id) {
-      return setError('That task is already waiting on this one.')
+    if (blockedBy && loopIds.has(blockedBy)) {
+      return setError('That task already waits on this one, so this would make a loop.')
     }
 
     const fields = {
@@ -231,12 +235,22 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
               <option value="">Nothing</option>
               {otherTasks.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {`${t.name}${t.room_id && roomsById[t.room_id] ? ` (${roomsById[t.room_id].name})` : ''}${
+                    t.status === 'done' ? ' ✓' : ''
+                  }`}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-ink-400">A reminder only; dates are not moved automatically.</p>
           </div>
+
+          {task ? (
+            <TaskCosts task={task} />
+          ) : (
+            <p className="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
+              Save the task first, then open it to add materials and equipment.
+            </p>
+          )}
 
           <div>
             <label className={labelClass}>Notes</label>

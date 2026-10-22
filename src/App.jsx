@@ -7,6 +7,7 @@ import TabBar from './components/Layout/TabBar'
 import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
+import TeamView from './components/Team/TeamView'
 import { usePhotos } from './hooks/usePhotos'
 import { useProjects } from './hooks/useProjects'
 import { useWork } from './context/WorkContext'
@@ -15,7 +16,7 @@ export default function App() {
   const { user, loading, isAdmin } = useAuth()
   const [authView, setAuthView] = useState('login')
   const [showUpload, setShowUpload] = useState(false)
-  const [tab, setTab] = useState('photos') // 'photos' | 'projects'
+  const [tab, setTab] = useState('projects') // 'projects' | 'photos' | 'team'
 
   const { photos, loading: photosLoading, error, uploadPhotos, updatePhoto, deletePhoto } = usePhotos(user?.id)
   const projectsApi = useProjects(user?.id, isAdmin)
@@ -58,7 +59,7 @@ export default function App() {
   }
 
   // Photos keep the narrow phone column; Projects gets room to breathe on a computer.
-  const widthClass = tab === 'projects' ? 'max-w-5xl' : 'max-w-app'
+  const widthClass = tab === 'photos' ? 'max-w-app' : 'max-w-5xl'
 
   return (
     <div className={`mx-auto min-h-screen bg-white pb-16 ${widthClass}`}>
@@ -74,6 +75,8 @@ export default function App() {
           projects={projects}
           onCreateProject={createProject}
         />
+      ) : tab === 'team' ? (
+        <TeamView />
       ) : (
         <ProjectsView
           projectsApi={projectsApi}
@@ -94,7 +97,7 @@ export default function App() {
         />
       )}
 
-      <TabBar tab={tab} onChange={setTab} widthClass={widthClass} />
+      <TabBar tab={tab} onChange={setTab} widthClass={widthClass} isAdmin={isAdmin} />
     </div>
   )
 }

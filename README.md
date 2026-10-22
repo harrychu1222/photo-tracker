@@ -40,6 +40,13 @@ shared codes.
      run twice. Rooms and tasks contain no money, so everyone signed in can see them and
      crew can add rooms and tasks and update progress on site. Only an admin, or whoever
      added a room or task, can delete it.
+   - **Materials, equipment, bulk add and Team (stage 3 of project management):** run
+     `supabase/migration_6_materials_equipment_team.sql` once, **before** deploying the
+     matching app code (it needs migrations 4 and 5 first). It adds material and equipment
+     lists per task, with prices in separate admin-only tables (crew can see what is needed
+     but can never read a price), the "Add many" and "Copy to rooms" functions for tasks, a
+     guard that stops "waiting on" chains from looping, and the function behind the Team
+     screen. Safe to run twice; nothing existing is changed.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -133,7 +140,8 @@ supabase/schema.sql      run once in the Supabase SQL editor
 
 ## Current features
 
-- **Projects tab:** a bottom tab bar switches between Photos and Projects. Projects
+- **Projects tab:** the app opens on Projects; a bottom tab bar switches between Projects,
+  Photos and (for admins) Team. Projects
   are real records (name, client, site address, status, dates, notes) with a wider
   layout on a computer. Pick a project (or add one on the spot) when uploading or
   editing a photo; renaming a project renames it on all its photos. Admins also see
@@ -148,9 +156,30 @@ supabase/schema.sql      run once in the Supabase SQL editor
   renames, adds and deletes the project's rooms. The project list shows tasks done and an
   overall progress bar per project. When you add or edit a photo, choosing a project lets
   you pick one of its rooms and (optionally) one of its tasks.
-- Coming in the next stages: materials, equipment and planned costs (stage 3), expenses
-  and the target / quote / actual header (stage 4), time entries for actual man-hours
-  (stage 5), then the Gantt chart.
+- **Seeing dependencies:** the task list defaults to "By dependency": each task sits
+  indented under the task it waits on, grouped by room. A task still held up shows a
+  "Waiting on ..." badge and is greyed; when the task it waits on is finished it turns into
+  "Ready to start"; a task that others are waiting on shows "Holding up N tasks". "By date"
+  switches back to a flat list. A task cannot be set to wait on something that already waits
+  on it (no loops).
+- **Add many:** type or paste one task per line, choose one or more rooms, and every room
+  gets the whole list. Start a line with `>` to make it wait on the line above (`>>` goes one
+  step deeper; lines that share a level wait on the same parent). Add `| 4` at the end for
+  planned hours. A live preview shows what will be created.
+- **Copy to rooms:** tick tasks in one room and copy them into one or several other rooms.
+  "Waiting on" links between the copied tasks are rebuilt inside each new room. Copies start
+  as To do, 0%, with no actual dates; planned dates and hours, notes, materials and equipment
+  come along (prices come along only when an admin does the copy).
+- **Materials and equipment per task:** open a task to list materials (item, quantity, unit)
+  and equipment (own tools, hired or bought items; tick an item once it is on site). Admins
+  also enter prices (ex-GST), see line totals and a planned cost per task. The project's
+  **Materials** tab lists everything by room and task, with a combined shopping list for
+  ordering; admins also see the planned total against the target cost (labour is not
+  included until stage 5). Crew see names and quantities only.
+- **Team (admins):** the Team tab lists everyone with access and lets an admin make someone
+  admin or crew without SQL. There must always be at least one admin.
+- Coming in the next stages: expenses and the target / quote / actual header (stage 4),
+  time entries for actual man-hours and labour cost (stage 5), then the Gantt chart.
 
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)
 - Project, Room, and Category of work as separate fields (the underlying database

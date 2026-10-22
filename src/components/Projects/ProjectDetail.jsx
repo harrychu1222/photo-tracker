@@ -2,9 +2,11 @@ import { useState } from 'react'
 import PhotoCard from '../Photos/PhotoCard'
 import PhotoDetail from '../Photos/PhotoDetail'
 import TasksTab from './TasksTab'
+import MaterialsTab from './MaterialsTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
+import { againstTarget, sumCosts, taskCost } from '../../lib/costs'
 
 export default function ProjectDetail({
   project,
@@ -22,8 +24,17 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
-  const { tasksByProject } = useWork()
-  const taskCount = (tasksByProject[project.id] || []).length
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices } = useWork()
+  const projectTasks = tasksByProject[project.id] || []
+  const taskCount = projectTasks.length
+  const lineCount = projectTasks.reduce(
+    (n, t) => n + (materialsByTask[t.id] || []).length + (equipmentByTask[t.id] || []).length,
+    0
+  )
+  const planned = sumCosts(
+    projectTasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices))
+  )
+  const vsTarget = againstTarget(planned.total, finance?.budget)
   const status = projectStatusMeta(project.status)
   const dates = fmtDateRange(project.start_date, project.end_date)
 
@@ -91,7 +102,16 @@ export default function ProjectDetail({
                   <dt className="text-ink-600">GST (10%)</dt>
                   <dd className="text-ink-900">{(finance?.gst_enabled ?? true) ? 'Added' : 'Not added'}</dd>
                 </div>
+                <div className="flex justify-between border-t border-ink-100 pt-1">
+                  <dt className="text-ink-600">Planned materials + equipment</dt>
+                  <dd className="text-ink-900">{fmtMoney(planned.total)}</dd>
+                </div>
               </dl>
+              {vsTarget && (
+                <p className={`mt-1.5 text-xs font-medium ${vsTarget.over ? 'text-status-blocked' : 'text-status-done'}`}>
+                  {vsTarget.over ? 'Over' : 'Under'} target by {fmtMoney(vsTarget.amount)} (labour not included yet)
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -100,6 +120,7 @@ export default function ProjectDetail({
           <div className="mb-4 flex gap-1.5 border-b border-ink-100 pb-3">
             {[
               { id: 'tasks', label: `Tasks (${taskCount})` },
+              { id: 'materials', label: `Materials (${lineCount})` },
               { id: 'photos', label: `Photos (${photos.length})` }
             ].map((t) => (
               <button
@@ -116,6 +137,7 @@ export default function ProjectDetail({
           </div>
 
           {tab === 'tasks' && <TasksTab project={project} photos={photos} />}
+          {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
 
           {tab === 'photos' &&
             (photos.length === 0 ? (
