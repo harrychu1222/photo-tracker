@@ -74,7 +74,7 @@ export default function CopyTasks({ project, defaultRoomId, onClose }) {
     }
   }
 
-  const waitingOutside = chosen.filter((t) => t.blocked_by && !chosen.some((c) => c.id === t.blocked_by))
+  const waitingOutside = chosen.filter((t) => (t.blocked_by_ids || []).some((id) => !chosen.some((c) => c.id === id)))
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 sm:items-center">
@@ -163,9 +163,9 @@ export default function CopyTasks({ project, defaultRoomId, onClose }) {
 
         <p className="mt-4 rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-600">
           Copies start as To do, 0%, with no actual dates. Planned dates and hours, notes, materials and equipment come
-          with them, and "waiting on" links between the copied tasks are rebuilt inside each room.
+          with them, and "waiting on" links between the copied tasks are rebuilt inside each room. Copied materials start as To order and are flagged "check quantity".
           {waitingOutside.length > 0 &&
-            ` ${waitingOutside.length} task${waitingOutside.length === 1 ? ' waits' : 's wait'} on something you have not ticked, so the copy will not wait on anything.`}
+            ` ${waitingOutside.length} task${waitingOutside.length === 1 ? ' waits' : 's wait'} on something you have not ticked, so the copy will not wait on that task.`}
         </p>
 
         {error && <p className="mt-3 text-sm text-status-blocked">{error}</p>}

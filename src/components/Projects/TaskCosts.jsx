@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
 import { fmtQty, materialCost, taskCost } from '../../lib/costs'
+import { materialStatusMeta, materialStatusPatch, measurementQty, nextMaterialStatus } from '../../lib/materials'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500'
 const smallBtn = 'rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600'
@@ -18,13 +19,22 @@ const kindLabel = (k) => KINDS.find((x) => x.value === k)?.label || k
 
 // ---------- Materials ----------
 
-function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel }) {
+function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel, choices = [] }) {
   const [name, setName] = useState(initial?.name || '')
   const [quantity, setQuantity] = useState(initial?.quantity ?? 1)
   const [unit, setUnit] = useState(initial?.unit || '')
   const [unitCost, setUnitCost] = useState(price ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [pickId, setPickId] = useState('')
+  const [waste, setWaste] = useState('')
+  const picked = choices.find((c) => c.id === pickId)
+
+  function applyMeasurement() {
+    if (!picked) return
+    setQuantity(measurementQty(picked.value, waste))
+    if (picked.unit && !unit.trim()) setUnit(picked.unit)
+  }
 
   async function submit() {
     setBusy(true)
@@ -79,6 +89,37 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel }
           <option key={u} value={u} />
         ))}
       </datalist>
+      {choices.length > 0 && (
+        <div className="rounded-lg border border-ink-100 bg-white p-2">
+          <p className="mb-1 text-xs font-medium text-ink-800">Fill the quantity from a measurement</p>
+          <div className="grid grid-cols-[1fr_5rem] gap-2">
+            <select value={pickId} onChange={(e) => setPickId(e.target.value)} className={inputClass} aria-label="Measurement">
+              <option value="">Choose…</option>
+              {choices.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {`${c.label}: ${fmtQty(c.value)} ${c.unit || ''}${c.where ? ` (${c.where})` : ''}`}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={waste}
+              onChange={(e) => setWaste(e.target.value)}
+              className={inputClass}
+              placeholder="Waste %"
+              aria-label="Waste percent"
+            />
+          </div>
+          {picked && (
+            <button type="button" onClick={applyMeasurement} className={`${smallBtn} mt-2`}>
+              Use {fmtQty(measurementQty(picked.value, waste))} {picked.unit || ''}
+            </button>
+          )}
+        </div>
+      )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
@@ -92,12 +133,13 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel }
   )
 }
 
-function MaterialRow({ material, isAdmin, canDelete }) {
-  const { matPrices, updateMaterial, deleteMaterial } = useWork()
+function MaterialRow({ material, isAdmin, canDelete, choices }) {
+  const { matPrices, updateMaterial, deleteMaterial, setMaterialStatus, confirmMaterialQty } = useWork()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState(null)
   const unitCost = matPrices[material.id]
   const line = materialCost(material, unitCost)
+  const status = materialStatusMeta(material.status)
 
   if (editing) {
     return (
@@ -107,6 +149,7 @@ function MaterialRow({ material, isAdmin, canDelete }) {
           isAdmin={isAdmin}
           price={unitCost}
           saveLabel="Save"
+          choices={choices}
           onCancel={() => setEditing(false)}
           onSave={async (v) => {
             await updateMaterial(material.id, v)
@@ -126,6 +169,22 @@ function MaterialRow({ material, isAdmin, canDelete }) {
             {fmtQty(material.quantity)} {material.unit || ''}
             {isAdmin && unitCost != null ? ` × ${fmtMoney(unitCost)}` : ''}
           </p>
+        </button>
+        <button
+          type="button"
+          aria-label={`${material.name} is ${status.label}. Tap to change`}
+          onClick={async () => {
+            setError(null)
+            try {
+              await setMaterialStatus(material.id, materialStatusPatch(material, nextMaterialStatus(material.status)))
+            } catch (err) {
+              setError(err.message)
+            }
+          }}
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2 py-1 text-xs font-medium text-ink-800"
+        >
+          <span className="status-dot" style={{ backgroundColor: status.color }} />
+          {status.label}
         </button>
         <div className="flex flex-shrink-0 items-center gap-2">
           {isAdmin && (
@@ -152,6 +211,25 @@ function MaterialRow({ material, isAdmin, canDelete }) {
           )}
         </div>
       </div>
+      {material.check_qty && (
+        <p className="mt-1 text-xs text-signal-600">
+          Copied from another room. Check the quantity.{' '}
+          <button
+            type="button"
+            className="font-medium underline"
+            onClick={async () => {
+              setError(null)
+              try {
+                await confirmMaterialQty(material.id)
+              } catch (err) {
+                setError(err.message)
+              }
+            }}
+          >
+            Looks right
+          </button>
+        </p>
+      )}
       {error && <p className="mt-1 text-xs text-status-blocked">{error}</p>}
     </li>
   )
@@ -296,7 +374,27 @@ function EquipmentRow({ item, isAdmin, canDelete }) {
 
 export default function TaskCosts({ task }) {
   const { user, isAdmin } = useAuth()
-  const { materialsByTask, equipmentByTask, matPrices, eqPrices, addMaterial, addEquipment, costsError } = useWork()
+  const {
+    materialsByTask,
+    equipmentByTask,
+    matPrices,
+    eqPrices,
+    addMaterial,
+    addEquipment,
+    costsError,
+    measurementsByProject,
+    roomsById
+  } = useWork()
+  // Every measurement in the project, this task's room first.
+  const choices = [...(measurementsByProject[task.project_id] || [])]
+    .sort((a, b) => Number(b.room_id === task.room_id) - Number(a.room_id === task.room_id))
+    .map((m) => ({
+      id: m.id,
+      label: m.label,
+      value: m.value,
+      unit: m.unit,
+      where: m.room_id ? roomsById[m.room_id]?.name : 'whole project'
+    }))
   const materials = materialsByTask[task.id] || []
   const equipment = equipmentByTask[task.id] || []
   const [addingMaterial, setAddingMaterial] = useState(false)
@@ -321,7 +419,7 @@ export default function TaskCosts({ task }) {
         </div>
         <ul className="space-y-1.5">
           {materials.map((m) => (
-            <MaterialRow key={m.id} material={m} isAdmin={isAdmin} canDelete={canDelete(m)} />
+            <MaterialRow key={m.id} material={m} isAdmin={isAdmin} canDelete={canDelete(m)} choices={choices} />
           ))}
         </ul>
         {materials.length === 0 && !addingMaterial && <p className="text-xs text-ink-400">None yet.</p>}
@@ -330,6 +428,7 @@ export default function TaskCosts({ task }) {
             <MaterialEditor
               isAdmin={isAdmin}
               saveLabel="Add"
+              choices={choices}
               onCancel={() => setAddingMaterial(false)}
               onSave={async (v) => {
                 await addMaterial(task.id, v)

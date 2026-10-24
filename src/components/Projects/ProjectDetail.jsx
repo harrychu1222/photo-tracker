@@ -3,6 +3,7 @@ import PhotoCard from '../Photos/PhotoCard'
 import PhotoDetail from '../Photos/PhotoDetail'
 import TasksTab from './TasksTab'
 import MaterialsTab from './MaterialsTab'
+import MeasurementsTab from './MeasurementsTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
@@ -24,7 +25,8 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices } = useWork()
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject } = useWork()
+  const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
   const taskCount = projectTasks.length
   const lineCount = projectTasks.reduce(
@@ -117,10 +119,11 @@ export default function ProjectDetail({
         </div>
 
         <div className="mt-6 md:mt-0">
-          <div className="mb-4 flex gap-1.5 border-b border-ink-100 pb-3">
+          <div className="mb-4 flex flex-wrap gap-1.5 border-b border-ink-100 pb-3">
             {[
               { id: 'tasks', label: `Tasks (${taskCount})` },
               { id: 'materials', label: `Materials (${lineCount})` },
+              { id: 'measurements', label: `Measurements (${measurementCount})` },
               { id: 'photos', label: `Photos (${photos.length})` }
             ].map((t) => (
               <button
@@ -138,6 +141,7 @@ export default function ProjectDetail({
 
           {tab === 'tasks' && <TasksTab project={project} photos={photos} />}
           {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
+          {tab === 'measurements' && <MeasurementsTab project={project} />}
 
           {tab === 'photos' &&
             (photos.length === 0 ? (

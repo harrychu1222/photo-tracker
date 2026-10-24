@@ -6,9 +6,8 @@ const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5
 
 const EXAMPLE = `Strip out | 4
 > Plumbing rough-in
->> Waterproofing
->>> Tile | 6
-> Electrical rough-in`
+> Electrical rough-in
+Tile (after Plumbing rough-in, Electrical rough-in) | 6`
 
 // Type or paste many tasks at once, optionally into several rooms in one go.
 export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
@@ -65,7 +64,8 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
 
         <p className="mb-2 text-sm text-ink-600">
           One task per line. Start a line with <b>&gt;</b> to make it wait on the task above it; <b>&gt;&gt;</b> goes one
-          step further. Add <b>| 4</b> at the end for planned hours.
+          step further. To wait on several, name them: <b>(after Plumbing, Electrical)</b>. Add <b>| 4</b> at the end for
+          planned hours.
         </p>
 
         <textarea
@@ -89,6 +89,15 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
                   {it.parent != null && <span className="mr-1 text-ink-400">↳</span>}
                   {it.name}
                   {it.hours != null && <span className="text-ink-400"> · {it.hours} h</span>}
+                  {it.parents.length > 1 && (
+                    <span className="text-ink-400"> · waits on {it.parents.map((p) => items[p].name).join(' + ')}</span>
+                  )}
+                  {it.unknownAfter.length > 0 && (
+                    <span className="text-status-blocked">
+                      {' '}
+                      · no line above is called {it.unknownAfter.map((n) => `"${n}"`).join(', ')}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

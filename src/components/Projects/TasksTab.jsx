@@ -9,6 +9,7 @@ import { taskStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
 import { taskCost } from '../../lib/costs'
 import { dependencyInfo, orderByChains } from '../../lib/deps'
+import { materialProgress, materialWarning } from '../../lib/materials'
 import { durations, fmtDays, fmtHours, scheduleNote, statusPatch, taskProgress } from '../../lib/tasks'
 
 function Badge({ tone, children }) {
@@ -105,12 +106,15 @@ export default function TasksTab({ project, photos }) {
     const note = scheduleNote(task)
     const dur = durations(task)
     const info = deps[task.id]
-    const blocker = info?.blocker
+    const blockers = info?.blockers || []
     const photoCount = (photosByTask[task.id] || []).length
     const mats = materialsByTask[task.id] || []
     const eq = equipmentByTask[task.id] || []
     const cost = isAdmin ? taskCost(mats, eq, matPrices, eqPrices) : null
-    const sameRoom = blocker && blocker.room_id === task.room_id
+    const matProgress = materialProgress(mats)
+    const matWarning = materialWarning(task, mats)
+    const blockerLabel = (b) =>
+      `${b.name}${b.room_id !== task.room_id && b.room_id && roomsById[b.room_id] ? ` (${roomsById[b.room_id].name})` : ''}`
     const indent = layout === 'chains' ? Math.min(depth, 4) * 20 : 0
 
     const bits = [
@@ -127,7 +131,9 @@ export default function TasksTab({ project, photos }) {
       ),
       mats.length + eq.length > 0 && (
         <span key="lines">
-          {mats.length > 0 ? `${mats.length} material${mats.length === 1 ? '' : 's'}` : ''}
+          {mats.length > 0
+            ? `${matProgress.delivered} of ${mats.length} material${mats.length === 1 ? '' : 's'} delivered`
+            : ''}
           {mats.length > 0 && eq.length > 0 ? ', ' : ''}
           {eq.length > 0 ? `${eq.length} tool${eq.length === 1 ? '' : 's'}` : ''}
         </span>
@@ -180,15 +186,23 @@ export default function TasksTab({ project, photos }) {
               </span>
             </div>
 
-            {(info?.waiting || info?.ready || info?.holdingUp > 0) && (
+            {(info?.waiting || (info?.ready && blockers.length > 0) || info?.holdingUp > 0 || matWarning) && (
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {info.waiting && (
                   <Badge tone="wait">
-                    ⏳ Waiting on {blocker.name}
-                    {!sameRoom && blocker.room_id && roomsById[blocker.room_id] ? ` (${roomsById[blocker.room_id].name})` : ''}
+                    {blockers.length > 1
+                      ? `⏳ Waiting on ${info.unfinished.length} of ${blockers.length}: ${info.unfinished.map(blockerLabel).join(', ')}`
+                      : `⏳ Waiting on ${blockerLabel(info.unfinished[0])}`}
                   </Badge>
                 )}
-                {info.ready && <Badge tone="ready">✓ Ready to start, {blocker.name} is done</Badge>}
+                {info.ready && blockers.length > 0 && (
+                  <Badge tone="ready">
+                    {blockers.length > 1
+                      ? `✓ Ready to start, all ${blockers.length} are done`
+                      : `✓ Ready to start, ${blockers[0].name} is done`}
+                  </Badge>
+                )}
+                {matWarning && <Badge tone="hold">⚠ {matWarning}</Badge>}
                 {info.holdingUp > 0 && (
                   <Badge tone="hold">
                     Holding up {info.holdingUp} task{info.holdingUp === 1 ? '' : 's'}

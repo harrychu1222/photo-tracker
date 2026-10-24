@@ -3,20 +3,42 @@ import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
 import { againstTarget, combineMaterials, fmtQty, materialCost, sumCosts, taskCost } from '../../lib/costs'
+import { materialProgress, materialStatusMeta, materialStatusPatch, nextMaterialStatus } from '../../lib/materials'
 
 // Everything a project needs, grouped by room and task. Crew see names and quantities;
 // admins also see prices, totals and how the plan compares with the target cost.
 export default function MaterialsTab({ project, finance }) {
   const { isAdmin } = useAuth()
-  const { tasksByProject, roomsByProject, roomsById, materialsByTask, equipmentByTask, matPrices, eqPrices, costsError } =
-    useWork()
+  const {
+    tasksByProject,
+    roomsByProject,
+    roomsById,
+    materialsByTask,
+    equipmentByTask,
+    matPrices,
+    eqPrices,
+    costsError,
+    setMaterialStatus
+  } = useWork()
   const [showCombined, setShowCombined] = useState(false)
+  const [statusError, setStatusError] = useState(null)
+
+  async function advance(m) {
+    setStatusError(null)
+    try {
+      await setMaterialStatus(m.id, materialStatusPatch(m, nextMaterialStatus(m.status)))
+    } catch (err) {
+      setStatusError(err.message)
+    }
+  }
 
   const tasks = tasksByProject[project.id] || []
   const rooms = roomsByProject[project.id] || []
 
   const withLines = tasks.filter((t) => (materialsByTask[t.id] || []).length + (equipmentByTask[t.id] || []).length > 0)
   const allMaterials = tasks.flatMap((t) => materialsByTask[t.id] || [])
+  const progress = materialProgress(allMaterials)
+  const stillToOrder = allMaterials.filter((m) => (m.status || 'to_order') === 'to_order')
   const total = sumCosts(tasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices)))
   const target = againstTarget(total.total, finance?.budget)
 
@@ -68,16 +90,27 @@ export default function MaterialsTab({ project, finance }) {
       )}
 
       {allMaterials.length > 0 && (
+        <p className="mb-3 text-sm text-ink-600">
+          {progress.delivered} of {progress.total} delivered · {progress.ordered} ordered, waiting · {progress.toOrder} still to
+          order
+        </p>
+      )}
+      {statusError && <p className="mb-3 text-sm text-status-blocked">{statusError}</p>}
+
+      {allMaterials.length > 0 && (
         <div className="mb-4">
           <button
             onClick={() => setShowCombined((v) => !v)}
             className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
           >
-            {showCombined ? 'Hide combined shopping list' : 'Combined shopping list'}
+            {showCombined ? 'Hide shopping list' : `Shopping list: still to order (${stillToOrder.length})`}
           </button>
-          {showCombined && (
+          {showCombined && stillToOrder.length === 0 && (
+            <p className="mt-2 text-sm text-ink-600">Everything has been ordered.</p>
+          )}
+          {showCombined && stillToOrder.length > 0 && (
             <ul className="mt-2 space-y-1 rounded-xl border border-ink-100 p-3 text-sm">
-              {combineMaterials(allMaterials).map((row) => (
+              {combineMaterials(stillToOrder).map((row) => (
                 <li key={`${row.name}|${row.unit}`} className="flex justify-between gap-3">
                   <span className="text-ink-900">{row.name}</span>
                   <span className="flex-shrink-0 text-ink-600">
@@ -123,16 +156,29 @@ export default function MaterialsTab({ project, finance }) {
                       <ul className="mt-1.5 space-y-1 text-sm">
                         {mats.map((m) => {
                           const line = materialCost(m, matPrices[m.id])
+                          const st = materialStatusMeta(m.status)
                           return (
-                            <li key={m.id} className="flex justify-between gap-3">
-                              <span className="text-ink-900">
+                            <li key={m.id} className="flex items-center justify-between gap-3">
+                              <span className="min-w-0 text-ink-900">
                                 {m.name} <span className="text-ink-600">· {fmtQty(m.quantity)} {m.unit || ''}</span>
+                                {m.check_qty && <span className="text-signal-600"> · check quantity</span>}
                               </span>
-                              {isAdmin && (
-                                <span className={`flex-shrink-0 ${line == null ? 'text-ink-400' : 'text-ink-800'}`}>
-                                  {line == null ? 'No price' : fmtMoney(line)}
-                                </span>
-                              )}
+                              <span className="flex flex-shrink-0 items-center gap-2">
+                                {isAdmin && (
+                                  <span className={line == null ? 'text-ink-400' : 'text-ink-800'}>
+                                    {line == null ? 'No price' : fmtMoney(line)}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => advance(m)}
+                                  aria-label={`${m.name} is ${st.label}. Tap to change`}
+                                  className="flex items-center gap-1.5 rounded-full bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-800"
+                                >
+                                  <span className="status-dot" style={{ backgroundColor: st.color }} />
+                                  {st.label}
+                                </button>
+                              </span>
                             </li>
                           )
                         })}

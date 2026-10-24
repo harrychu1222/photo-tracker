@@ -37,6 +37,10 @@ export function WorkProvider({ children }) {
   const [matPrices, setMatPrices] = useState({}) // material id -> unit cost (admins only)
   const [eqPrices, setEqPrices] = useState({}) // equipment id -> cost (admins only)
   const [costsError, setCostsError] = useState(null)
+  const [links, setLinks] = useState([]) // task_dependencies rows: { task_id, depends_on_id }
+  const [linksReady, setLinksReady] = useState(false) // false until migration 7 is in place
+  const [measurements, setMeasurements] = useState([])
+  const [measurementsError, setMeasurementsError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -77,15 +81,53 @@ export function WorkProvider({ children }) {
     setEqPrices(Object.fromEntries((ep.data || []).map((r) => [r.equipment_id, Number(r.cost)])))
   }, [userId, isAdmin])
 
+  // Stage 4a tables (migration 7). Until it is run, tasks fall back to their old single
+  // "waiting on" link and measurements stay empty.
+  const refreshExtras = useCallback(async () => {
+    if (!userId) {
+      setLinks([])
+      setLinksReady(false)
+      setMeasurements([])
+      return
+    }
+    const [d, m] = await Promise.all([
+      supabase.from('task_dependencies').select('*'),
+      supabase.from('measurements').select('*')
+    ])
+    if (d.error) {
+      setLinks([])
+      setLinksReady(false)
+    } else {
+      setLinks(d.data)
+      setLinksReady(true)
+    }
+    if (m.error) {
+      setMeasurements([])
+      setMeasurementsError(
+        m.error.code === 'PGRST205' || m.error.code === '42P01'
+          ? 'Measurements are not set up yet. Run supabase/migration_7_dependencies_status_measurements.sql in Supabase, then reload.'
+          : m.error.message
+      )
+    } else {
+      setMeasurementsError(null)
+      setMeasurements(
+        [...m.data].sort((a, b) => (a.sort_order - b.sort_order) || (a.created_at < b.created_at ? -1 : 1))
+      )
+    }
+  }, [userId])
+
   const refresh = useCallback(async () => {
     if (!userId) {
       setRooms([])
       setTasks([])
       setMaterials([])
       setEquipment([])
+      setLinks([])
+      setMeasurements([])
       return
     }
     refreshCosts()
+    refreshExtras()
     const [r, t] = await Promise.all([
       supabase.from('project_rooms').select('*'),
       supabase.from('tasks').select('*')
@@ -107,7 +149,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts])
+  }, [userId, refreshCosts, refreshExtras])
 
   useEffect(() => {
     refresh()
@@ -123,11 +165,24 @@ export function WorkProvider({ children }) {
   }, [refresh])
 
   const roomsById = useMemo(() => Object.fromEntries(rooms.map((r) => [r.id, r])), [rooms])
-  const tasksById = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks])
+  // Every task carries `blocked_by_ids`: the tasks it waits on. Before migration 7 that is just
+  // the old single link.
+  const tasksFull = useMemo(() => {
+    const byTask = {}
+    links.forEach((l) => {
+      ;(byTask[l.task_id] ||= []).push(l.depends_on_id)
+    })
+    return tasks.map((t) => ({
+      ...t,
+      blocked_by_ids: linksReady ? byTask[t.id] || [] : t.blocked_by ? [t.blocked_by] : []
+    }))
+  }, [tasks, links, linksReady])
+  const tasksById = useMemo(() => Object.fromEntries(tasksFull.map((t) => [t.id, t])), [tasksFull])
   const roomsByProject = useMemo(() => groupBy(rooms, 'project_id'), [rooms])
-  const tasksByProject = useMemo(() => groupBy(tasks, 'project_id'), [tasks])
+  const tasksByProject = useMemo(() => groupBy(tasksFull, 'project_id'), [tasksFull])
 
   const materialsByTask = useMemo(() => groupBy(materials, 'task_id'), [materials])
+  const measurementsByProject = useMemo(() => groupBy(measurements, 'project_id'), [measurements])
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
 
   // Creates a room, or returns the existing one if that name is already used in the
@@ -178,6 +233,27 @@ export function WorkProvider({ children }) {
     await refresh()
   }
 
+  // Replace the set of tasks `taskId` waits on. Needs migration 7.
+  async function setTaskBlockers(taskId, blockerIds) {
+    if (!linksReady) {
+      if (!blockerIds.length) return
+      throw new Error('Waiting on several tasks needs migration 7. Run supabase/migration_7_dependencies_status_measurements.sql in Supabase, then reload.')
+    }
+    const current = links.filter((l) => l.task_id === taskId).map((l) => l.depends_on_id)
+    const wanted = [...new Set(blockerIds)]
+    const toAdd = wanted.filter((id) => !current.includes(id))
+    const toRemove = current.filter((id) => !wanted.includes(id))
+    for (const id of toRemove) {
+      const { error } = await supabase.from('task_dependencies').delete().eq('task_id', taskId).eq('depends_on_id', id)
+      if (error) throw error
+    }
+    for (const id of toAdd) {
+      const { error } = await supabase.from('task_dependencies').insert({ task_id: taskId, depends_on_id: id })
+      if (error) throw error
+    }
+    await refreshExtras()
+  }
+
   async function createTask(fields) {
     const siblings = tasksByProject[fields.project_id] || []
     const sort_order = siblings.reduce((max, t) => Math.max(max, t.sort_order || 0), 0) + 1
@@ -211,7 +287,7 @@ export function WorkProvider({ children }) {
     const { data, error } = await supabase.rpc('bulk_add_tasks', {
       p_project: projectId,
       p_room_ids: roomIds,
-      p_items: items.map((i) => ({ name: i.name, parent: i.parent, hours: i.hours }))
+      p_items: items.map((i) => ({ name: i.name, parents: i.parents || [], hours: i.hours }))
     })
     if (error) throw error
     await refresh()
@@ -286,10 +362,26 @@ export function WorkProvider({ children }) {
     checkMaterial({ name, quantity })
     const { error } = await supabase
       .from('task_materials')
-      .update({ name: name.trim(), quantity: Number(quantity), unit: (unit || '').trim() || null })
+      .update({ name: name.trim(), quantity: Number(quantity), unit: (unit || '').trim() || null, check_qty: false })
       .eq('id', id)
     if (error) throw error
     await setMaterialPrice(id, unitCost)
+    await refreshCosts()
+  }
+
+  async function setMaterialStatus(id, patch) {
+    const { error } = await supabase.from('task_materials').update(patch).eq('id', id)
+    if (error) {
+      throw error.code === '42703' || error.code === 'PGRST204'
+        ? new Error('Material status needs migration 7. Run supabase/migration_7_dependencies_status_measurements.sql in Supabase, then reload.')
+        : error
+    }
+    await refreshCosts()
+  }
+
+  async function confirmMaterialQty(id) {
+    const { error } = await supabase.from('task_materials').update({ check_qty: false }).eq('id', id)
+    if (error) throw error
     await refreshCosts()
   }
 
@@ -337,7 +429,67 @@ export function WorkProvider({ children }) {
     await refreshCosts()
   }
 
+  // ---------- Measurements ----------
+
+  function checkMeasurement({ label, value }) {
+    if (!(label || '').trim()) throw new Error('Give the measurement a label, e.g. Floor area.')
+    if (value === '' || Number.isNaN(Number(value)) || Number(value) < 0) {
+      throw new Error('The value must be a number, zero or more.')
+    }
+  }
+
+  async function addMeasurement(projectId, { roomId, label, value, unit, note }) {
+    checkMeasurement({ label, value })
+    const sort_order =
+      (measurementsByProject[projectId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0) + 1
+    const { error } = await supabase.from('measurements').insert({
+      project_id: projectId,
+      room_id: roomId || null,
+      label: label.trim(),
+      value: Number(value),
+      unit: (unit || '').trim() || null,
+      note: (note || '').trim() || null,
+      sort_order,
+      created_by: userId
+    })
+    if (error) throw error
+    await refreshExtras()
+  }
+
+  async function updateMeasurement(id, { roomId, label, value, unit, note }) {
+    checkMeasurement({ label, value })
+    const { error } = await supabase
+      .from('measurements')
+      .update({
+        room_id: roomId || null,
+        label: label.trim(),
+        value: Number(value),
+        unit: (unit || '').trim() || null,
+        note: (note || '').trim() || null
+      })
+      .eq('id', id)
+    if (error) throw error
+    await refreshExtras()
+  }
+
+  async function deleteMeasurement(id) {
+    const { data, error } = await supabase.from('measurements').delete().eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who added this measurement can delete it.')
+    await refreshExtras()
+  }
+
   const value = {
+    measurements,
+    measurementsByProject,
+    measurementsError,
+    linksReady,
+    setTaskBlockers,
+    setMaterialStatus,
+    confirmMaterialQty,
+    addMeasurement,
+    updateMeasurement,
+    deleteMeasurement,
     materials,
     equipment,
     materialsByTask,
@@ -354,7 +506,7 @@ export function WorkProvider({ children }) {
     updateEquipment,
     deleteEquipment,
     rooms,
-    tasks,
+    tasks: tasksFull,
     roomsById,
     tasksById,
     roomsByProject,

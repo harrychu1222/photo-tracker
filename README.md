@@ -47,6 +47,12 @@ shared codes.
      but can never read a price), the "Add many" and "Copy to rooms" functions for tasks, a
      guard that stops "waiting on" chains from looping, and the function behind the Team
      screen. Safe to run twice; nothing existing is changed.
+   - **Several "waiting on", material status and measurements (stage 4a):** run
+     `supabase/migration_7_dependencies_status_measurements.sql` once, **before** deploying
+     the matching app code (it needs migrations 4, 5 and 6 first). Your existing "waiting on"
+     links are copied into a new table so nothing is lost (the old column is left in place and
+     simply no longer used). It also adds the To order / Ordered / Delivered status for
+     materials and a measurements table. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -160,26 +166,44 @@ supabase/schema.sql      run once in the Supabase SQL editor
   indented under the task it waits on, grouped by room. A task still held up shows a
   "Waiting on ..." badge and is greyed; when the task it waits on is finished it turns into
   "Ready to start"; a task that others are waiting on shows "Holding up N tasks". "By date"
-  switches back to a flat list. A task cannot be set to wait on something that already waits
-  on it (no loops).
+  switches back to a flat list. A task can wait on **several** tasks (tick them all in the
+  task form): it shows "Waiting on 2 of 3: X, Y" until every one is done, then "Ready to
+  start". In the dependency view it is drawn once, under the task planned to finish last. A
+  task cannot be set to wait on something that already waits on it, directly or down a chain
+  (no loops); the database enforces this too.
 - **Add many:** type or paste one task per line, choose one or more rooms, and every room
   gets the whole list. Start a line with `>` to make it wait on the line above (`>>` goes one
-  step deeper; lines that share a level wait on the same parent). Add `| 4` at the end for
-  planned hours. A live preview shows what will be created.
+  step deeper; lines that share a level wait on the same parent). To wait on several tasks,
+  name them: `Tile (after Plumbing, Electrical)` (the names must match lines above). Add `| 4`
+  at the end for planned hours. A live preview shows what will be created and warns about a
+  name that matches nothing.
 - **Copy to rooms:** tick tasks in one room and copy them into one or several other rooms.
   "Waiting on" links between the copied tasks are rebuilt inside each new room. Copies start
   as To do, 0%, with no actual dates; planned dates and hours, notes, materials and equipment
-  come along (prices come along only when an admin does the copy).
+  come along (prices come along only when an admin does the copy). Copied materials start as
+  To order and are flagged "check quantity" until someone confirms or edits them, because the
+  quantities were worked out for a different room.
 - **Materials and equipment per task:** open a task to list materials (item, quantity, unit)
-  and equipment (own tools, hired or bought items; tick an item once it is on site). Admins
+  and equipment (own tools, hired or bought items; tick an item once it is on site). Each
+  material has a status, **To order, Ordered or Delivered** (tap the chip to move it on; the
+  date is stamped automatically). A task card shows "3 of 5 materials delivered", and warns
+  when the task starts within a week (or should have started) with materials still not
+  delivered. Admins
   also enter prices (ex-GST), see line totals and a planned cost per task. The project's
   **Materials** tab lists everything by room and task, with a combined shopping list for
   ordering; admins also see the planned total against the target cost (labour is not
-  included until stage 5). Crew see names and quantities only.
+  included until stage 5). Crew see names and quantities only. The shopping list shows what
+  is still to order.
+- **Measurements:** the project's Measurements tab keeps sizes you will need again, per room
+  or for the whole project (floor area, vanity width, benchtop length). When adding a material,
+  "Fill the quantity from a measurement" copies the value in, with an optional waste % (14.5 m²
+  plus 10% gives 15.95). The result is stored as an ordinary quantity. Measurements hold no
+  money, so everyone can see and add them; copying tasks to another room does not copy them.
 - **Team (admins):** the Team tab lists everyone with access and lets an admin make someone
   admin or crew without SQL. There must always be at least one admin.
-- Coming in the next stages: expenses and the target / quote / actual header (stage 4),
-  time entries for actual man-hours and labour cost (stage 5), then the Gantt chart.
+- Coming in the next stages: expenses with receipt photos and the target / quote / actual
+  header (stage 4b), payments received and a cash-flow graph (stage 4c), time entries for
+  actual man-hours and labour cost (stage 5), then the Gantt chart.
 
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)
 - Project, Room, and Category of work as separate fields (the underlying database

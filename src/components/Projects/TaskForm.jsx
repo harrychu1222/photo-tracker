@@ -14,7 +14,7 @@ const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 // Create (task = null) or edit one task of a project.
 export default function TaskForm({ project, task, projectTasks, photos = [], onClose }) {
   const { user, isAdmin } = useAuth()
-  const { createTask, updateTask, deleteTask, roomsById } = useWork()
+  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady } = useWork()
 
   const [name, setName] = useState(task?.name || '')
   const [roomId, setRoomId] = useState(task?.room_id || '')
@@ -25,7 +25,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
   const [actualStart, setActualStart] = useState(task?.actual_start || '')
   const [actualEnd, setActualEnd] = useState(task?.actual_end || '')
   const [hours, setHours] = useState(task?.planned_hours ?? '')
-  const [blockedBy, setBlockedBy] = useState(task?.blocked_by || '')
+  const [blockerIds, setBlockerIds] = useState(task?.blocked_by_ids || [])
   const [notes, setNotes] = useState(task?.notes || '')
 
   const [saving, setSaving] = useState(false)
@@ -73,8 +73,8 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
     if (plannedStart && plannedEnd && plannedEnd < plannedStart) return setError('Planned end is before planned start.')
     if (actualStart && actualEnd && actualEnd < actualStart) return setError('Actual end is before actual start.')
     if (hours !== '' && Number(hours) < 0) return setError('Planned hours cannot be negative.')
-    if (blockedBy && loopIds.has(blockedBy)) {
-      return setError('That task already waits on this one, so this would make a loop.')
+    if (blockerIds.some((id) => loopIds.has(id))) {
+      return setError('A task you picked already waits on this one, so this would make a loop.')
     }
 
     const fields = {
@@ -87,15 +87,18 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
       actual_start: actualStart || null,
       actual_end: actualEnd || null,
       planned_hours: hours === '' ? null : Number(hours),
-      blocked_by: blockedBy || null,
+      // Before migration 7 only the old single link exists.
+      ...(linksReady ? {} : { blocked_by: blockerIds[0] || null }),
       notes: notes.trim() || null
     }
 
     setError(null)
     setSaving(true)
     try {
+      let saved = task
       if (task) await updateTask(task.id, fields)
-      else await createTask({ ...fields, project_id: project.id })
+      else saved = await createTask({ ...fields, project_id: project.id })
+      if (linksReady) await setTaskBlockers(saved.id, blockerIds)
       onClose()
     } catch (err) {
       setError(err.message)
@@ -230,18 +233,46 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
           )}
 
           <div>
-            <label className={labelClass}>Waiting on (optional)</label>
-            <select value={blockedBy} onChange={(e) => setBlockedBy(e.target.value)} className={inputClass}>
-              <option value="">Nothing</option>
-              {otherTasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {`${t.name}${t.room_id && roomsById[t.room_id] ? ` (${roomsById[t.room_id].name})` : ''}${
-                    t.status === 'done' ? ' ✓' : ''
-                  }`}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-ink-400">A reminder only; dates are not moved automatically.</p>
+            <label className={labelClass}>
+              Waiting on (optional){blockerIds.length > 0 ? `: ${blockerIds.length} picked` : ''}
+            </label>
+            {otherTasks.length === 0 ? (
+              <p className="text-xs text-ink-400">There are no other tasks in this project yet.</p>
+            ) : (
+              <ul className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-ink-200 p-2">
+                {otherTasks.map((t) => {
+                  const checked = blockerIds.includes(t.id)
+                  const room = t.room_id && roomsById[t.room_id] ? ` (${roomsById[t.room_id].name})` : ''
+                  return (
+                    <li key={t.id}>
+                      <label className="flex items-center gap-2 rounded px-1 py-1 text-sm text-ink-900">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setBlockerIds((cur) =>
+                              checked
+                                ? cur.filter((id) => id !== t.id)
+                                : linksReady
+                                  ? [...cur, t.id]
+                                  : [t.id]
+                            )
+                          }
+                        />
+                        <span className={t.status === 'done' ? 'text-ink-400' : ''}>
+                          {`${t.name}${room}${t.status === 'done' ? ' ✓' : ''}`}
+                        </span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <p className="mt-1 text-xs text-ink-400">
+              {linksReady
+                ? 'Tick every task that must finish first. A reminder only; dates are not moved automatically.'
+                : 'Run migration 7 to wait on several tasks; until then only one can be picked.'}
+            </p>
           </div>
 
           {task ? (
