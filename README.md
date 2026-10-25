@@ -58,6 +58,11 @@ shared codes.
      code (it needs migrations 4 to 7 first). It adds length / width / height and manual areas
      to rooms, door / window openings to measurements, and an expected delivery date to
      materials. Existing rooms and measurements are kept as they are. Safe to run twice.
+   - **Expenses and receipt photos (stage 4b-2):** run
+     `supabase/migration_9_expenses.sql` once, **before** deploying the matching app code (it
+     needs migrations 4 to 8 first). It adds the expenses table (admins see everything, crew
+     only the expenses they entered) and a private `receipts` storage bucket. Nothing existing
+     is changed. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -238,6 +243,20 @@ supabase/schema.sql      run once in the Supabase SQL editor
   when it happened to be uploaded
 - Before/after comparison — pick any two photos in Gallery view via "Compare", then
   drag the slider
+
+### Expenses (stage 4b-2)
+- Project > **Expenses** tab: date, supplier, description, category (Materials / Equipment
+  hire / Subcontractor / Other), amount and an optional receipt photo (camera or library;
+  shrunk before upload and kept in a private bucket).
+- Amounts are entered ex-GST; tick "This amount includes GST" to have the app convert it.
+  A minus sign records a refund or credit.
+- Optionally link an expense to one material line. Admins get the planned cost filled in
+  (editable). If that material is still "To order", you are asked "Mark as ordered?".
+- Anyone can add expenses. Crew see and edit only their own, with no totals or prices.
+  Admins see everything, totals by category and who entered each one.
+- Admin money box: Target cost, Quote price (target + markup + GST), planned materials +
+  equipment, and Actual spent, flagged over or under target. Labour is not included yet.
+- Materials tab (admins): each line shows what was paid against the planned cost.
 
 ### A note on the address search
 

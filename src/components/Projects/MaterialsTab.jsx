@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import MaterialDates from './MaterialDates'
+import { actualByMaterial, materialVariance } from '../../lib/expenses'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
@@ -30,8 +31,10 @@ export default function MaterialsTab({ project, finance }) {
     matPrices,
     eqPrices,
     costsError,
-    setMaterialStatus
+    setMaterialStatus,
+    expensesByProject
   } = useWork()
+  const actuals = actualByMaterial(expensesByProject[project.id] || [])
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | a status value
   const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | a room id
   const [showList, setShowList] = useState(false)
@@ -229,6 +232,7 @@ export default function MaterialsTab({ project, finance }) {
                         {mats.map((m) => {
                           const line = materialCost(m, matPrices[m.id])
                           const st = materialStatusMeta(m.status)
+                          const variance = isAdmin ? materialVariance(line, actuals[m.id]) : null
                           return (
                             <li key={m.id}>
                               <div className="flex items-center justify-between gap-3">
@@ -253,6 +257,18 @@ export default function MaterialsTab({ project, finance }) {
                                   </button>
                                 </span>
                               </div>
+                              {variance && (
+                                <p className="mt-0.5 text-xs text-ink-600">
+                                  Paid {fmtMoney(variance.actual)}
+                                  {variance.diff != null && (
+                                    <span className={`font-medium ${variance.over ? 'text-status-blocked' : 'text-status-done'}`}>
+                                      {variance.diff === 0
+                                        ? ' · on plan'
+                                        : ` · ${fmtMoney(Math.abs(variance.diff))} ${variance.over ? 'over' : 'under'} plan`}
+                                    </span>
+                                  )}
+                                </p>
+                              )}
                               <MaterialDates material={m} />
                             </li>
                           )

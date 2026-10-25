@@ -4,10 +4,12 @@ import PhotoDetail from '../Photos/PhotoDetail'
 import TasksTab from './TasksTab'
 import MaterialsTab from './MaterialsTab'
 import MeasurementsTab from './MeasurementsTab'
+import ExpensesTab from './ExpensesTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
-import { againstTarget, sumCosts, taskCost } from '../../lib/costs'
+import { sumCosts, taskCost } from '../../lib/costs'
+import { projectMoney } from '../../lib/expenses'
 
 export default function ProjectDetail({
   project,
@@ -25,7 +27,8 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject } = useWork()
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject } = useWork()
+  const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
   const taskCount = projectTasks.length
@@ -36,7 +39,7 @@ export default function ProjectDetail({
   const planned = sumCosts(
     projectTasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices))
   )
-  const vsTarget = againstTarget(planned.total, finance?.budget)
+  const money = projectMoney(finance, projectExpenses, planned.total)
   const status = projectStatusMeta(project.status)
   const dates = fmtDateRange(project.start_date, project.end_date)
 
@@ -97,21 +100,30 @@ export default function ProjectDetail({
                   <dd className="text-ink-900">{fmtMoney(finance?.budget)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-ink-600">Markup</dt>
-                  <dd className="text-ink-900">{Number(finance?.markup_pct ?? 0)}%</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-ink-600">GST (10%)</dt>
-                  <dd className="text-ink-900">{(finance?.gst_enabled ?? true) ? 'Added' : 'Not added'}</dd>
+                  <dt className="text-ink-600">
+                    Quote price ({Number(finance?.markup_pct ?? 0)}% markup{money.gst ? ' + GST' : ', no GST'})
+                  </dt>
+                  <dd className="text-ink-900">{money.quote == null ? '—' : fmtMoney(money.quote)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-ink-100 pt-1">
                   <dt className="text-ink-600">Planned materials + equipment</dt>
                   <dd className="text-ink-900">{fmtMoney(planned.total)}</dd>
                 </div>
+                <div className="flex justify-between font-semibold">
+                  <dt className="text-ink-800">Actual spent (ex-GST)</dt>
+                  <dd className="text-ink-900">{fmtMoney(money.actual)}</dd>
+                </div>
               </dl>
-              {vsTarget && (
-                <p className={`mt-1.5 text-xs font-medium ${vsTarget.over ? 'text-status-blocked' : 'text-status-done'}`}>
-                  {vsTarget.over ? 'Over' : 'Under'} target by {fmtMoney(vsTarget.amount)} (labour not included yet)
+              {money.vsTarget && (
+                <p className={`mt-1.5 text-xs font-medium ${money.vsTarget.over ? 'text-status-blocked' : 'text-status-done'}`}>
+                  {money.vsTarget.over ? 'Over' : 'Under'} target by {fmtMoney(money.vsTarget.amount)} so far (labour not included yet)
+                </p>
+              )}
+              {money.vsPlanned && planned.total > 0 && projectExpenses.length > 0 && (
+                <p className={`mt-1 text-xs ${money.vsPlanned.over ? 'text-status-blocked' : 'text-ink-600'}`}>
+                  {money.vsPlanned.over
+                    ? `Spent ${fmtMoney(Math.abs(money.vsPlanned.diff))} more than planned`
+                    : `${fmtMoney(money.vsPlanned.diff)} of the plan not spent yet`}
                 </p>
               )}
             </div>
@@ -124,6 +136,7 @@ export default function ProjectDetail({
               { id: 'tasks', label: `Tasks (${taskCount})` },
               { id: 'materials', label: `Materials (${lineCount})` },
               { id: 'measurements', label: `Measurements (${measurementCount})` },
+              { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
               { id: 'photos', label: `Photos (${photos.length})` }
             ].map((t) => (
               <button
@@ -142,6 +155,7 @@ export default function ProjectDetail({
           {tab === 'tasks' && <TasksTab project={project} photos={photos} />}
           {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
           {tab === 'measurements' && <MeasurementsTab project={project} />}
+          {tab === 'expenses' && <ExpensesTab project={project} />}
 
           {tab === 'photos' &&
             (photos.length === 0 ? (

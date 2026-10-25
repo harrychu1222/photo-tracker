@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
+import { shrinkImage } from '../lib/image'
 import { convertOpeningUnit, convertRoomUnit, openingArea } from '../lib/rooms'
 
 // Rooms and tasks for every project, shared by the Projects screens and the photo
@@ -42,6 +43,9 @@ export function WorkProvider({ children }) {
   const [linksReady, setLinksReady] = useState(false) // false until migration 7 is in place
   const [measurements, setMeasurements] = useState([])
   const [measurementsError, setMeasurementsError] = useState(null)
+  const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
+  const [expensesError, setExpensesError] = useState(null)
+  const [people, setPeople] = useState({}) // user id -> email (admins only), to show who paid
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -117,6 +121,30 @@ export function WorkProvider({ children }) {
     }
   }, [userId])
 
+  // Expenses (migration 9). Until it is run the rest of the app keeps working.
+  const refreshExpenses = useCallback(async () => {
+    if (!userId) {
+      setExpenses([])
+      return
+    }
+    const [x, p] = await Promise.all([
+      supabase.from('expenses').select('*'),
+      isAdmin ? supabase.from('profiles').select('id, email') : Promise.resolve({ data: [] })
+    ])
+    if (x.error) {
+      setExpenses([])
+      setExpensesError(
+        x.error.code === 'PGRST205' || x.error.code === '42P01'
+          ? 'Expenses are not set up yet. Run supabase/migration_9_expenses.sql in Supabase, then reload.'
+          : x.error.message
+      )
+      return
+    }
+    setExpensesError(null)
+    setExpenses(x.data)
+    setPeople(Object.fromEntries((p.data || []).map((r) => [r.id, r.email])))
+  }, [userId, isAdmin])
+
   const refresh = useCallback(async () => {
     if (!userId) {
       setRooms([])
@@ -129,6 +157,7 @@ export function WorkProvider({ children }) {
     }
     refreshCosts()
     refreshExtras()
+    refreshExpenses()
     const [r, t] = await Promise.all([
       supabase.from('project_rooms').select('*'),
       supabase.from('tasks').select('*')
@@ -150,7 +179,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras])
+  }, [userId, refreshCosts, refreshExtras, refreshExpenses])
 
   useEffect(() => {
     refresh()
@@ -185,6 +214,7 @@ export function WorkProvider({ children }) {
   const materialsByTask = useMemo(() => groupBy(materials, 'task_id'), [materials])
   const measurementsByProject = useMemo(() => groupBy(measurements, 'project_id'), [measurements])
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
+  const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
 
   // Creates a room, or returns the existing one if that name is already used in the
   // project (names are unique per project, ignoring capitalisation).
@@ -513,7 +543,70 @@ export function WorkProvider({ children }) {
     await refreshExtras()
   }
 
+  const expenseFields = (f) => ({
+    expense_date: f.expense_date,
+    supplier: f.supplier?.trim() || null,
+    description: f.description.trim(),
+    category: f.category,
+    amount_ex_gst: f.amount_ex_gst,
+    material_id: f.material_id || null,
+    receipt_path: f.receipt_path || null
+  })
+
+  // Upload a receipt photo into this person's own folder of the private receipts bucket.
+  async function uploadReceipt(file) {
+    if (!userId) throw new Error('Not signed in')
+    const body = await shrinkImage(file)
+    const path = `${userId}/${crypto.randomUUID()}.jpg`
+    const { error } = await supabase.storage.from('receipts').upload(path, body, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw error
+    return path
+  }
+
+  async function receiptUrl(path) {
+    const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path, 3600)
+    if (error) throw error
+    return data?.signedUrl || null
+  }
+
+  async function removeReceipt(path) {
+    if (path) await supabase.storage.from('receipts').remove([path])
+  }
+
+  async function addExpense(projectId, fields) {
+    const { error } = await supabase
+      .from('expenses')
+      .insert({ project_id: projectId, created_by: userId, ...expenseFields(fields) })
+    if (error) throw error
+    await refreshExpenses()
+  }
+
+  async function updateExpense(id, fields) {
+    const { data, error } = await supabase.from('expenses').update(expenseFields(fields)).eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who added this expense can change it.')
+    await refreshExpenses()
+  }
+
+  async function deleteExpense(expense) {
+    const { data, error } = await supabase.from('expenses').delete().eq('id', expense.id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who added this expense can delete it.')
+    await removeReceipt(expense.receipt_path)
+    await refreshExpenses()
+  }
+
   const value = {
+    expenses,
+    expensesByProject,
+    expensesError,
+    people,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    uploadReceipt,
+    receiptUrl,
+    removeReceipt,
     measurements,
     measurementsByProject,
     measurementsError,
