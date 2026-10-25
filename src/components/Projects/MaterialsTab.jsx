@@ -120,10 +120,10 @@ export default function MaterialsTab({ project, finance }) {
           {total.unpriced > 0 && (
             <p className="mt-1 text-xs text-ink-600">
               {total.unpriced} line{total.unpriced === 1 ? ' has' : 's have'} no price yet, so the total is low. Labour is not
-              included until a later update.
+              part of this planned figure.
             </p>
           )}
-          {total.unpriced === 0 && <p className="mt-1 text-xs text-ink-400">Labour is not included yet.</p>}
+          {total.unpriced === 0 && <p className="mt-1 text-xs text-ink-400">Labour is not part of this planned figure.</p>}
         </div>
       )}
 

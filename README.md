@@ -67,6 +67,10 @@ shared codes.
      `supabase/migration_10_payments.sql` once, **before** deploying the matching app code (it
      needs migrations 4 to 9 first). It adds an admin-only payments table. Nothing existing is
      changed. Safe to run twice.
+   - **Hours and labour cost (stage 5):** run `supabase/migration_11_time_labour.sql` once,
+     **before** deploying the matching app code (it needs migrations 4 to 10 first). It adds
+     time entries (crew see only their own), admin-only hourly rates, and a labour lump-sum
+     option on each project. Nothing existing is changed. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -269,6 +273,22 @@ supabase/schema.sql      run once in the Supabase SQL editor
   faint line for the quote price. Buttons switch between ex-GST (default) and with-GST, and
   show or hide a net line (received minus spent).
 - Money box also shows Received and Still to receive (quote ex-GST minus received).
+- Reading the figures: tap or drag across the graph to see the exact spent / received / net
+  for any date (the latest figures show by default); end-of-line figures are printed on the
+  graph; the axis uses full dollar amounts; "Show figures" lists every date's running totals.
+
+### Hours and labour (stage 5)
+- Project > **Time** tab (crew see **My hours**): log date, hours, optional task and note.
+  Crew log and see only their own hours (no dollars, no rates). Admins see everyone's and can
+  log hours for anyone.
+- Task rows show "7.5 h logged of 4 h planned" (crew see only their own logged hours).
+- Admins (Time tab > Hourly rates and lump sum): set an hourly rate per person, ex-GST, applied
+  to all projects and all past hours; or set a lump sum for a project, which replaces
+  hours x rates while it is set (hours are still recorded). People with hours but no rate are
+  flagged, since their cost counts as $0 until a rate is set.
+- Labour is added to **Actual spent** in the money box (shown as Expenses + Labour), to the
+  over/under-target figure, and to the cash-flow graph on the day the work was done (a lump sum
+  is placed on the date you give it). Labour is never grossed up for GST in the With-GST view.
 
 ### A note on the address search
 

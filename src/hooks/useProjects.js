@@ -93,6 +93,25 @@ export function useProjects(userId, isAdmin) {
     await fetchProjects()
   }
 
+  // Fixed labour cost for a project (replaces hours x rates). Pass '' to go back to hourly.
+  async function saveLabourLump(projectId, sum, on) {
+    const { error } = await supabase.from('project_finance').upsert(
+      {
+        project_id: projectId,
+        labour_lump_sum: sum === '' || sum == null ? null : Number(sum),
+        labour_lump_on: sum === '' || sum == null ? null : on || null,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: 'project_id' }
+    )
+    if (error) {
+      throw error.code === '42703' || error.code === 'PGRST204'
+        ? new Error('Labour needs migration 11. Run supabase/migration_11_time_labour.sql in Supabase, then reload.')
+        : error
+    }
+    await fetchProjects()
+  }
+
   async function deleteProject(id) {
     const { error } = await supabase.from('projects').delete().eq('id', id)
     if (error) throw error
@@ -108,6 +127,7 @@ export function useProjects(userId, isAdmin) {
     createProject,
     updateProject,
     saveFinance,
+    saveLabourLump,
     deleteProject,
     refresh: fetchProjects
   }

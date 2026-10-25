@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import CashFlowChart from './CashFlowChart'
+import CashFlowChart, { FiguresTable } from './CashFlowChart'
 import { useWork } from '../../context/WorkContext'
 import { buildCashFlow, receivedSummary } from '../../lib/cashflow'
+import { labourCost, labourEvents } from '../../lib/labour'
 import { exGstFromEntered, incGst, parseAmount, projectMoney } from '../../lib/expenses'
 import { fmtDate, fmtMoney } from '../../lib/format'
 import { todayLocal } from '../../lib/tasks'
@@ -69,17 +70,19 @@ function PaymentForm({ project, payment, onDone }) {
 
 // Admin only: payments received and the spent-vs-received line graph.
 export default function CashFlowTab({ project, finance }) {
-  const { paymentsByProject, paymentsError, expensesByProject, deletePayment } = useWork()
+  const { paymentsByProject, paymentsError, expensesByProject, deletePayment, timeByProject, rates } = useWork()
   const [editing, setEditing] = useState(null)
   const [gst, setGst] = useState(false)
   const [showNet, setShowNet] = useState(false)
+  const [showTable, setShowTable] = useState(false)
   const [error, setError] = useState(null)
 
   const payments = paymentsByProject[project.id] || []
   const expenses = expensesByProject[project.id] || []
-  const money = projectMoney(finance, expenses, null)
+  const time = timeByProject[project.id] || []
+  const money = projectMoney(finance, expenses, null, labourCost(time, rates, finance).total)
   const sum = receivedSummary(payments, money.quoteEx)
-  const data = buildCashFlow(expenses, payments, { gst, today: todayLocal(), quoteEx: money.quoteEx })
+  const data = buildCashFlow(expenses, payments, { gst, today: todayLocal(), quoteEx: money.quoteEx, labour: labourEvents(time, rates, finance, todayLocal()) })
   const sorted = [...payments].sort((a, b) => String(b.received_on).localeCompare(String(a.received_on)))
   const k = gst ? 1.1 : 1
   const spentNow = data?.points.at(-1).spent ?? 0
@@ -107,7 +110,7 @@ export default function CashFlowTab({ project, finance }) {
             <dd className="text-ink-900">{fmtMoney(receivedNow)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-ink-600">Spent so far</dt>
+            <dt className="text-ink-600">Spent so far (expenses + labour)</dt>
             <dd className="text-ink-900">{fmtMoney(spentNow)}</dd>
           </div>
           <div className="flex justify-between border-t border-ink-100 pt-1 font-semibold">
@@ -142,6 +145,14 @@ export default function CashFlowTab({ project, finance }) {
             showNet={showNet}
             label={`Cumulative spent ${fmtMoney(spentNow)} and received ${fmtMoney(receivedNow)}, ${gst ? 'with GST' : 'ex-GST'}`}
           />
+          <button onClick={() => setShowTable((v) => !v)} className="mt-3 text-xs font-medium text-signal-600" aria-expanded={showTable}>
+            {showTable ? 'Hide figures' : 'Show figures'}
+          </button>
+          {showTable && (
+            <div className="mt-2">
+              <FiguresTable points={data.points} />
+            </div>
+          )}
         </div>
       ) : (
         <p className="mb-4 rounded-xl border border-dashed border-ink-200 py-8 text-center text-sm text-ink-600">

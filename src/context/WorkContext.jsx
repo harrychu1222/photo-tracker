@@ -47,6 +47,9 @@ export function WorkProvider({ children }) {
   const [expensesError, setExpensesError] = useState(null)
   const [payments, setPayments] = useState([]) // admins only
   const [paymentsError, setPaymentsError] = useState(null)
+  const [timeEntries, setTimeEntries] = useState([]) // admins get everyone's; crew only their own (RLS)
+  const [timeError, setTimeError] = useState(null)
+  const [rates, setRates] = useState({}) // user id -> hourly rate (admins only)
   const [people, setPeople] = useState({}) // user id -> email (admins only), to show who paid
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -168,6 +171,31 @@ export function WorkProvider({ children }) {
     setPayments(data)
   }, [userId, isAdmin])
 
+  // Hours worked and hourly rates (migration 11).
+  const refreshTime = useCallback(async () => {
+    if (!userId) {
+      setTimeEntries([])
+      setRates({})
+      return
+    }
+    const [t, r] = await Promise.all([
+      supabase.from('time_entries').select('*'),
+      isAdmin ? supabase.from('person_rates').select('*') : Promise.resolve({ data: [] })
+    ])
+    if (t.error) {
+      setTimeEntries([])
+      setTimeError(
+        t.error.code === 'PGRST205' || t.error.code === '42P01'
+          ? 'Hours are not set up yet. Run supabase/migration_11_time_labour.sql in Supabase, then reload.'
+          : t.error.message
+      )
+      return
+    }
+    setTimeError(null)
+    setTimeEntries(t.data)
+    setRates(Object.fromEntries((r.data || []).map((x) => [x.user_id, Number(x.hourly_rate)])))
+  }, [userId, isAdmin])
+
   const refresh = useCallback(async () => {
     if (!userId) {
       setRooms([])
@@ -182,6 +210,7 @@ export function WorkProvider({ children }) {
     refreshExtras()
     refreshExpenses()
     refreshPayments()
+    refreshTime()
     const [r, t] = await Promise.all([
       supabase.from('project_rooms').select('*'),
       supabase.from('tasks').select('*')
@@ -203,7 +232,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshExpenses, refreshPayments])
+  }, [userId, refreshCosts, refreshExtras, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -647,8 +676,59 @@ export function WorkProvider({ children }) {
   }
 
   const paymentsByProject = groupBy(payments, 'project_id')
+  const timeByProject = groupBy(timeEntries, 'project_id')
+
+  const timeFields = (f) => ({
+    user_id: f.user_id,
+    task_id: f.task_id || null,
+    work_date: f.work_date,
+    hours: f.hours,
+    note: f.note?.trim() || null
+  })
+
+  async function addTime(projectId, fields) {
+    const { error } = await supabase.from('time_entries').insert({ project_id: projectId, created_by: userId, ...timeFields(fields) })
+    if (error) throw error
+    await refreshTime()
+  }
+
+  async function updateTime(id, fields) {
+    const { data, error } = await supabase.from('time_entries').update(timeFields(fields)).eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who worked these hours can change them.')
+    await refreshTime()
+  }
+
+  async function deleteTime(id) {
+    const { data, error } = await supabase.from('time_entries').delete().eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who worked these hours can delete them.')
+    await refreshTime()
+  }
+
+  // Admins: set a person's hourly rate (ex-GST), or clear it with an empty value.
+  async function saveRate(personId, rate) {
+    if (rate === '' || rate == null) {
+      const { error } = await supabase.from('person_rates').delete().eq('user_id', personId)
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('person_rates')
+        .upsert({ user_id: personId, hourly_rate: Number(rate), updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+      if (error) throw error
+    }
+    await refreshTime()
+  }
 
   const value = {
+    timeEntries,
+    timeByProject,
+    timeError,
+    rates,
+    addTime,
+    updateTime,
+    deleteTime,
+    saveRate,
     payments,
     paymentsByProject,
     paymentsError,

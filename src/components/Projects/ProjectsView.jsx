@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 // Switches between the projects list, one project, and the create/edit form.
 export default function ProjectsView({ projectsApi, photos, suggestions, onUpdatePhoto, onDeletePhoto }) {
   const { user, isAdmin } = useAuth()
-  const { projects, projectsById, finance, loading, error, createProject, updateProject, saveFinance, deleteProject } =
+  const { projects, projectsById, finance, loading, error, createProject, updateProject, saveFinance, saveLabourLump, deleteProject } =
     projectsApi
 
   const [selectedId, setSelectedId] = useState(null)
@@ -70,6 +70,7 @@ export default function ProjectsView({ projectsApi, photos, suggestions, onUpdat
       <ProjectDetail
         project={selected}
         finance={finance[selected.id]}
+        onSaveLabourLump={saveLabourLump}
         isAdmin={isAdmin}
         canEdit={canEdit(selected)}
         photos={photos.filter((p) => p.project_id === selected.id)}

@@ -74,13 +74,14 @@ export function sortExpenses(list) {
 
 // Header numbers for the admin money box.
 // finance: { budget, markup_pct, gst_enabled }, planned: planned materials+equipment (ex-GST).
-export function projectMoney(finance, expenses, planned) {
+export function projectMoney(finance, expenses, planned, labour = 0) {
   const target = finance?.budget != null && finance.budget !== '' ? Number(finance.budget) : null
   const markup = Number(finance?.markup_pct ?? 0)
   const gst = finance?.gst_enabled ?? true
   const quoteEx = target != null && target > 0 ? cents(target * (1 + markup / 100)) : null
   const quote = quoteEx == null ? null : gst ? cents(quoteEx * (1 + GST_RATE)) : quoteEx
-  const actual = sumExpenses(expenses)
+  const spentOnGoods = sumExpenses(expenses)
+  const actual = cents(spentOnGoods + Number(labour || 0))
   const diff = target != null && target > 0 ? cents(target - actual) : null
   return {
     target,
@@ -88,6 +89,8 @@ export function projectMoney(finance, expenses, planned) {
     quote,
     gst,
     actual,
+    spentOnGoods,
+    labour: cents(Number(labour || 0)),
     planned: planned ?? null,
     vsTarget: diff == null ? null : { diff, over: diff < 0, amount: Math.abs(diff) },
     vsPlanned: planned == null ? null : { diff: cents(planned - actual), over: actual > planned }

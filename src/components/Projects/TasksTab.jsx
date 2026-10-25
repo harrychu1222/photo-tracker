@@ -10,6 +10,7 @@ import { fmtDateRange, fmtMoney } from '../../lib/format'
 import { taskCost } from '../../lib/costs'
 import { dependencyInfo, orderByChains } from '../../lib/deps'
 import { materialProgress, materialWarning } from '../../lib/materials'
+import { hoursByTask } from '../../lib/labour'
 import { durations, fmtDays, fmtHours, scheduleNote, statusPatch, taskProgress } from '../../lib/tasks'
 
 function Badge({ tone, children }) {
@@ -34,10 +35,12 @@ export default function TasksTab({ project, photos }) {
     matPrices,
     eqPrices,
     updateTask,
+    timeByProject,
     loading,
     error
   } = useWork()
   const tasks = tasksByProject[project.id] || []
+  const loggedByTask = hoursByTask(timeByProject[project.id] || [])
   const rooms = roomsByProject[project.id] || []
 
   const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | a room id
@@ -212,7 +215,15 @@ export default function TasksTab({ project, photos }) {
             )}
 
             <p className="mt-1 text-xs text-ink-600">
-              {[room?.name, dates, task.planned_hours != null ? fmtHours(task.planned_hours) : null]
+              {[
+                room?.name,
+                dates,
+                loggedByTask[task.id] != null
+                  ? `${fmtHours(loggedByTask[task.id])} ${isAdmin ? 'logged' : 'logged by you'}${task.planned_hours != null ? ` of ${fmtHours(task.planned_hours)} planned` : ''}`
+                  : task.planned_hours != null
+                    ? fmtHours(task.planned_hours)
+                    : null
+              ]
                 .filter(Boolean)
                 .join('  ·  ') || 'No room or dates yet'}
             </p>
