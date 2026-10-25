@@ -307,6 +307,19 @@ supabase/schema.sql      run once in the Supabase SQL editor
   Received, with optional Total spent and Net lines. In the With-GST view expenses (including
   subcontractor invoices) have GST added; wages and lump sums are not grossed up.
 
+### Gantt chart (stage 6, view only)
+- Project > **Gantt** tab (everyone sees it; no money on it). Each task with a planned start
+  and/or end is a bar on a timeline: the bar's colour is the task status and the solid part
+  shows % complete. A thin dark bar underneath shows the actual dates (faded while the task is
+  still open). A red line marks today; the chart opens scrolled to it.
+- Arrows run from a task to the tasks waiting on it. An arrow is red and dashed when the
+  waiting task is planned to start before (or on the day) its blocker finishes. A red outline
+  means the planned end date has passed and the task is not done.
+- Tap a bar or task name for details (room, status, planned and actual dates, what it waits
+  on, warnings). Days / Weeks / Months change the zoom (the best fit is picked at first);
+  filter by room, hide done tasks, or turn room grouping off. Tasks with no planned dates are
+  listed underneath. Nothing here changes data, and no database migration is needed.
+
 ### A note on the address search
 
 Nominatim is free and needs no API key, which fits a free-tier project, but it's

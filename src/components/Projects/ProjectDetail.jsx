@@ -7,6 +7,7 @@ import MeasurementsTab from './MeasurementsTab'
 import ExpensesTab from './ExpensesTab'
 import CashFlowTab from './CashFlowTab'
 import TimeTab from './TimeTab'
+import GanttTab from './GanttTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
@@ -163,6 +164,7 @@ export default function ProjectDetail({
           <div className="mb-4 flex flex-wrap gap-1.5 border-b border-ink-100 pb-3">
             {[
               { id: 'tasks', label: `Tasks (${taskCount})` },
+              { id: 'gantt', label: 'Gantt' },
               { id: 'materials', label: `Materials (${lineCount})` },
               { id: 'measurements', label: `Measurements (${measurementCount})` },
               { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
@@ -184,6 +186,7 @@ export default function ProjectDetail({
           </div>
 
           {tab === 'tasks' && <TasksTab project={project} photos={photos} />}
+          {tab === 'gantt' && <GanttTab project={project} />}
           {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
           {tab === 'measurements' && <MeasurementsTab project={project} />}
           {tab === 'expenses' && <ExpensesTab project={project} />}
