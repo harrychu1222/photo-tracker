@@ -70,22 +70,26 @@ function PaymentForm({ project, payment, onDone }) {
 
 // Admin only: payments received and the spent-vs-received line graph.
 export default function CashFlowTab({ project, finance }) {
-  const { paymentsByProject, paymentsError, expensesByProject, deletePayment, timeByProject, rates } = useWork()
+  const { paymentsByProject, paymentsError, expensesByProject, deletePayment, timeByProject, rateBook, lumpsByProject } = useWork()
   const [editing, setEditing] = useState(null)
   const [gst, setGst] = useState(false)
   const [showNet, setShowNet] = useState(false)
+  const [showTotal, setShowTotal] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [error, setError] = useState(null)
 
   const payments = paymentsByProject[project.id] || []
   const expenses = expensesByProject[project.id] || []
   const time = timeByProject[project.id] || []
-  const money = projectMoney(finance, expenses, null, labourCost(time, rates, finance).total)
+  const lumps = lumpsByProject[project.id] || []
+  const money = projectMoney(finance, expenses, null, labourCost(time, rateBook, lumps).total)
   const sum = receivedSummary(payments, money.quoteEx)
-  const data = buildCashFlow(expenses, payments, { gst, today: todayLocal(), quoteEx: money.quoteEx, labour: labourEvents(time, rates, finance, todayLocal()) })
+  const data = buildCashFlow(expenses, payments, { gst, today: todayLocal(), quoteEx: money.quoteEx, labour: labourEvents(time, rateBook, lumps, todayLocal()) })
   const sorted = [...payments].sort((a, b) => String(b.received_on).localeCompare(String(a.received_on)))
   const k = gst ? 1.1 : 1
   const spentNow = data?.points.at(-1).spent ?? 0
+  const goodsNow = data?.points.at(-1).goods ?? 0
+  const labourNow = data?.points.at(-1).labour ?? 0
   const receivedNow = data?.points.at(-1).received ?? 0
 
   async function remove(p) {
@@ -110,7 +114,15 @@ export default function CashFlowTab({ project, finance }) {
             <dd className="text-ink-900">{fmtMoney(receivedNow)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-ink-600">Spent so far (expenses + labour)</dt>
+            <dt className="text-ink-600">Materials &amp; equipment</dt>
+            <dd className="text-ink-900">{fmtMoney(goodsNow)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Labour</dt>
+            <dd className="text-ink-900">{fmtMoney(labourNow)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Total spent so far</dt>
             <dd className="text-ink-900">{fmtMoney(spentNow)}</dd>
           </div>
           <div className="flex justify-between border-t border-ink-100 pt-1 font-semibold">
@@ -136,6 +148,9 @@ export default function CashFlowTab({ project, finance }) {
             <button onClick={() => setGst(true)} className={chip(gst)} aria-pressed={gst}>
               With GST
             </button>
+            <button onClick={() => setShowTotal((v) => !v)} className={chip(showTotal)} aria-pressed={showTotal}>
+              Show total spent
+            </button>
             <button onClick={() => setShowNet((v) => !v)} className={chip(showNet)} aria-pressed={showNet}>
               Show net line
             </button>
@@ -143,6 +158,7 @@ export default function CashFlowTab({ project, finance }) {
           <CashFlowChart
             data={data}
             showNet={showNet}
+            showTotal={showTotal}
             label={`Cumulative spent ${fmtMoney(spentNow)} and received ${fmtMoney(receivedNow)}, ${gst ? 'with GST' : 'ex-GST'}`}
           />
           <button onClick={() => setShowTable((v) => !v)} className="mt-3 text-xs font-medium text-signal-600" aria-expanded={showTable}>

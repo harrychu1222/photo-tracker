@@ -50,6 +50,10 @@ export function WorkProvider({ children }) {
   const [timeEntries, setTimeEntries] = useState([]) // admins get everyone's; crew only their own (RLS)
   const [timeError, setTimeError] = useState(null)
   const [rates, setRates] = useState({}) // user id -> hourly rate (admins only)
+  const [migration12Missing, setMigration12Missing] = useState(false)
+  const [workers, setWorkers] = useState([]) // people without a login (admins only)
+  const [entryRates, setEntryRates] = useState({}) // time entry id -> its own hourly rate (admins only)
+  const [lumps, setLumps] = useState([]) // lump sums, often subcontracted work (admins only)
   const [people, setPeople] = useState({}) // user id -> email (admins only), to show who paid
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -171,16 +175,24 @@ export function WorkProvider({ children }) {
     setPayments(data)
   }, [userId, isAdmin])
 
-  // Hours worked and hourly rates (migration 11).
+  // Hours worked and hourly rates (migrations 11 and 12). The hours load for everyone (crew see
+  // their own); rates, extra people and lump sums load for admins only.
   const refreshTime = useCallback(async () => {
     if (!userId) {
       setTimeEntries([])
       setRates({})
+      setWorkers([])
+      setEntryRates({})
+      setLumps([])
       return
     }
-    const [t, r] = await Promise.all([
+    const none = Promise.resolve({ data: [] })
+    const [t, r, w, er, lu] = await Promise.all([
       supabase.from('time_entries').select('*'),
-      isAdmin ? supabase.from('person_rates').select('*') : Promise.resolve({ data: [] })
+      isAdmin ? supabase.from('person_rates').select('*') : none,
+      isAdmin ? supabase.from('crew_members').select('*') : none,
+      isAdmin ? supabase.from('time_entry_rates').select('*') : none,
+      isAdmin ? supabase.from('labour_lumps').select('*') : none
     ])
     if (t.error) {
       setTimeEntries([])
@@ -194,6 +206,12 @@ export function WorkProvider({ children }) {
     setTimeError(null)
     setTimeEntries(t.data)
     setRates(Object.fromEntries((r.data || []).map((x) => [x.user_id, Number(x.hourly_rate)])))
+    // Migration 12 may not be run yet: its tables then just stay empty and a message explains.
+    const missing12 = [w, er, lu].some((q) => q.error && (q.error.code === 'PGRST205' || q.error.code === '42P01'))
+    setMigration12Missing(missing12)
+    setWorkers(w.error ? [] : [...(w.data || [])].sort(byName))
+    setEntryRates(er.error ? {} : Object.fromEntries((er.data || []).map((x) => [x.entry_id, Number(x.hourly_rate)])))
+    setLumps(lu.error ? [] : lu.data || [])
   }, [userId, isAdmin])
 
   const refresh = useCallback(async () => {
@@ -679,23 +697,56 @@ export function WorkProvider({ children }) {
   const timeByProject = groupBy(timeEntries, 'project_id')
 
   const timeFields = (f) => ({
-    user_id: f.user_id,
+    user_id: f.user_id || null,
+    worker_id: f.worker_id || null,
     task_id: f.task_id || null,
     work_date: f.work_date,
     hours: f.hours,
     note: f.note?.trim() || null
   })
 
+  const needs12 = (error) =>
+    error?.code === 'PGRST205' || error?.code === '42P01' || error?.code === '42703' || error?.code === 'PGRST204'
+      ? new Error('This needs migration 12. Run supabase/migration_12_workers_rates_lumps.sql in Supabase, then reload.')
+      : error
+
+  // Find a person without a login by name (ignoring capitalisation), or create them.
+  async function ensureWorker(rawName) {
+    const name = (rawName || '').trim().replace(/\s+/g, ' ')
+    if (!name) throw new Error('Type the person\'s name.')
+    const existing = workers.find((w) => w.name.trim().toLowerCase() === name.toLowerCase())
+    if (existing) return existing
+    const { data, error } = await supabase.from('crew_members').insert({ name, created_by: userId }).select().single()
+    if (error) throw needs12(error)
+    return data
+  }
+
+  // fields: user_id | worker_id | newWorkerName, task_id, work_date, hours, note, and (admins) rate:
+  // a one-off hourly rate for this entry ('' = use the person's usual rate).
   async function addTime(projectId, fields) {
-    const { error } = await supabase.from('time_entries').insert({ project_id: projectId, created_by: userId, ...timeFields(fields) })
-    if (error) throw error
+    let workerId = fields.worker_id
+    if (fields.newWorkerName) workerId = (await ensureWorker(fields.newWorkerName)).id
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert({ project_id: projectId, created_by: userId, ...timeFields({ ...fields, worker_id: workerId, user_id: workerId ? null : fields.user_id }) })
+      .select('id')
+      .single()
+    if (error) throw needs12(error)
+    if (isAdmin && fields.rate !== undefined) await setEntryRate(data.id, fields.rate, false)
     await refreshTime()
   }
 
   async function updateTime(id, fields) {
-    const { data, error } = await supabase.from('time_entries').update(timeFields(fields)).eq('id', id).select('id')
-    if (error) throw error
+    let workerId = fields.worker_id
+    if (fields.newWorkerName) workerId = (await ensureWorker(fields.newWorkerName)).id
+    const { data, error } = await supabase
+      .from('time_entries')
+      .update(timeFields({ ...fields, worker_id: workerId, user_id: workerId ? null : fields.user_id }))
+      .eq('id', id)
+      .select('id')
+    if (error) throw needs12(error)
     if (!data?.length) throw new Error('Only an admin or the person who worked these hours can change them.')
+    if (isAdmin && fields.rate !== undefined) await setEntryRate(id, fields.rate, false)
     await refreshTime()
   }
 
@@ -706,25 +757,90 @@ export function WorkProvider({ children }) {
     await refreshTime()
   }
 
-  // Admins: set a person's hourly rate (ex-GST), or clear it with an empty value.
-  async function saveRate(personId, rate) {
+  // Admins: a one-off hourly rate for one entry. Empty clears it (back to the person's usual rate).
+  async function setEntryRate(entryId, rate, refresh = true) {
     if (rate === '' || rate == null) {
+      const { error } = await supabase.from('time_entry_rates').delete().eq('entry_id', entryId)
+      if (error) throw needs12(error)
+    } else {
+      const { error } = await supabase.from('time_entry_rates').upsert({ entry_id: entryId, hourly_rate: Number(rate) }, { onConflict: 'entry_id' })
+      if (error) throw needs12(error)
+    }
+    if (refresh) await refreshTime()
+  }
+
+  // Admins: set a person's usual hourly rate (ex-GST), or clear it with an empty value.
+  // kind is 'user' (has a login) or 'worker' (typed in by name).
+  async function saveRate(personId, rate, kind = 'user') {
+    const value = rate === '' || rate == null ? null : Number(rate)
+    if (kind === 'worker') {
+      const { error } = await supabase.from('crew_members').update({ hourly_rate: value }).eq('id', personId)
+      if (error) throw needs12(error)
+    } else if (value == null) {
       const { error } = await supabase.from('person_rates').delete().eq('user_id', personId)
       if (error) throw error
     } else {
       const { error } = await supabase
         .from('person_rates')
-        .upsert({ user_id: personId, hourly_rate: Number(rate), updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+        .upsert({ user_id: personId, hourly_rate: value, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
       if (error) throw error
     }
     await refreshTime()
   }
+
+  const lumpFields = (f) => ({
+    task_id: f.task_id || null,
+    description: f.description.trim(),
+    amount_ex_gst: f.amount_ex_gst,
+    paid_on: f.paid_on,
+    replaces_hours: !!f.task_id && !!f.replaces_hours
+  })
+
+  async function addLump(projectId, fields) {
+    const { error } = await supabase.from('labour_lumps').insert({ project_id: projectId, created_by: userId, ...lumpFields(fields) })
+    if (error) throw needs12(error)
+    await refreshTime()
+  }
+
+  async function updateLump(id, fields) {
+    const { data, error } = await supabase.from('labour_lumps').update(lumpFields(fields)).eq('id', id).select('id')
+    if (error) throw needs12(error)
+    if (!data?.length) throw new Error('Only an admin can change lump sums.')
+    await refreshTime()
+  }
+
+  async function deleteLump(id) {
+    const { data, error } = await supabase.from('labour_lumps').delete().eq('id', id).select('id')
+    if (error) throw needs12(error)
+    if (!data?.length) throw new Error('Only an admin can delete lump sums.')
+    await refreshTime()
+  }
+
+  const rateBook = useMemo(
+    () => ({
+      user: rates,
+      worker: Object.fromEntries(workers.filter((w) => w.hourly_rate != null).map((w) => [w.id, Number(w.hourly_rate)])),
+      entry: entryRates
+    }),
+    [rates, workers, entryRates]
+  )
+  const lumpsByProject = groupBy(lumps, 'project_id')
 
   const value = {
     timeEntries,
     timeByProject,
     timeError,
     rates,
+    rateBook,
+    workers,
+    entryRates,
+    lumps,
+    lumpsByProject,
+    migration12Missing,
+    addLump,
+    updateLump,
+    deleteLump,
+    setEntryRate,
     addTime,
     updateTime,
     deleteTime,

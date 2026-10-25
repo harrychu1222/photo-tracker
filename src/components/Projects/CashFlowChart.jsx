@@ -5,7 +5,8 @@ import { fmtDate, fmtMoney } from '../../lib/format'
 const W = 360
 const H = 240
 const M = { l: 52, r: 58, t: 14, b: 30 }
-const COLORS = { spent: '#c2410c', received: '#15803d', net: '#334155', quote: '#64748b' }
+const COLORS = { goods: '#c2410c', labour: '#7c3aed', spent: '#92400e', received: '#15803d', net: '#334155', quote: '#64748b' }
+const NAMES = { goods: 'Materials & equipment', labour: 'Labour', spent: 'Total spent', received: 'Received', net: 'Net (received − spent)' }
 
 const dollars = (v) => `${v < 0 ? '-' : ''}$${Math.abs(Math.round(v)).toLocaleString('en-AU')}`
 
@@ -18,7 +19,7 @@ function spreadLabels(items, minGap = 11) {
 
 // Plain SVG line chart of cumulative spent / received (and optionally net) over time.
 // Tap or drag across it to read exact figures for any date; the latest figures show by default.
-export default function CashFlowChart({ data, showNet, label }) {
+export default function CashFlowChart({ data, showNet, showTotal, label }) {
   const { points, quote, min, max } = data
   const [picked, setPicked] = useState(null)
   const sel = picked != null && picked < points.length ? picked : points.length - 1
@@ -32,9 +33,11 @@ export default function CashFlowChart({ data, showNet, label }) {
   const Y = (v) => M.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - M.t - M.b)
   const line = (key) => points.map((p, i) => `${i ? 'L' : 'M'}${X(p.day).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(' ')
   const series = [
-    { key: 'spent', name: 'Spent' },
-    { key: 'received', name: 'Received' },
-    ...(showNet ? [{ key: 'net', name: 'Net', dash: '4 3' }] : [])
+    { key: 'goods' },
+    { key: 'labour' },
+    { key: 'received' },
+    ...(showTotal ? [{ key: 'spent', dash: '1 3' }] : []),
+    ...(showNet ? [{ key: 'net', dash: '4 3' }] : [])
   ]
   const last = points[points.length - 1]
   const cur = points[sel]
@@ -109,28 +112,27 @@ export default function CashFlowChart({ data, showNet, label }) {
           {fmtDate(cur.date)}
           {sel === points.length - 1 ? ' (latest)' : ''}
         </p>
-        <dl className="mt-1 grid grid-cols-3 gap-2 text-xs">
-          <div>
-            <dt style={{ color: COLORS.spent }}>Spent</dt>
+        <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          {['goods', 'labour', 'received', 'net'].map((k) => (
+            <div key={k}>
+              <dt style={{ color: COLORS[k] }}>{NAMES[k].replace(' (received − spent)', '')}</dt>
+              <dd className={`font-semibold ${k === 'net' && cur.net < 0 ? 'text-status-blocked' : 'text-ink-900'}`}>{fmtMoney(cur[k])}</dd>
+            </div>
+          ))}
+          <div className="col-span-2 border-t border-ink-100 pt-1">
+            <dt style={{ color: COLORS.spent }}>Total spent</dt>
             <dd className="font-semibold text-ink-900">{fmtMoney(cur.spent)}</dd>
-          </div>
-          <div>
-            <dt style={{ color: COLORS.received }}>Received</dt>
-            <dd className="font-semibold text-ink-900">{fmtMoney(cur.received)}</dd>
-          </div>
-          <div>
-            <dt style={{ color: COLORS.net }}>Net</dt>
-            <dd className={`font-semibold ${cur.net < 0 ? 'text-status-blocked' : 'text-ink-900'}`}>{fmtMoney(cur.net)}</dd>
           </div>
         </dl>
         <p className="mt-1 text-xs text-ink-400">Tap or drag across the graph to read another date.</p>
       </div>
 
-      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-600">
+      <p className="mt-2 text-xs text-ink-400">Materials &amp; equipment includes other expenses. Labour is wages, lump sums and subcontractor invoices.</p>
+      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-600">
         {series.map((s) => (
           <li key={s.key} className="flex items-center gap-1.5">
             <span className="inline-block h-0.5 w-4" style={{ backgroundColor: COLORS[s.key] }} />
-            {s.key === 'net' ? 'Net (received − spent)' : s.name}
+            {NAMES[s.key]}
           </li>
         ))}
         {quote != null && (
@@ -148,12 +150,14 @@ export default function CashFlowChart({ data, showNet, label }) {
 export function FiguresTable({ points }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs">
+      <table className="w-full min-w-[26rem] text-xs">
         <caption className="sr-only">Running totals by date</caption>
         <thead>
           <tr className="border-b border-ink-100 text-left text-ink-600">
             <th className="py-1.5 pr-2 font-medium">Date</th>
-            <th className="py-1.5 pr-2 text-right font-medium">Spent</th>
+            <th className="py-1.5 pr-2 text-right font-medium">Materials &amp; equip.</th>
+            <th className="py-1.5 pr-2 text-right font-medium">Labour</th>
+            <th className="py-1.5 pr-2 text-right font-medium">Total spent</th>
             <th className="py-1.5 pr-2 text-right font-medium">Received</th>
             <th className="py-1.5 text-right font-medium">Net</th>
           </tr>
@@ -162,6 +166,8 @@ export function FiguresTable({ points }) {
           {points.map((p) => (
             <tr key={p.date} className="border-b border-ink-50">
               <td className="py-1.5 pr-2 text-ink-800">{fmtDate(p.date)}</td>
+              <td className="py-1.5 pr-2 text-right text-ink-900">{fmtMoney(p.goods)}</td>
+              <td className="py-1.5 pr-2 text-right text-ink-900">{fmtMoney(p.labour)}</td>
               <td className="py-1.5 pr-2 text-right text-ink-900">{fmtMoney(p.spent)}</td>
               <td className="py-1.5 pr-2 text-right text-ink-900">{fmtMoney(p.received)}</td>
               <td className={`py-1.5 text-right ${p.net < 0 ? 'text-status-blocked' : 'text-ink-900'}`}>{fmtMoney(p.net)}</td>

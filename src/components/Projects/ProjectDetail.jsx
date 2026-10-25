@@ -24,7 +24,6 @@ export default function ProjectDetail({
   photos,
   onBack,
   onEdit,
-  onSaveLabourLump,
   onUpdatePhoto,
   onDeletePhoto,
   suggestions,
@@ -33,7 +32,7 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject, paymentsByProject, timeByProject, rates } = useWork()
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
@@ -47,7 +46,7 @@ export default function ProjectDetail({
   )
   const projectPayments = paymentsByProject[project.id] || []
   const projectTime = timeByProject[project.id] || []
-  const labour = labourCost(projectTime, rates, finance)
+  const labour = labourCost(projectTime, rateBook, lumpsByProject[project.id] || [])
   const money = projectMoney(finance, projectExpenses, planned.total, labour.total)
   const paid = receivedSummary(projectPayments, money.quoteEx)
   const status = projectStatusMeta(project.status)
@@ -124,12 +123,12 @@ export default function ProjectDetail({
                   <dd className="text-ink-900">{fmtMoney(money.actual)}</dd>
                 </div>
                 <div className="flex justify-between pl-3 text-xs">
-                  <dt className="text-ink-600">Expenses</dt>
+                  <dt className="text-ink-600">Materials, equipment &amp; other expenses</dt>
                   <dd className="text-ink-800">{fmtMoney(money.spentOnGoods)}</dd>
                 </div>
                 <div className="flex justify-between pl-3 text-xs">
                   <dt className="text-ink-600">
-                    Labour ({fmtHours(labour.hours)}{labour.usesLump ? ', lump sum' : ''})
+                    Labour &amp; subcontractors ({fmtHours(labour.hours)}{labour.lumpTotal > 0 ? ' + lump sums' : ''})
                   </dt>
                   <dd className="text-ink-800">{fmtMoney(money.labour)}</dd>
                 </div>
@@ -188,7 +187,7 @@ export default function ProjectDetail({
           {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
           {tab === 'measurements' && <MeasurementsTab project={project} />}
           {tab === 'expenses' && <ExpensesTab project={project} />}
-          {tab === 'time' && <TimeTab project={project} finance={finance} onSaveLabourLump={onSaveLabourLump} />}
+          {tab === 'time' && <TimeTab project={project} />}
           {tab === 'cashflow' && isAdmin && <CashFlowTab project={project} finance={finance} />}
 
           {tab === 'photos' &&

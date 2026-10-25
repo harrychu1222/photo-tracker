@@ -71,6 +71,11 @@ shared codes.
      **before** deploying the matching app code (it needs migrations 4 to 10 first). It adds
      time entries (crew see only their own), admin-only hourly rates, and a labour lump-sum
      option on each project. Nothing existing is changed. Safe to run twice.
+   - **People without a login, one-off rates and per-task lump sums (stage 5 follow-up):** run
+     `supabase/migration_12_workers_rates_lumps.sql` once, **before** deploying the matching
+     app code (it needs migrations 4 to 11 first). Any project-wide lump sum you set after
+     migration 11 is moved into the new lump-sum list (and from then on it is added to hours x
+     rates instead of replacing them). Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -279,16 +284,28 @@ supabase/schema.sql      run once in the Supabase SQL editor
 
 ### Hours and labour (stage 5)
 - Project > **Time** tab (crew see **My hours**): log date, hours, optional task and note.
-  Crew log and see only their own hours (no dollars, no rates). Admins see everyone's and can
-  log hours for anyone.
+  Task pickers show the room as well as the task ("Kitchen — Plaster walls").
+  Crew log and see only their own hours (no dollars, no rates). Admins see everyone's.
+- **Who worked** (admins): pick an account holder, a person you have typed in before, or
+  "+ Someone else (type a name)". A typed name is saved as a new person (same name in a
+  different case or spacing reuses the existing one) and can be picked from then on. These
+  people have no login and do not appear in the Team screen.
+- **Hourly rates** (admins): set a usual rate per person (Time tab > Usual hourly rates), ex-GST.
+  A rate that varied can be typed on the entry itself ("Hourly rate for this entry"); an entry
+  rate is only kept when it differs from the usual rate. Changing someone's usual rate
+  re-prices their hours that have no entry rate. People with hours but no rate are flagged and
+  cost $0 until a rate is set.
+- **Lump sums** (admins): add a lump sum with a description, optional task, amount (ex-GST) and
+  date, for subcontracted or fixed-price work. Lump sums are **added on top of** hours x rates.
+  If you tick "hours logged on this task are already covered", the hours on that task are
+  kept in the record but not costed again.
 - Task rows show "7.5 h logged of 4 h planned" (crew see only their own logged hours).
-- Admins (Time tab > Hourly rates and lump sum): set an hourly rate per person, ex-GST, applied
-  to all projects and all past hours; or set a lump sum for a project, which replaces
-  hours x rates while it is set (hours are still recorded). People with hours but no rate are
-  flagged, since their cost counts as $0 until a rate is set.
-- Labour is added to **Actual spent** in the money box (shown as Expenses + Labour), to the
-  over/under-target figure, and to the cash-flow graph on the day the work was done (a lump sum
-  is placed on the date you give it). Labour is never grossed up for GST in the With-GST view.
+- Labour (hours x rates + lump sums) is added to **Actual spent** in the money box, with
+  subcontractor-category expenses counted as labour too. The money box shows "Materials,
+  equipment & other expenses" and "Labour & subcontractors" separately.
+- The cash-flow graph has separate **Materials & equipment** and **Labour** lines plus
+  Received, with optional Total spent and Net lines. In the With-GST view expenses (including
+  subcontractor invoices) have GST added; wages and lump sums are not grossed up.
 
 ### A note on the address search
 
