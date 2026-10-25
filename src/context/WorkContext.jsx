@@ -45,6 +45,8 @@ export function WorkProvider({ children }) {
   const [measurementsError, setMeasurementsError] = useState(null)
   const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
   const [expensesError, setExpensesError] = useState(null)
+  const [payments, setPayments] = useState([]) // admins only
+  const [paymentsError, setPaymentsError] = useState(null)
   const [people, setPeople] = useState({}) // user id -> email (admins only), to show who paid
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -145,6 +147,27 @@ export function WorkProvider({ children }) {
     setPeople(Object.fromEntries((p.data || []).map((r) => [r.id, r.email])))
   }, [userId, isAdmin])
 
+  // Payments received (migration 10). Admins only; crew never load them.
+  const refreshPayments = useCallback(async () => {
+    if (!userId || !isAdmin) {
+      setPayments([])
+      setPaymentsError(null)
+      return
+    }
+    const { data, error } = await supabase.from('payments').select('*')
+    if (error) {
+      setPayments([])
+      setPaymentsError(
+        error.code === 'PGRST205' || error.code === '42P01'
+          ? 'Payments are not set up yet. Run supabase/migration_10_payments.sql in Supabase, then reload.'
+          : error.message
+      )
+      return
+    }
+    setPaymentsError(null)
+    setPayments(data)
+  }, [userId, isAdmin])
+
   const refresh = useCallback(async () => {
     if (!userId) {
       setRooms([])
@@ -158,6 +181,7 @@ export function WorkProvider({ children }) {
     refreshCosts()
     refreshExtras()
     refreshExpenses()
+    refreshPayments()
     const [r, t] = await Promise.all([
       supabase.from('project_rooms').select('*'),
       supabase.from('tasks').select('*')
@@ -179,7 +203,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshExpenses])
+  }, [userId, refreshCosts, refreshExtras, refreshExpenses, refreshPayments])
 
   useEffect(() => {
     refresh()
@@ -596,7 +620,41 @@ export function WorkProvider({ children }) {
     await refreshExpenses()
   }
 
+  const paymentFields = (f) => ({
+    received_on: f.received_on,
+    description: f.description.trim() || 'Payment',
+    amount_ex_gst: f.amount_ex_gst
+  })
+
+  async function addPayment(projectId, fields) {
+    const { error } = await supabase.from('payments').insert({ project_id: projectId, created_by: userId, ...paymentFields(fields) })
+    if (error) throw error
+    await refreshPayments()
+  }
+
+  async function updatePayment(id, fields) {
+    const { data, error } = await supabase.from('payments').update(paymentFields(fields)).eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin can change payments.')
+    await refreshPayments()
+  }
+
+  async function deletePayment(id) {
+    const { data, error } = await supabase.from('payments').delete().eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin can delete payments.')
+    await refreshPayments()
+  }
+
+  const paymentsByProject = groupBy(payments, 'project_id')
+
   const value = {
+    payments,
+    paymentsByProject,
+    paymentsError,
+    addPayment,
+    updatePayment,
+    deletePayment,
     expenses,
     expensesByProject,
     expensesError,

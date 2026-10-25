@@ -5,11 +5,13 @@ import TasksTab from './TasksTab'
 import MaterialsTab from './MaterialsTab'
 import MeasurementsTab from './MeasurementsTab'
 import ExpensesTab from './ExpensesTab'
+import CashFlowTab from './CashFlowTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
 import { sumCosts, taskCost } from '../../lib/costs'
 import { projectMoney } from '../../lib/expenses'
+import { receivedSummary } from '../../lib/cashflow'
 
 export default function ProjectDetail({
   project,
@@ -27,7 +29,7 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('tasks') // 'tasks' | 'photos'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject } = useWork()
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject, paymentsByProject } = useWork()
   const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
@@ -39,7 +41,9 @@ export default function ProjectDetail({
   const planned = sumCosts(
     projectTasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices))
   )
+  const projectPayments = paymentsByProject[project.id] || []
   const money = projectMoney(finance, projectExpenses, planned.total)
+  const paid = receivedSummary(projectPayments, money.quoteEx)
   const status = projectStatusMeta(project.status)
   const dates = fmtDateRange(project.start_date, project.end_date)
 
@@ -113,6 +117,16 @@ export default function ProjectDetail({
                   <dt className="text-ink-800">Actual spent (ex-GST)</dt>
                   <dd className="text-ink-900">{fmtMoney(money.actual)}</dd>
                 </div>
+                <div className="flex justify-between border-t border-ink-100 pt-1">
+                  <dt className="text-ink-600">Received (ex-GST)</dt>
+                  <dd className="text-ink-900">{fmtMoney(paid.received)}</dd>
+                </div>
+                {paid.toReceive != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-600">Still to receive (ex-GST)</dt>
+                    <dd className="text-ink-900">{fmtMoney(paid.toReceive)}</dd>
+                  </div>
+                )}
               </dl>
               {money.vsTarget && (
                 <p className={`mt-1.5 text-xs font-medium ${money.vsTarget.over ? 'text-status-blocked' : 'text-status-done'}`}>
@@ -137,6 +151,7 @@ export default function ProjectDetail({
               { id: 'materials', label: `Materials (${lineCount})` },
               { id: 'measurements', label: `Measurements (${measurementCount})` },
               { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
+              ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }] : []),
               { id: 'photos', label: `Photos (${photos.length})` }
             ].map((t) => (
               <button
@@ -156,6 +171,7 @@ export default function ProjectDetail({
           {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
           {tab === 'measurements' && <MeasurementsTab project={project} />}
           {tab === 'expenses' && <ExpensesTab project={project} />}
+          {tab === 'cashflow' && isAdmin && <CashFlowTab project={project} finance={finance} />}
 
           {tab === 'photos' &&
             (photos.length === 0 ? (

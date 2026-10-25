@@ -63,6 +63,10 @@ shared codes.
      needs migrations 4 to 8 first). It adds the expenses table (admins see everything, crew
      only the expenses they entered) and a private `receipts` storage bucket. Nothing existing
      is changed. Safe to run twice.
+   - **Payments received and cash flow (stage 4c):** run
+     `supabase/migration_10_payments.sql` once, **before** deploying the matching app code (it
+     needs migrations 4 to 9 first). It adds an admin-only payments table. Nothing existing is
+     changed. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -257,6 +261,14 @@ supabase/schema.sql      run once in the Supabase SQL editor
 - Admin money box: Target cost, Quote price (target + markup + GST), planned materials +
   equipment, and Actual spent, flagged over or under target. Labour is not included yet.
 - Materials tab (admins): each line shows what was paid against the planned cost.
+
+### Payments and cash flow (stage 4c, admins only)
+- Project > **Cash flow** tab: record payments received (date, description such as Deposit or
+  Progress claim 2, amount, with the same "includes GST" tick). Crew never see this tab.
+- Line graph of cumulative **spent** (expenses) and **received** (payments) over time, with a
+  faint line for the quote price. Buttons switch between ex-GST (default) and with-GST, and
+  show or hide a net line (received minus spent).
+- Money box also shows Received and Still to receive (quote ex-GST minus received).
 
 ### A note on the address search
 
