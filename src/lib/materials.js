@@ -1,4 +1,5 @@
 import { dayDiff, todayLocal } from './tasks'
+import { fmtDate } from './format'
 
 // Material status: To order -> Ordered -> Delivered.
 export const MATERIAL_STATUSES = [
@@ -37,15 +38,57 @@ export function materialProgress(materials) {
   return out
 }
 
-// A warning when a task is about to start (or should have) and some of its materials
-// have not arrived yet. Looks one week ahead.
+// Whole days an undelivered material is past its expected delivery date, or null.
+export function materialLateDays(material, today = todayLocal()) {
+  if ((material.status || 'to_order') === 'delivered' || !material.expected_on) return null
+  const d = dayDiff(material.expected_on, today)
+  return d > 0 ? d : null
+}
+
+// What to save when someone edits the dates by hand. Keeps the status in step: a delivered
+// date means Delivered, an ordered date alone means Ordered, no dates means To order.
+// Pass only the fields being changed ('' or null clears one).
+export function materialDatePatch(material, changes) {
+  const val = (k) => {
+    const v = k in changes ? changes[k] : material[k]
+    return v || null
+  }
+  const ordered_on = val('ordered_on')
+  const delivered_on = val('delivered_on')
+  const expected_on = val('expected_on')
+  let status = material.status || 'to_order'
+  if (delivered_on) status = 'delivered'
+  else if (ordered_on) status = 'ordered'
+  else status = 'to_order'
+  return { status, ordered_on, delivered_on, expected_on }
+}
+
+// One line of dates for a material: "Ordered 22 Oct 2026 · Expected 28 Oct 2026".
+export function materialDatesText(material) {
+  const bits = []
+  if (material.ordered_on) bits.push(`Ordered ${fmtDate(material.ordered_on)}`)
+  if (material.delivered_on) bits.push(`Delivered ${fmtDate(material.delivered_on)}`)
+  else if (material.expected_on) bits.push(`Expected ${fmtDate(material.expected_on)}`)
+  return bits.join(' · ')
+}
+
+// A warning on a task whose materials may not be there in time. Two cases: a delivery is
+// expected after the task starts, or the task starts within a week (or already should have)
+// with materials still not delivered.
 export function materialWarning(task, materials, today = todayLocal()) {
   if (task.status === 'done' || !task.planned_start) return null
-  const missing = materials.filter((m) => (m.status || 'to_order') !== 'delivered').length
-  if (!missing) return null
+  const missing = materials.filter((m) => (m.status || 'to_order') !== 'delivered')
+  if (!missing.length) return null
+
+  const late = missing.filter((m) => m.expected_on && m.expected_on > task.planned_start)
+  if (late.length) {
+    const latest = late.reduce((a, m) => (m.expected_on > a ? m.expected_on : a), late[0].expected_on)
+    return `${late.length} material${late.length === 1 ? '' : 's'} expected ${fmtDate(latest)}, after the task starts on ${fmtDate(task.planned_start)}`
+  }
+
   const days = dayDiff(today, task.planned_start)
   if (days > 7) return null
-  const things = `${missing} material${missing === 1 ? '' : 's'} not delivered`
+  const things = `${missing.length} material${missing.length === 1 ? '' : 's'} not delivered`
   if (days < 0) return `${things}, planned start has passed`
   if (days === 0) return `${things}, starts today`
   return `${things}, starts in ${days} day${days === 1 ? '' : 's'}`

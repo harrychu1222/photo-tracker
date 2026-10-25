@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
+import { convertOpeningUnit, convertRoomUnit, openingArea } from '../lib/rooms'
 
 // Rooms and tasks for every project, shared by the Projects screens and the photo
 // forms (which link photos to a room and a task).
@@ -373,7 +374,7 @@ export function WorkProvider({ children }) {
     const { error } = await supabase.from('task_materials').update(patch).eq('id', id)
     if (error) {
       throw error.code === '42703' || error.code === 'PGRST204'
-        ? new Error('Material status needs migration 7. Run supabase/migration_7_dependencies_status_measurements.sql in Supabase, then reload.')
+        ? new Error('Material status and dates need migrations 7 and 8. Run supabase/migration_7_dependencies_status_measurements.sql and supabase/migration_8_room_sizes_dates.sql in Supabase, then reload.')
         : error
     }
     await refreshCosts()
@@ -431,44 +432,77 @@ export function WorkProvider({ children }) {
 
   // ---------- Measurements ----------
 
-  function checkMeasurement({ label, value }) {
-    if (!(label || '').trim()) throw new Error('Give the measurement a label, e.g. Floor area.')
-    if (value === '' || Number.isNaN(Number(value)) || Number(value) < 0) {
+  const needsMigration8 = (error) =>
+    error && (error.code === '42703' || error.code === 'PGRST204')
+      ? new Error('Room sizes and openings need migration 8. Run supabase/migration_8_room_sizes_dates.sql in Supabase, then reload.')
+      : error
+
+  // Builds the saved fields. A door / window is typed as width and height in its room's unit;
+  // what is stored as its value is the area in m2.
+  function measurementFields({ roomId, label, value, unit, note, isOpening, width, height }) {
+    if (!(label || '').trim()) throw new Error('Give the measurement a label, e.g. Vanity width.')
+    const fields = {
+      room_id: roomId || null,
+      label: label.trim(),
+      note: (note || '').trim() || null,
+      is_opening: !!isOpening
+    }
+    if (isOpening) {
+      if (!roomId) throw new Error('Pick the room this door or window is in.')
+      const roomUnit = roomsById[roomId]?.dim_unit || 'mm'
+      const area = openingArea(width, height, roomUnit)
+      if (area == null) throw new Error('Type the width and height, as numbers of zero or more.')
+      return { ...fields, value: area, unit: 'm²', opening_width: Number(width), opening_height: Number(height) }
+    }
+    if (value === '' || value == null || Number.isNaN(Number(value)) || Number(value) < 0) {
       throw new Error('The value must be a number, zero or more.')
+    }
+    return {
+      ...fields,
+      value: Number(value),
+      unit: (unit || '').trim() || null,
+      opening_width: null,
+      opening_height: null
     }
   }
 
-  async function addMeasurement(projectId, { roomId, label, value, unit, note }) {
-    checkMeasurement({ label, value })
+  async function addMeasurement(projectId, input) {
+    const fields = measurementFields(input)
     const sort_order =
       (measurementsByProject[projectId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0) + 1
-    const { error } = await supabase.from('measurements').insert({
-      project_id: projectId,
-      room_id: roomId || null,
-      label: label.trim(),
-      value: Number(value),
-      unit: (unit || '').trim() || null,
-      note: (note || '').trim() || null,
-      sort_order,
-      created_by: userId
-    })
-    if (error) throw error
+    const { error } = await supabase
+      .from('measurements')
+      .insert({ ...fields, project_id: projectId, sort_order, created_by: userId })
+    if (error) throw needsMigration8(error)
     await refreshExtras()
   }
 
-  async function updateMeasurement(id, { roomId, label, value, unit, note }) {
-    checkMeasurement({ label, value })
-    const { error } = await supabase
-      .from('measurements')
-      .update({
-        room_id: roomId || null,
-        label: label.trim(),
-        value: Number(value),
-        unit: (unit || '').trim() || null,
-        note: (note || '').trim() || null
-      })
-      .eq('id', id)
-    if (error) throw error
+  async function updateMeasurement(id, input) {
+    const fields = measurementFields(input)
+    const { error } = await supabase.from('measurements').update(fields).eq('id', id)
+    if (error) throw needsMigration8(error)
+    await refreshExtras()
+  }
+
+  // Save a room's length / width / height (or manual areas). `patch` uses the column names.
+  async function updateRoomSize(roomId, patch) {
+    const { error } = await supabase.from('project_rooms').update(patch).eq('id', roomId)
+    if (error) throw needsMigration8(error)
+    await refresh()
+  }
+
+  // Switch a room between mm and m, converting its sizes and its openings so nothing changes.
+  async function setRoomUnit(roomId, toUnit) {
+    const room = roomsById[roomId]
+    if (!room) return
+    const from = room.dim_unit || 'mm'
+    if (from === toUnit) return
+    await updateRoomSize(roomId, convertRoomUnit(room, toUnit))
+    const openings = measurements.filter((m) => m.room_id === roomId && m.is_opening)
+    for (const o of openings) {
+      const { error } = await supabase.from('measurements').update(convertOpeningUnit(o, from, toUnit)).eq('id', o.id)
+      if (error) throw needsMigration8(error)
+    }
     await refreshExtras()
   }
 
@@ -490,6 +524,8 @@ export function WorkProvider({ children }) {
     addMeasurement,
     updateMeasurement,
     deleteMeasurement,
+    updateRoomSize,
+    setRoomUnit,
     materials,
     equipment,
     materialsByTask,

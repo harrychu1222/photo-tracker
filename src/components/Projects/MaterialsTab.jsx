@@ -1,12 +1,24 @@
 import { useState } from 'react'
+import MaterialDates from './MaterialDates'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
 import { againstTarget, combineMaterials, fmtQty, materialCost, sumCosts, taskCost } from '../../lib/costs'
-import { materialProgress, materialStatusMeta, materialStatusPatch, nextMaterialStatus } from '../../lib/materials'
+import {
+  MATERIAL_STATUSES,
+  materialProgress,
+  materialStatusMeta,
+  materialStatusPatch,
+  nextMaterialStatus
+} from '../../lib/materials'
 
-// Everything a project needs, grouped by room and task. Crew see names and quantities;
-// admins also see prices, totals and how the plan compares with the target cost.
+const chip = (on) =>
+  `rounded-full border px-3 py-1 text-xs font-medium ${
+    on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
+  }`
+
+// Everything a project needs, grouped by room and task. Crew see names, quantities and delivery
+// state; admins also see prices, totals and how the plan compares with the target cost.
 export default function MaterialsTab({ project, finance }) {
   const { isAdmin } = useAuth()
   const {
@@ -20,7 +32,9 @@ export default function MaterialsTab({ project, finance }) {
     costsError,
     setMaterialStatus
   } = useWork()
-  const [showCombined, setShowCombined] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | a status value
+  const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | a room id
+  const [showList, setShowList] = useState(false)
   const [statusError, setStatusError] = useState(null)
 
   async function advance(m) {
@@ -35,17 +49,40 @@ export default function MaterialsTab({ project, finance }) {
   const tasks = tasksByProject[project.id] || []
   const rooms = roomsByProject[project.id] || []
 
-  const withLines = tasks.filter((t) => (materialsByTask[t.id] || []).length + (equipmentByTask[t.id] || []).length > 0)
-  const allMaterials = tasks.flatMap((t) => materialsByTask[t.id] || [])
-  const progress = materialProgress(allMaterials)
-  const stillToOrder = allMaterials.filter((m) => (m.status || 'to_order') === 'to_order')
+  const inRoom = (t) =>
+    roomFilter === 'all' ? true : roomFilter === 'none' ? !t.room_id || !roomsById[t.room_id] : t.room_id === roomFilter
+  const statusOf = (m) => m.status || 'to_order'
+
+  // Project-wide figures (the admin totals ignore the filters on purpose).
+  const everyMaterial = tasks.flatMap((t) => materialsByTask[t.id] || [])
   const total = sumCosts(tasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices)))
   const target = againstTarget(total.total, finance?.budget)
 
+  // What the filters let through.
+  const roomTasks = tasks.filter(inRoom)
+  const roomMaterials = roomTasks.flatMap((t) => materialsByTask[t.id] || [])
+  const counts = { all: roomMaterials.length, ...materialProgress(roomMaterials) }
+  const countFor = { all: counts.all, to_order: counts.toOrder, ordered: counts.ordered, delivered: counts.delivered }
+
+  const rows = roomTasks
+    .map((t) => ({
+      task: t,
+      mats: (materialsByTask[t.id] || []).filter((m) => statusFilter === 'all' || statusOf(m) === statusFilter),
+      eq: statusFilter === 'all' ? equipmentByTask[t.id] || [] : []
+    }))
+    .filter((r) => r.mats.length + r.eq.length > 0)
+
+  const shown = rows.flatMap((r) => r.mats)
   const groups = [
-    ...rooms.map((r) => ({ key: r.id, title: r.name, tasks: withLines.filter((t) => t.room_id === r.id) })),
-    { key: 'none', title: rooms.length ? 'No room' : null, tasks: withLines.filter((t) => !t.room_id || !roomsById[t.room_id]) }
-  ].filter((g) => g.tasks.length > 0)
+    ...rooms.map((r) => ({ key: r.id, title: r.name, rows: rows.filter((x) => x.task.room_id === r.id) })),
+    {
+      key: 'none',
+      title: rooms.length ? 'No room' : null,
+      rows: rows.filter((x) => !x.task.room_id || !roomsById[x.task.room_id])
+    }
+  ].filter((g) => g.rows.length > 0)
+
+  const filterName = statusFilter === 'all' ? 'all materials' : materialStatusMeta(statusFilter).label.toLowerCase()
 
   if (costsError) return <p className="text-sm text-status-blocked">{costsError}</p>
 
@@ -74,9 +111,7 @@ export default function MaterialsTab({ project, finance }) {
           </dl>
           {target && (
             <p className={`mt-2 font-medium ${target.over ? 'text-status-blocked' : 'text-status-done'}`}>
-              {target.over
-                ? `Over target by ${fmtMoney(target.amount)}`
-                : `Under target by ${fmtMoney(target.amount)}`}
+              {target.over ? `Over target by ${fmtMoney(target.amount)}` : `Under target by ${fmtMoney(target.amount)}`}
             </p>
           )}
           {total.unpriced > 0 && (
@@ -89,51 +124,90 @@ export default function MaterialsTab({ project, finance }) {
         </div>
       )}
 
-      {allMaterials.length > 0 && (
-        <p className="mb-3 text-sm text-ink-600">
-          {progress.delivered} of {progress.total} delivered · {progress.ordered} ordered, waiting · {progress.toOrder} still to
-          order
-        </p>
+      {everyMaterial.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button onClick={() => setStatusFilter('all')} className={chip(statusFilter === 'all')} aria-pressed={statusFilter === 'all'}>
+              All ({countFor.all})
+            </button>
+            {MATERIAL_STATUSES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setStatusFilter(statusFilter === s.value ? 'all' : s.value)}
+                className={chip(statusFilter === s.value)}
+                aria-pressed={statusFilter === s.value}
+              >
+                {s.label} ({countFor[s.value]})
+              </button>
+            ))}
+          </div>
+          {rooms.length > 0 && (
+            <select
+              value={roomFilter}
+              onChange={(e) => setRoomFilter(e.target.value)}
+              aria-label="Room"
+              className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm"
+            >
+              <option value="all">All rooms</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+              <option value="none">No room</option>
+            </select>
+          )}
+        </div>
       )}
       {statusError && <p className="mb-3 text-sm text-status-blocked">{statusError}</p>}
 
-      {allMaterials.length > 0 && (
+      {everyMaterial.length > 0 && (
         <div className="mb-4">
           <button
-            onClick={() => setShowCombined((v) => !v)}
+            onClick={() => setShowList((v) => !v)}
             className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
           >
-            {showCombined ? 'Hide shopping list' : `Shopping list: still to order (${stillToOrder.length})`}
+            {showList ? 'Hide combined list' : `Combined list of what is shown (${shown.length})`}
           </button>
-          {showCombined && stillToOrder.length === 0 && (
-            <p className="mt-2 text-sm text-ink-600">Everything has been ordered.</p>
-          )}
-          {showCombined && stillToOrder.length > 0 && (
-            <ul className="mt-2 space-y-1 rounded-xl border border-ink-100 p-3 text-sm">
-              {combineMaterials(stillToOrder).map((row) => (
-                <li key={`${row.name}|${row.unit}`} className="flex justify-between gap-3">
-                  <span className="text-ink-900">{row.name}</span>
-                  <span className="flex-shrink-0 text-ink-600">
-                    {fmtQty(row.quantity)} {row.unit}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {showList && shown.length === 0 && <p className="mt-2 text-sm text-ink-600">Nothing matches these filters.</p>}
+          {showList && shown.length > 0 && (
+            <div className="mt-2 rounded-xl border border-ink-100 p-3 text-sm">
+              <p className="mb-1.5 text-xs font-semibold text-ink-800">
+                Combined: {filterName}
+                {roomFilter !== 'all' ? `, ${roomFilter === 'none' ? 'no room' : roomsById[roomFilter]?.name}` : ''}
+              </p>
+              <ul className="space-y-1">
+                {combineMaterials(shown).map((row) => (
+                  <li key={`${row.name}|${row.unit}`} className="flex justify-between gap-3">
+                    <span className="text-ink-900">{row.name}</span>
+                    <span className="flex-shrink-0 text-ink-600">
+                      {fmtQty(row.quantity)} {row.unit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
 
-      {groups.length === 0 && (
+      {tasks.length > 0 && everyMaterial.length === 0 && (
         <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-600">
           No materials or equipment yet. Open a task on the Tasks tab to add some.
         </p>
       )}
+      {tasks.length === 0 && (
+        <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-600">
+          Add tasks first, then add their materials and equipment.
+        </p>
+      )}
+      {everyMaterial.length > 0 && groups.length === 0 && (
+        <p className="py-8 text-center text-sm text-ink-600">Nothing matches these filters.</p>
+      )}
 
       <div className="space-y-5">
         {groups.map((g) => {
-          const groupCost = sumCosts(
-            g.tasks.map((t) => taskCost(materialsByTask[t.id] || [], equipmentByTask[t.id] || [], matPrices, eqPrices))
-          )
+          const groupCost = sumCosts(g.rows.map((r) => taskCost(r.mats, r.eq, matPrices, eqPrices)))
           return (
             <section key={g.key}>
               {g.title && (
@@ -143,9 +217,7 @@ export default function MaterialsTab({ project, finance }) {
                 </div>
               )}
               <ul className="space-y-2">
-                {g.tasks.map((t) => {
-                  const mats = materialsByTask[t.id] || []
-                  const eq = equipmentByTask[t.id] || []
+                {g.rows.map(({ task: t, mats, eq }) => {
                   const c = taskCost(mats, eq, matPrices, eqPrices)
                   return (
                     <li key={t.id} className="rounded-xl border border-ink-100 bg-white p-3">
@@ -153,32 +225,35 @@ export default function MaterialsTab({ project, finance }) {
                         <p className="text-sm font-semibold text-ink-900">{t.name}</p>
                         {isAdmin && c.total > 0 && <span className="text-sm text-ink-800">{fmtMoney(c.total)}</span>}
                       </div>
-                      <ul className="mt-1.5 space-y-1 text-sm">
+                      <ul className="mt-1.5 space-y-2 text-sm">
                         {mats.map((m) => {
                           const line = materialCost(m, matPrices[m.id])
                           const st = materialStatusMeta(m.status)
                           return (
-                            <li key={m.id} className="flex items-center justify-between gap-3">
-                              <span className="min-w-0 text-ink-900">
-                                {m.name} <span className="text-ink-600">· {fmtQty(m.quantity)} {m.unit || ''}</span>
-                                {m.check_qty && <span className="text-signal-600"> · check quantity</span>}
-                              </span>
-                              <span className="flex flex-shrink-0 items-center gap-2">
-                                {isAdmin && (
-                                  <span className={line == null ? 'text-ink-400' : 'text-ink-800'}>
-                                    {line == null ? 'No price' : fmtMoney(line)}
-                                  </span>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => advance(m)}
-                                  aria-label={`${m.name} is ${st.label}. Tap to change`}
-                                  className="flex items-center gap-1.5 rounded-full bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-800"
-                                >
-                                  <span className="status-dot" style={{ backgroundColor: st.color }} />
-                                  {st.label}
-                                </button>
-                              </span>
+                            <li key={m.id}>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="min-w-0 text-ink-900">
+                                  {m.name} <span className="text-ink-600">· {fmtQty(m.quantity)} {m.unit || ''}</span>
+                                  {m.check_qty && <span className="text-signal-600"> · check quantity</span>}
+                                </span>
+                                <span className="flex flex-shrink-0 items-center gap-2">
+                                  {isAdmin && (
+                                    <span className={line == null ? 'text-ink-400' : 'text-ink-800'}>
+                                      {line == null ? 'No price' : fmtMoney(line)}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => advance(m)}
+                                    aria-label={`${m.name} is ${st.label}. Tap to change`}
+                                    className="flex items-center gap-1.5 rounded-full bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-800"
+                                  >
+                                    <span className="status-dot" style={{ backgroundColor: st.color }} />
+                                    {st.label}
+                                  </button>
+                                </span>
+                              </div>
+                              <MaterialDates material={m} />
                             </li>
                           )
                         })}

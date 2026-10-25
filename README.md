@@ -53,6 +53,11 @@ shared codes.
      links are copied into a new table so nothing is lost (the old column is left in place and
      simply no longer used). It also adds the To order / Ordered / Delivered status for
      materials and a measurements table. Safe to run twice.
+   - **Room sizes, openings and delivery dates (stage 4b-1):** run
+     `supabase/migration_8_room_sizes_dates.sql` once, **before** deploying the matching app
+     code (it needs migrations 4 to 7 first). It adds length / width / height and manual areas
+     to rooms, door / window openings to measurements, and an expected delivery date to
+     materials. Existing rooms and measurements are kept as they are. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -186,23 +191,33 @@ supabase/schema.sql      run once in the Supabase SQL editor
 - **Materials and equipment per task:** open a task to list materials (item, quantity, unit)
   and equipment (own tools, hired or bought items; tick an item once it is on site). Each
   material has a status, **To order, Ordered or Delivered** (tap the chip to move it on; the
-  date is stamped automatically). A task card shows "3 of 5 materials delivered", and warns
-  when the task starts within a week (or should have started) with materials still not
-  delivered. Admins
+  date is stamped automatically). Tap the date line under a material to edit the ordered,
+  expected-delivery and delivered dates (the status follows the dates; a past expected date
+  with nothing delivered shows "Late by N days"). A task card shows "3 of 5 materials
+  delivered", and warns when a delivery is expected after the task starts, or when the task
+  starts within a week (or should have started) with materials still not delivered. Admins
   also enter prices (ex-GST), see line totals and a planned cost per task. The project's
   **Materials** tab lists everything by room and task, with a combined shopping list for
   ordering; admins also see the planned total against the target cost (labour is not
-  included until stage 5). Crew see names and quantities only. The shopping list shows what
-  is still to order.
-- **Measurements:** the project's Measurements tab keeps sizes you will need again, per room
-  or for the whole project (floor area, vanity width, benchtop length). When adding a material,
-  "Fill the quantity from a measurement" copies the value in, with an optional waste % (14.5 m²
-  plus 10% gives 15.95). The result is stored as an ordinary quantity. Measurements hold no
-  money, so everyone can see and add them; copying tasks to another room does not copy them.
+  included until stage 5). Crew see names and quantities only. Filter the tab by status
+  (All / To order / Ordered / Delivered) and by room; the "Combined list" button adds up
+  whatever is currently shown, so "To order" gives your buying list.
+- **Measurements and room sizes:** the project's Measurements tab has a card for each room.
+  Type the room's **length, width and height** once (in mm by default, or switch the room to
+  m; the numbers convert) and the app works out the floor and ceiling area, each long and
+  short wall, all four walls, and the perimeter (skirting / cornice length). Under the sizes,
+  add **special measurements** (vanity width, glass length) and **doors / windows**, typed as
+  width and height: their area is taken off the walls, and the card shows the walls before
+  and after openings. A room that is not a simple box (an L-shape, an alcove) can switch to
+  "type the areas myself". When adding a material, "Fill the quantity from a measurement"
+  offers every calculated figure and special measurement, with an optional waste % (31.9 m²
+  of walls plus 10% gives 35.1). The result is stored as an ordinary quantity. Measurements
+  hold no money, so everyone can see and add them; copying tasks to another room does not
+  copy them.
 - **Team (admins):** the Team tab lists everyone with access and lets an admin make someone
   admin or crew without SQL. There must always be at least one admin.
 - Coming in the next stages: expenses with receipt photos and the target / quote / actual
-  header (stage 4b), payments received and a cash-flow graph (stage 4c), time entries for
+  header (stage 4b-2), payments received and a cash-flow graph (stage 4c), time entries for
   actual man-hours and labour cost (stage 5), then the Gantt chart.
 
 - Upload from camera **or** photo library, one photo or several at once (bulk upload)

@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
+import MaterialDates from './MaterialDates'
 import { fmtQty, materialCost, taskCost } from '../../lib/costs'
+import { fmtArea, roomPickList } from '../../lib/rooms'
 import { materialStatusMeta, materialStatusPatch, measurementQty, nextMaterialStatus } from '../../lib/materials'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500'
@@ -97,7 +99,7 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel, 
               <option value="">Choose…</option>
               {choices.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {`${c.label}: ${fmtQty(c.value)} ${c.unit || ''}${c.where ? ` (${c.where})` : ''}`}
+                  {`${c.label}: ${fmtArea(c.value)} ${c.unit || ''}${c.where ? ` (${c.where})` : ''}`}
                 </option>
               ))}
             </select>
@@ -211,6 +213,7 @@ function MaterialRow({ material, isAdmin, canDelete, choices }) {
           )}
         </div>
       </div>
+      <MaterialDates material={material} />
       {material.check_qty && (
         <p className="mt-1 text-xs text-signal-600">
           Copied from another room. Check the quantity.{' '}
@@ -383,20 +386,35 @@ export default function TaskCosts({ task }) {
     addEquipment,
     costsError,
     measurementsByProject,
+    roomsByProject,
     roomsById
   } = useWork()
-  // Every measurement in the project, this task's room first.
-  const choices = [...(measurementsByProject[task.project_id] || [])]
-    .sort((a, b) => Number(b.room_id === task.room_id) - Number(a.room_id === task.room_id))
-    .map((m) => ({
-      id: m.id,
-      label: m.label,
-      value: m.value,
-      unit: m.unit,
-      where: m.room_id ? roomsById[m.room_id]?.name : 'whole project'
-    }))
   const materials = materialsByTask[task.id] || []
   const equipment = equipmentByTask[task.id] || []
+  // Everything a quantity can be filled from: the calculated room figures (floor, walls, perimeter...)
+  // and the special measurements, this task's room first.
+  const projectRooms = roomsByProject[task.project_id] || []
+  const projectMeasurements = measurementsByProject[task.project_id] || []
+  const choices = [
+    ...[...projectRooms]
+      .sort((a, b) => Number(b.id === task.room_id) - Number(a.id === task.room_id))
+      .flatMap((room) =>
+        roomPickList(
+          room,
+          projectMeasurements.filter((m) => m.room_id === room.id && m.is_opening)
+        ).map((x) => ({ id: `calc:${room.id}:${x.key}`, label: x.label, value: x.value, unit: x.unit, where: room.name }))
+      ),
+    ...[...projectMeasurements]
+      .filter((m) => !m.is_opening)
+      .sort((a, b) => Number(b.room_id === task.room_id) - Number(a.room_id === task.room_id))
+      .map((m) => ({
+        id: m.id,
+        label: m.label,
+        value: m.value,
+        unit: m.unit,
+        where: m.room_id ? roomsById[m.room_id]?.name : 'whole project'
+      }))
+  ]
   const [addingMaterial, setAddingMaterial] = useState(false)
   const [addingEquipment, setAddingEquipment] = useState(false)
   const cost = taskCost(materials, equipment, matPrices, eqPrices)
