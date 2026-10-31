@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient'
 
 export function useProjects(userId, isAdmin) {
   const [projects, setProjects] = useState([])
-  const [finance, setFinance] = useState({}) // project_id -> { budget, markup_pct, gst_enabled }
+  const [finance, setFinance] = useState({}) // project_id -> { budget, markup_pct, quote_mode, quote_lump, est_* }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -56,6 +56,9 @@ export function useProjects(userId, isAdmin) {
       .single()
 
     if (error) {
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        throw new Error('The actual project dates need migration 13. Run supabase/migration_13_quote_dates.sql in Supabase, then reload.')
+      }
       if (error.code === '23505') {
         await fetchProjects()
         const { data: again } = await supabase.from('projects').select('*').ilike('name', name).maybeSingle()
@@ -72,24 +75,39 @@ export function useProjects(userId, isAdmin) {
     if (typeof clean.name === 'string') clean.name = clean.name.trim()
     const { error } = await supabase.from('projects').update(clean).eq('id', id)
     if (error) {
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        throw new Error('The actual project dates need migration 13. Run supabase/migration_13_quote_dates.sql in Supabase, then reload.')
+      }
       if (error.code === '23505') throw new Error(`A project called "${clean.name}" already exists.`)
       throw error
     }
     await fetchProjects()
   }
 
-  async function saveFinance(projectId, { budget, markup_pct, gst_enabled }) {
-    const { error } = await supabase.from('project_finance').upsert(
-      {
-        project_id: projectId,
-        budget: budget === '' || budget == null ? null : Number(budget),
-        markup_pct: markup_pct === '' || markup_pct == null ? 0 : Number(markup_pct),
-        gst_enabled: !!gst_enabled,
-        updated_at: new Date().toISOString()
-      },
-      { onConflict: 'project_id' }
-    )
-    if (error) throw error
+  // fields: { quote_mode, markup_pct, budget, quote_lump, est_materials, est_equipment, est_labour,
+  // est_subcontractors, est_other }. Blank means "not set". Everything is entered as paid (GST included).
+  async function saveFinance(projectId, fields) {
+    const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v))
+    const row = {
+      project_id: projectId,
+      quote_mode: fields.quote_mode === 'lump' ? 'lump' : 'buildup',
+      budget: num(fields.budget),
+      markup_pct: num(fields.markup_pct) ?? 0,
+      quote_lump: num(fields.quote_lump),
+      est_materials: num(fields.est_materials),
+      est_equipment: num(fields.est_equipment),
+      est_labour: num(fields.est_labour),
+      est_subcontractors: num(fields.est_subcontractors),
+      est_other: num(fields.est_other),
+      updated_at: new Date().toISOString()
+    }
+    const { error } = await supabase.from('project_finance').upsert(row, { onConflict: 'project_id' })
+    if (error) {
+      if (error.code === '42703' || error.code === 'PGRST204') {
+        throw new Error('The quote set-up needs migration 13. Run supabase/migration_13_quote_dates.sql in Supabase, then reload.')
+      }
+      throw error
+    }
     await fetchProjects()
   }
 

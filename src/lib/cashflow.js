@@ -1,6 +1,5 @@
 // Cumulative cash flow for one project: money spent (expenses) vs money received (payments).
-// Amounts are stored ex-GST; the graph can show them with GST added.
-import { GST_RATE } from './expenses'
+// Every amount is as paid / received (no GST maths).
 
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 
@@ -10,20 +9,18 @@ export function dayNumber(dateStr) {
 }
 
 // expenses: { expense_date, amount_ex_gst, category }, payments: { received_on, amount_ex_gst }
-// opts: { gst: boolean, today: 'YYYY-MM-DD', quoteEx: number|null, labour: [{ date, amount }] }
+// opts: { today: 'YYYY-MM-DD', quote: number|null, labour: [{ date, amount }] }
 // Two cost lines: "goods" (materials, equipment hire, other expenses) and "labour" (wages, lump
-// sums, and subcontractor expenses). Expenses are invoices, so the GST view adds GST to them;
-// wages and lump sums are not grossed up.
+// sums, and subcontractor expenses).
 // Returns { points: [{ date, day, goods, labour, spent, received, net }], quote, min, max } or null.
 export function buildCashFlow(expenses, payments, opts = {}) {
-  const k = opts.gst ? 1 + GST_RATE : 1
   const events = [
     ...expenses.map((e) => {
       const amount = Number(e.amount_ex_gst || 0)
       const labourLine = e.category === 'subcontractor'
-      return { date: String(e.expense_date).slice(0, 10), goods: labourLine ? 0 : amount * k, labour: labourLine ? amount * k : 0, received: 0 }
+      return { date: String(e.expense_date).slice(0, 10), goods: labourLine ? 0 : amount, labour: labourLine ? amount : 0, received: 0 }
     }),
-    ...payments.map((p) => ({ date: String(p.received_on).slice(0, 10), goods: 0, labour: 0, received: Number(p.amount_ex_gst || 0) * k })),
+    ...payments.map((p) => ({ date: String(p.received_on).slice(0, 10), goods: 0, labour: 0, received: Number(p.amount_ex_gst || 0) })),
     ...(opts.labour || []).map((l) => ({ date: String(l.date).slice(0, 10), goods: 0, labour: Number(l.amount || 0), received: 0 }))
   ]
   if (events.length === 0) return null
@@ -45,7 +42,7 @@ export function buildCashFlow(expenses, payments, opts = {}) {
     const r = round(received)
     return { date, day: dayNumber(date), goods: g, labour: l, spent: round(g + l), received: r, net: round(r - g - l) }
   })
-  const quote = opts.quoteEx != null && opts.quoteEx > 0 ? round(opts.quoteEx * k) : null
+  const quote = opts.quote != null && opts.quote > 0 ? round(opts.quote) : null
   const values = points.flatMap((p) => [p.goods, p.labour, p.spent, p.received, p.net]).concat(quote != null ? [quote] : [0], [0])
   return { points, quote, min: Math.min(...values), max: Math.max(...values) }
 }
@@ -62,8 +59,8 @@ export function niceTicks(min, max, count = 4) {
   return out
 }
 
-// Money received and what is still to come, in the units the money box uses (ex-GST).
-export function receivedSummary(payments, quoteEx) {
+// Money received and what is still to come.
+export function receivedSummary(payments, quote) {
   const received = round(payments.reduce((s, p) => s + Number(p.amount_ex_gst || 0), 0))
-  return { received, toReceive: quoteEx != null && quoteEx > 0 ? round(quoteEx - received) : null }
+  return { received, toReceive: quote != null && quote > 0 ? round(quote - received) : null }
 }

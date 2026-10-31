@@ -11,6 +11,7 @@ import GanttTab from './GanttTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
+import { actualSpan } from '../../lib/quote'
 import { fmtHours } from '../../lib/tasks'
 import { sumCosts, taskCost } from '../../lib/costs'
 import { projectMoney } from '../../lib/expenses'
@@ -48,10 +49,12 @@ export default function ProjectDetail({
   const projectPayments = paymentsByProject[project.id] || []
   const projectTime = timeByProject[project.id] || []
   const labour = labourCost(projectTime, rateBook, lumpsByProject[project.id] || [])
-  const money = projectMoney(finance, projectExpenses, planned.total, labour.total)
-  const paid = receivedSummary(projectPayments, money.quoteEx)
+  const money = projectMoney(finance, projectExpenses, planned.total, labour.hourly, labour.lumpTotal)
+  const paid = receivedSummary(projectPayments, money.quote)
   const status = projectStatusMeta(project.status)
   const dates = fmtDateRange(project.start_date, project.end_date)
+  const actual = actualSpan(project, projectTasks)
+  const actualDates = fmtDateRange(actual.start, actual.end)
 
   return (
     <div className="px-4 py-4">
@@ -90,8 +93,14 @@ export default function ProjectDetail({
           )}
           {dates && (
             <div>
-              <p className="text-xs uppercase tracking-wide text-ink-400">Dates</p>
-              <p className="text-base text-ink-900">{dates}</p>
+              <p className="text-xs uppercase tracking-wide text-ink-400">Planned</p>
+              <p className="text-base text-ink-900" data-testid="planned-dates">{dates}</p>
+            </div>
+          )}
+          {actualDates && (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-ink-400">Actual</p>
+              <p className="text-base text-ink-900" data-testid="actual-dates">{actualDates}</p>
             </div>
           )}
           {project.notes && (
@@ -102,44 +111,49 @@ export default function ProjectDetail({
           )}
 
           {isAdmin && (
-            <div className="rounded-xl border border-ink-100 bg-ink-50 p-3">
+            <div className="rounded-xl border border-ink-100 bg-ink-50 p-3" data-testid="money-box">
               <p className="mb-2 text-xs font-semibold text-ink-800">Money (admins only)</p>
               <dl className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-ink-600">Target cost</dt>
-                  <dd className="text-ink-900">{fmtMoney(finance?.budget)}</dd>
+                  <dt className="text-ink-600">Quote price{money.mode === 'buildup' && money.quote != null ? ` (${money.markup}% markup)` : ''}</dt>
+                  <dd className="font-semibold text-ink-900" data-testid="money-quote">{money.quote == null ? '—' : fmtMoney(money.quote)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-ink-600">
-                    Quote price ({Number(finance?.markup_pct ?? 0)}% markup{money.gst ? ' + GST' : ', no GST'})
-                  </dt>
-                  <dd className="text-ink-900">{money.quote == null ? '—' : fmtMoney(money.quote)}</dd>
+                  <dt className="text-ink-600">Target cost</dt>
+                  <dd className="text-ink-900" data-testid="money-target">{money.target == null ? '—' : fmtMoney(money.target)}</dd>
+                </div>
+                {money.expectedMargin != null && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-600">Expected margin</dt>
+                    <dd className="text-ink-900">{fmtMoney(money.expectedMargin)}</dd>
+                  </div>
+                )}
+                <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 border-t border-ink-100 pt-1.5 text-xs text-ink-400">
+                  <span>Cost</span>
+                  <span className="text-right">Estimate</span>
+                  <span className="text-right">Actual</span>
+                </div>
+                {money.lines.map((l) => (
+                  <div key={l.line} className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-sm" data-testid={`line-${l.line}`}>
+                    <span className="text-ink-600">
+                      {l.line === 'materials' ? 'Materials' : l.line === 'other' ? 'Other expenses' : l.label}
+                      {l.line === 'labour' && labour.hours > 0 ? <span className="text-xs text-ink-400"> · {fmtHours(labour.hours)}</span> : null}
+                    </span>
+                    <span className="text-right text-ink-600">{l.estimate == null ? '—' : fmtMoney(l.estimate)}</span>
+                    <span className={`text-right ${l.over ? 'font-medium text-status-blocked' : 'text-ink-900'}`}>{fmtMoney(l.actual)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t border-ink-100 pt-1 font-semibold">
+                  <dt className="text-ink-800">Total spent</dt>
+                  <dd className="text-ink-900" data-testid="money-actual">{fmtMoney(money.actual)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-ink-100 pt-1">
-                  <dt className="text-ink-600">Planned materials + equipment</dt>
-                  <dd className="text-ink-900">{fmtMoney(planned.total)}</dd>
-                </div>
-                <div className="flex justify-between font-semibold">
-                  <dt className="text-ink-800">Actual spent (ex-GST)</dt>
-                  <dd className="text-ink-900">{fmtMoney(money.actual)}</dd>
-                </div>
-                <div className="flex justify-between pl-3 text-xs">
-                  <dt className="text-ink-600">Materials, equipment &amp; other expenses</dt>
-                  <dd className="text-ink-800">{fmtMoney(money.spentOnGoods)}</dd>
-                </div>
-                <div className="flex justify-between pl-3 text-xs">
-                  <dt className="text-ink-600">
-                    Labour &amp; subcontractors ({fmtHours(labour.hours)}{labour.lumpTotal > 0 ? ' + lump sums' : ''})
-                  </dt>
-                  <dd className="text-ink-800">{fmtMoney(money.labour)}</dd>
-                </div>
-                <div className="flex justify-between border-t border-ink-100 pt-1">
-                  <dt className="text-ink-600">Received (ex-GST)</dt>
-                  <dd className="text-ink-900">{fmtMoney(paid.received)}</dd>
+                  <dt className="text-ink-600">Received</dt>
+                  <dd className="text-ink-900" data-testid="money-received">{fmtMoney(paid.received)}</dd>
                 </div>
                 {paid.toReceive != null && (
                   <div className="flex justify-between">
-                    <dt className="text-ink-600">Still to receive (ex-GST)</dt>
+                    <dt className="text-ink-600">Still to receive</dt>
                     <dd className="text-ink-900">{fmtMoney(paid.toReceive)}</dd>
                   </div>
                 )}
@@ -149,13 +163,7 @@ export default function ProjectDetail({
                   {money.vsTarget.over ? 'Over' : 'Under'} target by {fmtMoney(money.vsTarget.amount)} so far
                 </p>
               )}
-              {money.vsPlanned && planned.total > 0 && projectExpenses.length > 0 && (
-                <p className={`mt-1 text-xs ${money.vsPlanned.over ? 'text-status-blocked' : 'text-ink-600'}`}>
-                  {money.vsPlanned.over
-                    ? `Spent ${fmtMoney(Math.abs(money.vsPlanned.diff))} more than planned`
-                    : `${fmtMoney(money.vsPlanned.diff)} of the plan not spent yet`}
-                </p>
-              )}
+              <p className="mt-1 text-xs text-ink-400">Everything is as paid or received, GST included. Subcontractors are lump sums plus subcontractor expenses.</p>
             </div>
           )}
         </div>
@@ -168,7 +176,7 @@ export default function ProjectDetail({
               { id: 'materials', label: `Materials (${lineCount})` },
               { id: 'measurements', label: `Measurements (${measurementCount})` },
               { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
-              { id: 'time', label: isAdmin ? `Time (${projectTime.length})` : `My hours (${projectTime.length})` },
+              { id: 'time', label: isAdmin ? `Labour (${projectTime.length})` : `My hours (${projectTime.length})` },
               ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }] : []),
               { id: 'photos', label: `Photos (${photos.length})` }
             ].map((t) => (

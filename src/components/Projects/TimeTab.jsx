@@ -122,7 +122,7 @@ function TimeForm({ project, entry, onDone }) {
       )}
       {isAdmin && (
         <label className="block text-xs text-ink-600">
-          Hourly rate for this entry, ex-GST (optional)
+          Hourly rate for this entry, GST included (optional)
           <input
             inputMode="decimal"
             value={rate}
@@ -237,7 +237,7 @@ function LumpForm({ project, lump, onDone }) {
         </select>
       )}
       <div className="grid grid-cols-2 gap-2">
-        <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount ($, ex-GST)" className={inputClass} aria-label="Lump sum amount" />
+        <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount ($, as paid)" className={inputClass} aria-label="Lump sum amount" />
         <input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className={inputClass} aria-label="Lump sum date" />
       </div>
       {taskId && (
@@ -325,7 +325,7 @@ export default function TimeTab({ project }) {
 
       {isAdmin && (
         <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
-          <p className="mb-2 text-xs font-semibold text-ink-800">Labour, ex-GST (admins only)</p>
+          <p className="mb-2 text-xs font-semibold text-ink-800">Labour (admins only)</p>
           <dl className="space-y-1">
             <div className="flex justify-between">
               <dt className="text-ink-600">Hours logged</dt>
@@ -404,7 +404,7 @@ export default function TimeTab({ project }) {
           </button>
           {showRates && (
             <div className="mt-2 border-t border-ink-100 pt-3">
-              <p className="mb-1.5 text-xs font-semibold text-ink-800">Usual hourly rate per person, ex-GST (all projects)</p>
+              <p className="mb-1.5 text-xs font-semibold text-ink-800">Usual hourly rate per person (all projects)</p>
               <p className="mb-2 text-xs text-ink-600">A rate that varied on one day can be set on that entry instead.</p>
               <ul className="space-y-1.5">
                 {Object.entries(people).map(([id, email]) => (

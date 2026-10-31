@@ -81,8 +81,8 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel, 
             value={unitCost}
             onChange={(e) => setUnitCost(e.target.value)}
             className={inputClass}
-            placeholder="$ per unit"
-            aria-label="Cost per unit, ex-GST"
+            placeholder="$ per unit, inc GST"
+            aria-label="Cost per unit, inc GST"
           />
         )}
       </div>
@@ -111,7 +111,7 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel, 
               value={waste}
               onChange={(e) => setWaste(e.target.value)}
               className={inputClass}
-              placeholder="Waste %"
+              placeholder="Waste, e.g. 10"
               aria-label="Waste percent"
             />
           </div>
@@ -284,8 +284,8 @@ function EquipmentEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel 
           value={cost}
           onChange={(e) => setCost(e.target.value)}
           className={inputClass}
-          placeholder="Cost, ex-GST"
-          aria-label="Cost, ex-GST"
+          placeholder="Cost, inc GST"
+          aria-label="Cost, inc GST"
         />
       )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
@@ -492,7 +492,7 @@ export default function TaskCosts({ task }) {
       {isAdmin && (materials.length > 0 || equipment.length > 0) && (
         <div className="rounded-lg bg-ink-50 px-3 py-2 text-sm text-ink-800">
           <p>
-            Planned cost for this task (ex-GST): <span className="font-semibold">{fmtMoney(cost.total)}</span>
+            Planned cost for this task (inc GST): <span className="font-semibold">{fmtMoney(cost.total)}</span>
           </p>
           <p className="text-xs text-ink-600">
             Materials {fmtMoney(cost.materials)} · Equipment {fmtMoney(cost.equipment)}

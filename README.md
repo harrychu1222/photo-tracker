@@ -76,6 +76,11 @@ shared codes.
      app code (it needs migrations 4 to 11 first). Any project-wide lump sum you set after
      migration 11 is moved into the new lump-sum list (and from then on it is added to hours x
      rates instead of replacing them). Safe to run twice.
+   - **Quote set-up and actual project dates (stage A):** run
+     `supabase/migration_13_quote_dates.sql` once, **before** deploying the matching app code
+     (it needs migrations 4 to 12 first). It adds actual start/end dates to projects and the
+     quote set-up fields (build-up estimates, lump-sum quote price) to the admin-only finance
+     table. No existing figure is changed. Safe to run twice.
    - **If you deploy new app code before running a migration**, you may briefly see
      a banner like "column photos.taken_at does not exist" and existing photos may
      seem to disappear. Your data is safe — it's just an ordering query failing.
@@ -174,7 +179,7 @@ supabase/schema.sql      run once in the Supabase SQL editor
   are real records (name, client, site address, status, dates, notes) with a wider
   layout on a computer. Pick a project (or add one on the spot) when uploading or
   editing a photo; renaming a project renames it on all its photos. Admins also see
-  a Money section per project (target cost, markup %, GST toggle) that crew cannot read —
+  a Money section per project (quote set-up, target cost, markup %) that crew cannot read —
   it lives in its own database table protected by security rules, not just hidden on screen.
 - **Tasks and rooms:** open a project to see its Tasks tab (the project's to-do list).
   Each task has a room, a status (To do / In progress / Done / Blocked), a progress
@@ -214,7 +219,7 @@ supabase/schema.sql      run once in the Supabase SQL editor
   with nothing delivered shows "Late by N days"). A task card shows "3 of 5 materials
   delivered", and warns when a delivery is expected after the task starts, or when the task
   starts within a week (or should have started) with materials still not delivered. Admins
-  also enter prices (ex-GST), see line totals and a planned cost per task. The project's
+  also enter prices (GST included), see line totals and a planned cost per task. The project's
   **Materials** tab lists everything by room and task, with a combined shopping list for
   ordering; admins also see the planned total against the target cost (labour is not
   included until stage 5). Crew see names and quantities only. Filter the tab by status
@@ -257,12 +262,35 @@ supabase/schema.sql      run once in the Supabase SQL editor
 - Before/after comparison — pick any two photos in Gallery view via "Compare", then
   drag the slider
 
+### Money without GST maths (stage A)
+- **Everything is entered as paid or received, GST included.** There are no GST ticks,
+  toggles or conversions any more. Figures entered earlier stay exactly as typed (the
+  database columns are still named `amount_ex_gst`, they now simply hold the amount as paid).
+- **Quote price = the final amount the client pays.** Project edit > Quote offers two modes:
+  *Build up from estimates* (estimated materials, equipment, labour, subcontractors and
+  other, plus a markup %; target cost = their sum, quote = target x (1 + markup)) or
+  *Lump sum* (type the quote price; a target cost is optional). "Fill from task plan" copies
+  planned materials and equipment from the tasks, and labour as planned hours x the average
+  usual hourly rate. An older typed-in target cost keeps working until estimates are entered.
+  Projects that previously added GST on top of the quote now show the quote without it.
+- **Dates:** planned start/end and actual start/end. Actual start shows the first task start
+  automatically, and marking the project Complete fills the actual end date; both are
+  editable. "Use task dates" fills the planned dates from the tasks.
+- **Money box (admins):** Quote price, Target cost, Expected margin, then Materials,
+  Equipment, Other expenses, Labour (hours x rates) and Subcontractors (lump sums plus
+  subcontractor-category expenses), each with its estimate beside the actual, flagged when
+  over. Then Total spent, Received and Still to receive.
+- **Materials tab (admins):** planned against actual for Materials and Equipment, with the
+  difference, plus a note for materials spending not linked to a line.
+- The **Time** tab is now **Labour** (crew still see **My hours**). Task progress moves in
+  10% steps. Waste fields say what to type (e.g. 10 for 10%). Equipment and tool costs are
+  labelled inc GST.
+
 ### Expenses (stage 4b-2)
 - Project > **Expenses** tab: date, supplier, description, category (Materials / Equipment
   hire / Subcontractor / Other), amount and an optional receipt photo (camera or library;
   shrunk before upload and kept in a private bucket).
-- Amounts are entered ex-GST; tick "This amount includes GST" to have the app convert it.
-  A minus sign records a refund or credit.
+- Amounts are entered as paid, GST included. A minus sign records a refund or credit.
 - Optionally link an expense to one material line. Admins get the planned cost filled in
   (editable). If that material is still "To order", you are asked "Mark as ordered?".
 - Anyone can add expenses. Crew see and edit only their own, with no totals or prices.
@@ -273,11 +301,11 @@ supabase/schema.sql      run once in the Supabase SQL editor
 
 ### Payments and cash flow (stage 4c, admins only)
 - Project > **Cash flow** tab: record payments received (date, description such as Deposit or
-  Progress claim 2, amount, with the same "includes GST" tick). Crew never see this tab.
+  Progress claim 2, amount as received). Crew never see this tab.
 - Line graph of cumulative **spent** (expenses) and **received** (payments) over time, with a
-  faint line for the quote price. Buttons switch between ex-GST (default) and with-GST, and
-  show or hide a net line (received minus spent).
-- Money box also shows Received and Still to receive (quote ex-GST minus received).
+  faint line for the quote price. Buttons show or hide a total-spent line and a net line
+  (received minus spent).
+- Money box also shows Received and Still to receive (quote minus received).
 - Reading the figures: tap or drag across the graph to see the exact spent / received / net
   for any date (the latest figures show by default); end-of-line figures are printed on the
   graph; the axis uses full dollar amounts; "Show figures" lists every date's running totals.
@@ -290,12 +318,12 @@ supabase/schema.sql      run once in the Supabase SQL editor
   "+ Someone else (type a name)". A typed name is saved as a new person (same name in a
   different case or spacing reuses the existing one) and can be picked from then on. These
   people have no login and do not appear in the Team screen.
-- **Hourly rates** (admins): set a usual rate per person (Time tab > Usual hourly rates), ex-GST.
+- **Hourly rates** (admins): set a usual rate per person (Labour tab > Usual hourly rates), as paid.
   A rate that varied can be typed on the entry itself ("Hourly rate for this entry"); an entry
   rate is only kept when it differs from the usual rate. Changing someone's usual rate
   re-prices their hours that have no entry rate. People with hours but no rate are flagged and
   cost $0 until a rate is set.
-- **Lump sums** (admins): add a lump sum with a description, optional task, amount (ex-GST) and
+- **Lump sums** (admins): add a lump sum with a description, optional task, amount (as paid) and
   date, for subcontracted or fixed-price work. Lump sums are **added on top of** hours x rates.
   If you tick "hours logged on this task are already covered", the hours on that task are
   kept in the record but not costed again.
@@ -304,8 +332,7 @@ supabase/schema.sql      run once in the Supabase SQL editor
   subcontractor-category expenses counted as labour too. The money box shows "Materials,
   equipment & other expenses" and "Labour & subcontractors" separately.
 - The cash-flow graph has separate **Materials & equipment** and **Labour** lines plus
-  Received, with optional Total spent and Net lines. In the With-GST view expenses (including
-  subcontractor invoices) have GST added; wages and lump sums are not grossed up.
+  Received, with optional Total spent and Net lines.  The Labour line includes subcontractor lump sums and invoices.
 
 ### Gantt chart (stage 6, view only)
 - Project > **Gantt** tab (everyone sees it; no money on it). Each task with a planned start

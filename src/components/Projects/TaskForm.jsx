@@ -168,7 +168,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
               type="range"
               min={0}
               max={100}
-              step={5}
+              step={10}
               value={percent}
               onChange={(e) => handlePercent(Number(e.target.value))}
               className="w-full"

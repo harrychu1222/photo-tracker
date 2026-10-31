@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import MaterialDates from './MaterialDates'
-import { actualByMaterial, materialVariance } from '../../lib/expenses'
+import { actualByMaterial, materialVariance, sumExpenses } from '../../lib/expenses'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtMoney } from '../../lib/format'
@@ -34,7 +34,11 @@ export default function MaterialsTab({ project, finance }) {
     setMaterialStatus,
     expensesByProject
   } = useWork()
-  const actuals = actualByMaterial(expensesByProject[project.id] || [])
+  const projectExpenses = expensesByProject[project.id] || []
+  const actuals = actualByMaterial(projectExpenses)
+  const actualMaterials = sumExpenses(projectExpenses.filter((e) => e.category === 'materials'))
+  const actualEquipment = sumExpenses(projectExpenses.filter((e) => e.category === 'equipment'))
+  const unlinked = sumExpenses(projectExpenses.filter((e) => e.category === 'materials' && !e.material_id))
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | a status value
   const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | a room id
   const [showList, setShowList] = useState(false)
@@ -93,25 +97,42 @@ export default function MaterialsTab({ project, finance }) {
     <div>
       {isAdmin && (
         <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
-          <p className="mb-2 text-xs font-semibold text-ink-800">Planned cost, ex-GST (admins only)</p>
-          <dl className="space-y-1">
-            <div className="flex justify-between">
-              <dt className="text-ink-600">Materials</dt>
-              <dd className="text-ink-900">{fmtMoney(total.materials)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-600">Hired and bought equipment</dt>
-              <dd className="text-ink-900">{fmtMoney(total.equipment)}</dd>
-            </div>
-            <div className="flex justify-between border-t border-ink-100 pt-1 font-semibold">
-              <dt className="text-ink-800">Planned total</dt>
-              <dd className="text-ink-900">{fmtMoney(total.total)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-600">Target cost</dt>
-              <dd className="text-ink-900">{finance?.budget ? fmtMoney(finance.budget) : 'Not set'}</dd>
-            </div>
-          </dl>
+          <p className="mb-2 text-xs font-semibold text-ink-800">Planned and actual cost, GST included (admins only)</p>
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 gap-y-1" data-testid="materials-cost">
+            <span className="text-xs text-ink-400" />
+            <span className="text-right text-xs text-ink-400">Planned</span>
+            <span className="text-right text-xs text-ink-400">Actual</span>
+            <span className="text-right text-xs text-ink-400">Difference</span>
+            {[
+              { id: 'materials', label: 'Materials', planned: total.materials, actual: actualMaterials },
+              { id: 'equipment', label: 'Equipment', planned: total.equipment, actual: actualEquipment }
+            ].map((r) => {
+              const diff = Math.round((r.actual - r.planned) * 100) / 100
+              return (
+                <div key={r.id} className="contents" data-testid={`cost-${r.id}`}>
+                  <span className="text-ink-600">{r.label}</span>
+                  <span className="text-right text-ink-900">{fmtMoney(r.planned)}</span>
+                  <span className="text-right text-ink-900">{fmtMoney(r.actual)}</span>
+                  <span className={`text-right text-xs font-medium ${r.actual === 0 ? 'text-ink-400' : diff > 0 ? 'text-status-blocked' : 'text-status-done'}`}>
+                    {r.actual === 0 ? '—' : diff === 0 ? 'on plan' : `${fmtMoney(Math.abs(diff))} ${diff > 0 ? 'over' : 'under'}`}
+                  </span>
+                </div>
+              )
+            })}
+            <span className="border-t border-ink-100 pt-1 font-semibold text-ink-800">Total</span>
+            <span className="border-t border-ink-100 pt-1 text-right font-semibold text-ink-900">{fmtMoney(total.total)}</span>
+            <span className="border-t border-ink-100 pt-1 text-right font-semibold text-ink-900" data-testid="cost-total-actual">{fmtMoney(Math.round((actualMaterials + actualEquipment) * 100) / 100)}</span>
+            <span className="border-t border-ink-100 pt-1" />
+          </div>
+          {unlinked !== 0 && (
+            <p className="mt-1.5 text-xs text-ink-600" data-testid="cost-unlinked">
+              Of the actual materials cost, {fmtMoney(unlinked)} is not linked to a material line.
+            </p>
+          )}
+          <div className="mt-2 flex justify-between text-sm">
+            <span className="text-ink-600">Target cost</span>
+            <span className="text-ink-900">{finance?.budget ? fmtMoney(finance.budget) : 'Not set'}</span>
+          </div>
           {target && (
             <p className={`mt-2 font-medium ${target.over ? 'text-status-blocked' : 'text-status-done'}`}>
               {target.over ? `Over target by ${fmtMoney(target.amount)}` : `Under target by ${fmtMoney(target.amount)}`}

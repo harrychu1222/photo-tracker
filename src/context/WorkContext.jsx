@@ -769,7 +769,7 @@ export function WorkProvider({ children }) {
     if (refresh) await refreshTime()
   }
 
-  // Admins: set a person's usual hourly rate (ex-GST), or clear it with an empty value.
+  // Admins: set a person's usual hourly rate , or clear it with an empty value.
   // kind is 'user' (has a login) or 'worker' (typed in by name).
   async function saveRate(personId, rate, kind = 'user') {
     const value = rate === '' || rate == null ? null : Number(rate)

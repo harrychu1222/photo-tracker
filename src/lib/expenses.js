@@ -1,10 +1,9 @@
-// Expense helpers. Stored amounts are ex-GST dollars; negative = refund or credit.
-
-export const GST_RATE = 0.1
+// Expense helpers. Every amount is entered and stored exactly as paid or received (GST included, if any).
+// The column is still called amount_ex_gst for historical reasons. Negative = refund or credit.
 
 export const EXPENSE_CATEGORIES = [
   { value: 'materials', label: 'Materials' },
-  { value: 'equipment', label: 'Equipment hire' },
+  { value: 'equipment', label: 'Equipment' },
   { value: 'subcontractor', label: 'Subcontractor' },
   { value: 'other', label: 'Other' }
 ]
@@ -22,15 +21,6 @@ export function parseAmount(text) {
   return Number.isFinite(n) ? n : null
 }
 
-// The ex-GST amount to store, given what was typed and whether it includes GST.
-export function exGstFromEntered(value, includesGst) {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return null
-  return includesGst ? cents(n / (1 + GST_RATE)) : cents(n)
-}
-
-export const incGst = (exGst) => cents(Number(exGst || 0) * (1 + GST_RATE))
-
 export function sumExpenses(list) {
   return cents(list.reduce((s, e) => s + Number(e.amount_ex_gst || 0), 0))
 }
@@ -45,7 +35,7 @@ export function totalsByCategory(list) {
   return { rows, total: sumExpenses(list) }
 }
 
-// material id -> amount actually paid against it (ex-GST).
+// material id -> amount actually paid against it.
 export function actualByMaterial(list) {
   const map = {}
   list.forEach((e) => {
@@ -72,30 +62,82 @@ export function sortExpenses(list) {
   )
 }
 
+// Quote set-up. mode 'buildup': the five estimates + markup give the quote price.
+// mode 'lump': the quote price is typed in. Money is entered as paid, so there is no GST maths.
+export const ESTIMATE_LINES = [
+  { key: 'est_materials', line: 'materials', label: 'Materials' },
+  { key: 'est_equipment', line: 'equipment', label: 'Equipment' },
+  { key: 'est_labour', line: 'labour', label: 'Labour' },
+  { key: 'est_subcontractors', line: 'subcontractors', label: 'Subcontractors' },
+  { key: 'est_other', line: 'other', label: 'Other' }
+]
+
+const numOrNull = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
+
+export function estimatesOf(finance) {
+  const out = {}
+  ESTIMATE_LINES.forEach((l) => {
+    out[l.line] = numOrNull(finance?.[l.key])
+  })
+  return out
+}
+
+// Target cost = sum of the estimates in build-up mode (the older typed-in target if no estimate is filled in);
+// in lump-sum mode it is the optional target typed in.
+export function targetOf(finance) {
+  const mode = finance?.quote_mode === 'lump' ? 'lump' : 'buildup'
+  const est = estimatesOf(finance)
+  const filled = Object.values(est).filter((v) => v != null)
+  if (mode === 'buildup' && filled.length > 0) return cents(filled.reduce((s, v) => s + v, 0))
+  return numOrNull(finance?.budget)
+}
+
 // Header numbers for the admin money box.
-// finance: { budget, markup_pct, gst_enabled }, planned: planned materials+equipment (ex-GST).
-export function projectMoney(finance, expenses, planned, wages = 0) {
-  const target = finance?.budget != null && finance.budget !== '' ? Number(finance.budget) : null
+// planned: planned materials + equipment from the task lists. wages: hours x rates only.
+// lumpTotal: per-task lump sums (subcontracted work).
+export function projectMoney(finance, expenses, planned, wages = 0, lumpTotal = 0) {
+  const mode = finance?.quote_mode === 'lump' ? 'lump' : 'buildup'
   const markup = Number(finance?.markup_pct ?? 0)
-  const gst = finance?.gst_enabled ?? true
-  const quoteEx = target != null && target > 0 ? cents(target * (1 + markup / 100)) : null
-  const quote = quoteEx == null ? null : gst ? cents(quoteEx * (1 + GST_RATE)) : quoteEx
-  // Subcontractor invoices count as labour; everything else bought is "goods".
-  const subExpenses = sumExpenses(expenses.filter((e) => e.category === 'subcontractor'))
-  const spentOnGoods = cents(sumExpenses(expenses) - subExpenses)
-  const labour = cents(Number(wages || 0) + subExpenses)
-  const actual = cents(spentOnGoods + labour)
+  const target = targetOf(finance)
+  let quote = null
+  if (mode === 'lump') {
+    const q = numOrNull(finance?.quote_lump)
+    quote = q != null && q > 0 ? q : null
+  } else if (target != null && target > 0) {
+    quote = cents(target * (1 + markup / 100))
+  }
+
+  const by = (cat) => sumExpenses(expenses.filter((e) => e.category === cat))
+  const spend = {
+    materials: by('materials'),
+    equipment: by('equipment'),
+    other: by('other'),
+    labour: cents(Number(wages || 0)),
+    subcontractors: cents(by('subcontractor') + Number(lumpTotal || 0))
+  }
+  const actual = cents(Object.values(spend).reduce((s, v) => s + v, 0))
+  const estimates = mode === 'buildup' ? estimatesOf(finance) : {}
+  const lines = ESTIMATE_LINES.map((l) => {
+    const est = estimates[l.line] ?? null
+    const act = spend[l.line]
+    return { line: l.line, label: l.label, estimate: est, actual: act, diff: est == null ? null : cents(act - est), over: est != null && act > est }
+  })
   const diff = target != null && target > 0 ? cents(target - actual) : null
   return {
+    mode,
     target,
-    quoteEx,
     quote,
-    gst,
+    markup,
     actual,
-    spentOnGoods,
-    labour,
+    spend,
+    lines,
+    // Spent on bought goods (everything except wages and subcontractors), used by the cash-flow graph labels.
+    spentOnGoods: cents(spend.materials + spend.equipment + spend.other),
+    labour: cents(spend.labour + spend.subcontractors),
+    // What the job is expected to earn if it runs to the target cost.
+    expectedMargin: quote != null && target != null ? cents(quote - target) : null,
     planned: planned ?? null,
     vsTarget: diff == null ? null : { diff, over: diff < 0, amount: Math.abs(diff) },
-    vsPlanned: planned == null ? null : { diff: cents(planned - actual), over: actual > planned }
+    vsPlanned: planned == null ? null : { diff: cents(planned - (spend.materials + spend.equipment)), over: spend.materials + spend.equipment > planned }
   }
 }

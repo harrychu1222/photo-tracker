@@ -1,4 +1,4 @@
-// Planned cost helpers. All amounts are ex-GST, in dollars.
+// Planned cost helpers. All amounts are in dollars, as entered (GST included).
 
 const cents = (n) => Math.round(n * 100) / 100
 

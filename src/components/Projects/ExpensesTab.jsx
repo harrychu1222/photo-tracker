@@ -62,7 +62,7 @@ export default function ExpensesTab({ project }) {
 
       {isAdmin && all.length > 0 && (
         <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
-          <p className="mb-2 text-xs font-semibold text-ink-800">Spent so far, ex-GST (admins only)</p>
+          <p className="mb-2 text-xs font-semibold text-ink-800">Spent so far (admins only)</p>
           <dl className="space-y-1">
             {totals.rows
               .filter((r) => r.count > 0)

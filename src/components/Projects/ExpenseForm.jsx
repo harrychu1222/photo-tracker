@@ -4,7 +4,7 @@ import { useWork } from '../../context/WorkContext'
 import { todayLocal } from '../../lib/tasks'
 import { fmtMoney } from '../../lib/format'
 import { materialCost, fmtQty } from '../../lib/costs'
-import { EXPENSE_CATEGORIES, exGstFromEntered, parseAmount, incGst } from '../../lib/expenses'
+import { EXPENSE_CATEGORIES, parseAmount } from '../../lib/expenses'
 import { materialStatusPatch } from '../../lib/materials'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-base focus:border-signal-500'
@@ -29,9 +29,7 @@ export default function ExpenseForm({ project, expense, onDone }) {
   const [supplier, setSupplier] = useState(expense?.supplier || '')
   const [description, setDescription] = useState(expense?.description || '')
   const [category, setCategory] = useState(expense?.category || 'materials')
-  // Editing shows the stored ex-GST amount; the tick is for typing in a GST-inclusive price.
   const [amount, setAmount] = useState(expense ? String(expense.amount_ex_gst) : '')
-  const [hasGst, setHasGst] = useState(false)
   const [materialId, setMaterialId] = useState(expense?.material_id || '')
   const [receiptPath, setReceiptPath] = useState(expense?.receipt_path || '')
   const [receiptPreview, setReceiptPreview] = useState(null)
@@ -64,7 +62,6 @@ export default function ExpenseForm({ project, expense, onDone }) {
       const planned = materialCost(line, matPrices[line.id])
       if (planned != null) {
         setAmount(String(planned))
-        setHasGst(false)
       }
     }
     if (line && !description.trim()) setDescription(line.name)
@@ -100,7 +97,7 @@ export default function ExpenseForm({ project, expense, onDone }) {
       supplier,
       description,
       category,
-      amount_ex_gst: exGstFromEntered(typed, hasGst),
+      amount_ex_gst: typed,
       material_id: materialId,
       receipt_path: receiptPath
     }
@@ -151,7 +148,6 @@ export default function ExpenseForm({ project, expense, onDone }) {
   }
 
   const typed = parseAmount(amount)
-  const exPreview = typed == null ? null : exGstFromEntered(typed, hasGst)
 
   return (
     <form onSubmit={save} className="mb-4 space-y-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
@@ -198,15 +194,7 @@ export default function ExpenseForm({ project, expense, onDone }) {
           className={inputClass}
           aria-label="Amount"
         />
-        <label className="mt-1.5 flex items-center gap-2 text-sm text-ink-800">
-          <input type="checkbox" checked={hasGst} onChange={(e) => setHasGst(e.target.checked)} className="h-4 w-4" />
-          This amount includes GST
-        </label>
-        {exPreview != null && (
-          <p className="mt-1 text-xs text-ink-600">
-            Recorded as {fmtMoney(exPreview)} ex-GST ({fmtMoney(incGst(exPreview))} with GST). Use a minus sign for a refund.
-          </p>
-        )}
+        <p className="mt-1 text-xs text-ink-600">The amount you paid, GST included. Use a minus sign for a refund.</p>
       </div>
 
       <div>
