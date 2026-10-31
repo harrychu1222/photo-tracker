@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAuth } from './context/AuthContext'
 import Login from './components/Auth/Login'
 import SignUp from './components/Auth/SignUp'
-import Header from './components/Layout/Header'
-import TabBar from './components/Layout/TabBar'
+import AppShell from './components/Layout/AppShell'
 import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
@@ -11,9 +10,12 @@ import TeamView from './components/Team/TeamView'
 import { usePhotos } from './hooks/usePhotos'
 import { useProjects } from './hooks/useProjects'
 import { useWork } from './context/WorkContext'
+import { useMedia } from './hooks/useMedia'
 
 export default function App() {
-  const { user, loading, isAdmin } = useAuth()
+  const { user, loading, isAdmin, signOut } = useAuth()
+  const isDesktop = useMedia('(min-width: 768px)')
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [authView, setAuthView] = useState('login')
   const [showUpload, setShowUpload] = useState(false)
   const [tab, setTab] = useState('projects') // 'projects' | 'photos' | 'team'
@@ -58,25 +60,48 @@ export default function App() {
     )
   }
 
-  // Photos keep the narrow phone column; Projects gets room to breathe on a computer.
-  const widthClass = tab === 'photos' ? 'max-w-app' : 'max-w-5xl'
+  function goTab(next) {
+    setTab(next)
+    if (next === 'projects') setSelectedProjectId(null)
+  }
+
+  function openProject(id) {
+    setTab('projects')
+    setSelectedProjectId(id)
+  }
+
+  // Photos keep a narrower column; Projects use the full width on a computer.
+  const photoWidth = isDesktop ? 'mx-auto max-w-3xl bg-white min-h-screen' : 'bg-white'
 
   return (
-    <div className={`mx-auto min-h-screen bg-white pb-16 ${widthClass}`}>
-      <Header onAddPhoto={() => setShowUpload(true)} />
-
+    <AppShell
+      isDesktop={isDesktop}
+      tab={tab}
+      onTab={goTab}
+      isAdmin={isAdmin}
+      email={user?.email}
+      onSignOut={signOut}
+      onAddPhoto={() => setShowUpload(true)}
+      projects={projects}
+      selectedId={tab === 'projects' ? selectedProjectId : null}
+      onOpenProject={openProject}
+    >
       {tab === 'photos' ? (
-        <Gallery
-          photos={photosWithProject}
-          loading={photosLoading}
-          error={error}
-          onUpdate={updatePhoto}
-          onDelete={deletePhoto}
-          projects={projects}
-          onCreateProject={createProject}
-        />
+        <div className={photoWidth}>
+          <Gallery
+            photos={photosWithProject}
+            loading={photosLoading}
+            error={error}
+            onUpdate={updatePhoto}
+            onDelete={deletePhoto}
+            projects={projects}
+            onCreateProject={createProject}
+          />
+        </div>
       ) : tab === 'team' ? (
-        <TeamView />
+        <div className="mx-auto max-w-3xl">
+          <TeamView />
+        </div>
       ) : (
         <ProjectsView
           projectsApi={projectsApi}
@@ -84,6 +109,9 @@ export default function App() {
           suggestions={suggestions}
           onUpdatePhoto={updatePhoto}
           onDeletePhoto={deletePhoto}
+          selectedId={selectedProjectId}
+          onSelect={setSelectedProjectId}
+          isDesktop={isDesktop}
         />
       )}
 
@@ -96,8 +124,6 @@ export default function App() {
           onCreateProject={createProject}
         />
       )}
-
-      <TabBar tab={tab} onChange={setTab} widthClass={widthClass} isAdmin={isAdmin} />
-    </div>
+    </AppShell>
   )
 }

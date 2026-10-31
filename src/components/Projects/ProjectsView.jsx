@@ -1,17 +1,22 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ProjectsList from './ProjectsList'
 import ProjectDetail from './ProjectDetail'
 import ProjectForm from './ProjectForm'
 import { useAuth } from '../../context/AuthContext'
 
 // Switches between the projects list, one project, and the create/edit form.
-export default function ProjectsView({ projectsApi, photos, suggestions, onUpdatePhoto, onDeletePhoto }) {
+export default function ProjectsView({ projectsApi, photos, suggestions, onUpdatePhoto, onDeletePhoto, selectedId, onSelect, isDesktop }) {
   const { user, isAdmin } = useAuth()
   const { projects, projectsById, finance, loading, error, createProject, updateProject, saveFinance, deleteProject } =
     projectsApi
 
-  const [selectedId, setSelectedId] = useState(null)
+  const setSelectedId = onSelect
   const [mode, setMode] = useState('view') // 'view' | 'new' | 'edit'
+
+  // Picking another project (or going back to the list) leaves any open form.
+  useEffect(() => {
+    setMode('view')
+  }, [selectedId])
 
   const photoCounts = useMemo(() => {
     const counts = {}
@@ -47,11 +52,16 @@ export default function ProjectsView({ projectsApi, photos, suggestions, onUpdat
   }
 
   if (mode === 'new') {
-    return <ProjectForm isAdmin={isAdmin} onSave={handleSave} onCancel={() => setMode('view')} />
+    return (
+      <div className="mx-auto max-w-3xl md:py-4">
+        <ProjectForm isAdmin={isAdmin} onSave={handleSave} onCancel={() => setMode('view')} />
+      </div>
+    )
   }
 
   if (mode === 'edit' && selected) {
     return (
+      <div className="mx-auto max-w-3xl md:py-4">
       <ProjectForm
         key={selected.id}
         project={selected}
@@ -62,6 +72,7 @@ export default function ProjectsView({ projectsApi, photos, suggestions, onUpdat
         onDelete={handleDelete}
         onCancel={() => setMode('view')}
       />
+      </div>
     )
   }
 
@@ -80,6 +91,7 @@ export default function ProjectsView({ projectsApi, photos, suggestions, onUpdat
         suggestions={suggestions}
         projects={projects}
         onCreateProject={createProject}
+        isDesktop={isDesktop}
       />
     )
   }

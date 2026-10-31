@@ -373,3 +373,17 @@ one — in that rare case you can manually correct it by re-uploading the origin
 - Client-side image compression before upload (saves storage + bandwidth on big bulk uploads)
 - Auto-suggest location/room/category from past entries as you type
 - CSV export of photo metadata for reporting
+
+## New look: Site Log shell and project screen (stage B1 + B2)
+
+No database changes and no new migration. The money, quote and access rules are untouched.
+
+- **Shell:** on a computer there is a dark side menu (Projects, Photos, Team, the active projects, Add photo, Sign out). On a phone there is a top bar and a bottom bar with Add photo in the middle. Only one of the two is built at a time.
+- **Project screen:** tabs are now Overview, Plan, Materials, Money and Photos. Crew see "Hours & expenses" instead of Money.
+  - **Plan** holds Tasks, Gantt and Measurements.
+  - **Money** holds Cash flow, Expenses and Labour (admins). Crew see Expenses and My hours.
+  - **Overview** is new: progress, schedule, spent and received tiles (crew see progress, schedule and My hours), a Needs attention list, the money box (admins), recent photos and the project details.
+- **Needs attention** (`src/lib/attention.js`) lists overdue tasks, blocked tasks, deliveries past their expected date, and spending that is 10 points or more ahead of progress. Tapping an item opens the right tab.
+- **Schedule chip:** "N days behind" is the longest-overdue open task.
+- Defects is left out until its own stage.
+- Colours stay graphite and safety amber (see `tailwind.config.js`); icons are in `src/components/ui/Icon.jsx`.
