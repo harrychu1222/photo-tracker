@@ -393,3 +393,7 @@ No database changes and no new migration. The money, quote and access rules are 
 No database changes. On the Plan > Gantt view:
 - The task column is wider on a computer, and under the task bars there are lanes on the same dates: **Deliveries** (expected date, red when late, green when arrived), **Hours logged** (per week) and **Cash flow** (spent and received, admins only). Each lane can be switched off with its button.
 - On a phone the Gantt opens as an **Agenda**: a date rail with what is due each day, overdue first, plus expected deliveries. Tap a task to see it on the Timeline. The Agenda/Timeline switch is at the top.
+
+## Final polish (stage B4)
+
+No database changes. Add task opens as a panel sliding in from the right on a computer (a bottom sheet on a phone). Main amber buttons now use dark text so they read clearly. On phones and tablets every text box and dropdown is at least 44px tall.

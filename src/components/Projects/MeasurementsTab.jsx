@@ -466,7 +466,7 @@ export default function MeasurementsTab({ project }) {
           className={inputClass}
           aria-label="New room name"
         />
-        <button type="button" onClick={addRoom} className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-white">
+        <button type="button" onClick={addRoom} className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950">
           Add room
         </button>
       </div>

@@ -33,7 +33,7 @@ export default function PhotoCard({ photo, onOpen, selectMode = false, selected 
       {selectMode && (
         <span
           className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
-            selected ? 'border-signal-500 bg-signal-500 text-white' : 'border-white bg-black/30 text-transparent'
+            selected ? 'border-signal-500 bg-signal-500 text-ink-950' : 'border-white bg-black/30 text-transparent'
           }`}
         >
           ✓

@@ -373,7 +373,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-white disabled:opacity-60"
+            className="w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-ink-950 disabled:opacity-60"
           >
             {saving
               ? 'Uploading…'

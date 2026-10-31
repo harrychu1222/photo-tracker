@@ -145,7 +145,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete, pr
         >
           <button
             onClick={() => setComparing(true)}
-            className="w-full rounded-lg bg-signal-500 py-3 text-sm font-medium text-white"
+            className="w-full rounded-lg bg-signal-500 py-3 text-sm font-medium text-ink-950"
           >
             Compare selected photos
           </button>

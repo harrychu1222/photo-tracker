@@ -217,7 +217,7 @@ export default function PhotoDetail({
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 rounded-lg bg-signal-500 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+                className="flex-1 rounded-lg bg-signal-500 py-2.5 text-sm font-medium text-ink-950 disabled:opacity-60"
               >
                 {saving ? 'Saving…' : 'Save changes'}
               </button>

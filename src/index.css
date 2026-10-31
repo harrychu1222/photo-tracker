@@ -12,6 +12,13 @@
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* Bigger touch targets on phones and tablets only */
+  @media (pointer: coarse) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    select {
+      min-height: 44px;
+    }
+  }
   :focus-visible {
     outline: 2px solid #D98E1F;
     outline-offset: 2px;

@@ -122,7 +122,7 @@ export default function RoomsManager({ project, photos }) {
           type="button"
           onClick={handleAdd}
           disabled={busy}
-          className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-white disabled:opacity-60"
+          className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950 disabled:opacity-60"
         >
           Add
         </button>

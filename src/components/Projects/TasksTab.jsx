@@ -289,7 +289,7 @@ export default function TasksTab({ project, photos }) {
           </button>
           <button
             onClick={() => setEditing('new')}
-            className="rounded-full bg-signal-500 px-4 py-1.5 text-sm font-medium text-white"
+            className="rounded-full bg-signal-500 px-4 py-1.5 text-sm font-medium text-ink-950"
           >
             + Add task
           </button>

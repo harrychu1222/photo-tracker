@@ -117,8 +117,8 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 sm:items-center">
-      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl">
+    <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 sm:items-center md:items-stretch md:justify-end" data-testid="task-panel-backdrop">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl md:max-h-none md:rounded-none md:rounded-l-2xl md:p-6" data-testid="task-panel">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">{task ? 'Edit task' : 'New task'}</h2>
           <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
@@ -312,7 +312,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-white disabled:opacity-60"
+            className="w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-ink-950 disabled:opacity-60"
           >
             {saving ? 'Saving…' : task ? 'Save task' : 'Add task'}
           </button>

@@ -146,7 +146,7 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
           type="button"
           onClick={submit}
           disabled={busy || items.length === 0}
-          className="mt-4 w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-white disabled:opacity-60"
+          className="mt-4 w-full rounded-lg bg-signal-500 py-3 text-base font-medium text-ink-950 disabled:opacity-60"
         >
           {busy
             ? 'Adding…'
