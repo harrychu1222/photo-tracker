@@ -22,7 +22,7 @@ export function plannedSpan(task) {
 // tasks: the project's tasks (with blocked_by_ids). rooms: the project's rooms in display order.
 // opts: { today, roomFilter: 'all' | 'none' | room id, hideDone, groupByRoom }
 export function buildGantt(tasks, rooms, opts) {
-  const { today, roomFilter = 'all', hideDone = false, groupByRoom = true } = opts
+  const { today, roomFilter = 'all', hideDone = false, groupByRoom = true, extraDates = [] } = opts
   const roomIds = new Set(rooms.map((r) => r.id))
   const visible = tasks.filter((t) => {
     if (hideDone && t.status === 'done') return false
@@ -34,7 +34,7 @@ export function buildGantt(tasks, rooms, opts) {
   const unscheduled = visible.filter((t) => !plannedSpan(t))
 
   // Time range: everything planned or actually done, plus today, with a little padding.
-  const dates = [today]
+  const dates = [today, ...extraDates.filter(Boolean)]
   scheduled.forEach((t) => {
     const s = plannedSpan(t)
     dates.push(s.start, s.end)

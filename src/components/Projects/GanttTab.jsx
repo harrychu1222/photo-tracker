@@ -4,8 +4,13 @@ import { statusMeta } from '../../statusConfig'
 import { buildGantt, conflictsFor, plannedSpan } from '../../lib/gantt'
 import { fmtDate, fmtDateRange } from '../../lib/format'
 import { fmtHours, todayLocal } from '../../lib/tasks'
+import { useAuth } from '../../context/AuthContext'
+import { useMedia } from '../../hooks/useMedia'
+import { buildCashFlow } from '../../lib/cashflow'
+import { labourEvents } from '../../lib/labour'
+import GanttLanes from './GanttLanes'
+import AgendaView from './AgendaView'
 
-const NAME_W = 112
 const ROW_H = 34
 const GROUP_H = 22
 const HEAD_H = 40
@@ -20,7 +25,12 @@ const chip = (on) =>
 
 // View-only timeline of the project's tasks: planned bars, progress, actual dates, dependency arrows.
 export default function GanttTab({ project }) {
-  const { tasksByProject, roomsByProject, roomsById, tasksById } = useWork()
+  const { tasksByProject, roomsByProject, roomsById, tasksById, materialsByTask, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
+  const { isAdmin } = useAuth()
+  const isDesktop = useMedia('(min-width: 768px)')
+  const NAME_W = isDesktop ? 220 : 112
+  const [view, setView] = useState(null) // null = timeline on a computer, agenda on a phone
+  const [lanes, setLanes] = useState({ deliveries: true, hours: true, cash: true })
   const tasks = tasksByProject[project.id] || []
   const rooms = roomsByProject[project.id] || []
   const today = todayLocal()
@@ -31,7 +41,26 @@ export default function GanttTab({ project }) {
   const [selected, setSelected] = useState(null)
   const scroller = useRef(null)
 
-  const g = useMemo(() => buildGantt(tasks, rooms, { today, roomFilter, hideDone, groupByRoom }), [tasks, rooms, today, roomFilter, hideDone, groupByRoom])
+  const materials = useMemo(() => tasks.flatMap((t) => materialsByTask[t.id] || []), [tasks, materialsByTask])
+  const time = timeByProject[project.id] || []
+  const expenses = expensesByProject[project.id] || []
+  const payments = paymentsByProject[project.id] || []
+  const lumps = lumpsByProject[project.id] || []
+  const showCash = isAdmin && lanes.cash
+  const cash = useMemo(
+    () => (showCash ? buildCashFlow(expenses, payments, { today, quote: null, labour: labourEvents(time, rateBook, lumps, today) }) : null),
+    [showCash, expenses, payments, time, rateBook, lumps, today]
+  )
+  const extraDates = useMemo(
+    () => [
+      ...(lanes.deliveries ? materials.map((m) => ((m.status || 'to_order') === 'delivered' ? m.delivered_on : m.expected_on)) : []),
+      ...(lanes.hours ? time.map((e) => e.work_date) : []),
+      ...(cash ? [cash.points[0].date] : [])
+    ].map((d) => (d ? String(d).slice(0, 10) : null)),
+    [lanes, materials, time, cash]
+  )
+  const g = useMemo(() => buildGantt(tasks, rooms, { today, roomFilter, hideDone, groupByRoom, extraDates }), [tasks, rooms, today, roomFilter, hideDone, groupByRoom, extraDates])
+  const activeView = view || (isDesktop ? 'timeline' : 'agenda')
   const autoScale = g.range.days <= 45 ? 'days' : g.range.days <= 200 ? 'weeks' : 'months'
   const scale = SCALES.find((s) => s.id === (scaleId || autoScale))
   const dw = scale.dw
@@ -39,7 +68,7 @@ export default function GanttTab({ project }) {
   // Open scrolled to today.
   useEffect(() => {
     if (scroller.current) scroller.current.scrollLeft = Math.max(0, g.todayOff * dw - 90)
-  }, [dw, g.todayOff])
+  }, [dw, g.todayOff, activeView])
 
   if (tasks.length === 0) {
     return (
@@ -76,6 +105,17 @@ export default function GanttTab({ project }) {
 
   return (
     <div>
+      {!isDesktop && (
+        <div role="group" aria-label="Schedule view" className="mb-3 flex gap-1 rounded-xl bg-ink-100 p-1">
+          {[['agenda', 'Agenda'], ['timeline', 'Timeline']].map(([id, label]) => (
+            <button key={id} onClick={() => setView(id)} aria-pressed={activeView === id} className={`min-h-[40px] flex-1 rounded-lg text-sm font-semibold ${activeView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {activeView === 'agenda' && <AgendaView tasks={tasks} materials={materials} today={today} roomsById={roomsById} onOpenTask={(id) => { setView('timeline'); setSelected(id) }} />}
+      {activeView === 'timeline' && (<>
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         {SCALES.map((s) => (
           <button key={s.id} onClick={() => setScaleId(s.id)} className={chip(scale.id === s.id)} aria-pressed={scale.id === s.id}>
@@ -85,6 +125,17 @@ export default function GanttTab({ project }) {
         <button onClick={() => setHideDone((v) => !v)} className={chip(hideDone)} aria-pressed={hideDone}>
           Hide done
         </button>
+        <button onClick={() => setLanes((l) => ({ ...l, deliveries: !l.deliveries }))} className={chip(lanes.deliveries)} aria-pressed={lanes.deliveries}>
+          Deliveries
+        </button>
+        <button onClick={() => setLanes((l) => ({ ...l, hours: !l.hours }))} className={chip(lanes.hours)} aria-pressed={lanes.hours}>
+          Hours
+        </button>
+        {isAdmin && (
+          <button onClick={() => setLanes((l) => ({ ...l, cash: !l.cash }))} className={chip(lanes.cash)} aria-pressed={lanes.cash}>
+            Cash flow
+          </button>
+        )}
         {rooms.length > 0 && (
           <button onClick={() => setGroupByRoom((v) => !v)} className={chip(groupByRoom)} aria-pressed={groupByRoom}>
             Group by room
@@ -245,6 +296,7 @@ export default function GanttTab({ project }) {
                 </svg>
               </div>
             </div>
+            <GanttLanes range={g.range} dw={dw} nameW={NAME_W} timeW={timeW} today={today} materials={materials} time={time} cash={cash} show={{ deliveries: lanes.deliveries, hours: lanes.hours, cash: showCash }} />
           </div>
         </div>
       )}
@@ -321,6 +373,7 @@ export default function GanttTab({ project }) {
           </ul>
         </div>
       )}
+      </>)}
     </div>
   )
 }

@@ -387,3 +387,9 @@ No database changes and no new migration. The money, quote and access rules are 
 - **Schedule chip:** "N days behind" is the longest-overdue open task.
 - Defects is left out until its own stage.
 - Colours stay graphite and safety amber (see `tailwind.config.js`); icons are in `src/components/ui/Icon.jsx`.
+
+## Gantt restyle (stage B3)
+
+No database changes. On the Plan > Gantt view:
+- The task column is wider on a computer, and under the task bars there are lanes on the same dates: **Deliveries** (expected date, red when late, green when arrived), **Hours logged** (per week) and **Cash flow** (spent and received, admins only). Each lane can be switched off with its button.
+- On a phone the Gantt opens as an **Agenda**: a date rail with what is due each day, overdue first, plus expected deliveries. Tap a task to see it on the Timeline. The Agenda/Timeline switch is at the top.
