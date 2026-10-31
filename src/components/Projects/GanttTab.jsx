@@ -20,6 +20,8 @@ const SCALES = [
   { id: 'months', label: 'Months', dw: 4 }
 ]
 
+const fmtShort = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '')
+
 const chip = (on) =>
   `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
 
@@ -28,7 +30,7 @@ export default function GanttTab({ project }) {
   const { tasksByProject, roomsByProject, roomsById, tasksById, materialsByTask, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const { isAdmin } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
-  const NAME_W = isDesktop ? 220 : 112
+  const NAME_W = isDesktop ? 344 : 112 // on a computer: task name plus start and end date columns
   const [view, setView] = useState(null) // null = timeline on a computer, agenda on a phone
   const [lanes, setLanes] = useState({ deliveries: true, hours: true, cash: true })
   const tasks = tasksByProject[project.id] || []
@@ -164,16 +166,24 @@ export default function GanttTab({ project }) {
           None of these tasks has planned dates yet. Set a planned start and end on a task to see it here.
         </p>
       ) : (
-        <div ref={scroller} className="overflow-x-auto rounded-xl border border-ink-100 bg-white" data-testid="gantt-scroll">
+        <div ref={scroller} className="overflow-x-auto rounded-xl border border-ink-200 bg-white" data-testid="gantt-scroll">
           <div style={{ width: NAME_W + timeW, position: 'relative' }}>
             {/* header */}
             <div className="flex" style={{ height: HEAD_H }}>
-              <div className="sticky left-0 z-20 border-b border-r border-ink-100 bg-ink-50" style={{ width: NAME_W, minWidth: NAME_W }} />
-              <div className="relative border-b border-ink-100 bg-ink-50" style={{ width: timeW }}>
+              <div className="sticky left-0 z-20 flex items-end border-b border-r border-ink-200 bg-ink-50 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-600" style={{ width: NAME_W, minWidth: NAME_W }}>
+                <span className="flex-1 px-2">Task</span>
+                {isDesktop && (
+                  <>
+                    <span className="w-[64px] border-l border-ink-200 px-2">Start</span>
+                    <span className="w-[64px] border-l border-ink-200 px-2">End</span>
+                  </>
+                )}
+              </div>
+              <div className="relative border-b border-ink-200 bg-ink-50" style={{ width: timeW }}>
                 {g.months.map((m) => (
                   <div
                     key={m.label}
-                    className="absolute top-0 truncate border-r border-ink-100 px-1 text-[10px] font-semibold text-ink-800"
+                    className="absolute top-0 truncate border-r border-ink-200 px-1 text-[10px] font-semibold text-ink-800"
                     style={{ left: m.startOff * dw, width: m.len * dw, height: 18 }}
                   >
                     {m.label}
@@ -195,18 +205,24 @@ export default function GanttTab({ project }) {
               <div className="sticky left-0 z-20 float-left bg-white" style={{ width: NAME_W }}>
                 {placed.map((r) =>
                   r.type === 'group' ? (
-                    <div key={`g-${r.title}`} className="truncate border-b border-r border-ink-100 bg-ink-50 px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-600" style={{ height: r.h, lineHeight: `${r.h}px` }}>
+                    <div key={`g-${r.title}`} className="truncate border-b border-r border-ink-200 bg-ink-50 px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-600" style={{ height: r.h, lineHeight: `${r.h}px` }}>
                       {r.title}
                     </div>
                   ) : (
                     <button
                       key={r.task.id}
                       onClick={() => setSelected(r.task.id)}
-                      className={`block w-full truncate border-b border-r border-ink-100 px-2 text-left text-xs ${selected === r.task.id ? 'bg-signal-100 font-semibold text-ink-900' : 'text-ink-800'}`}
+                      className={`flex w-full items-center border-b border-r border-ink-200 text-left text-xs ${selected === r.task.id ? 'bg-signal-100 font-semibold text-ink-900' : 'text-ink-800'}`}
                       style={{ height: r.h }}
                       aria-label={`Task ${r.task.name}`}
                     >
-                      {r.task.name}
+                      <span className="min-w-0 flex-1 truncate px-2">{r.task.name}</span>
+                      {isDesktop && (
+                        <>
+                          <span className="h-full w-[64px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`start-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.start)}</span>
+                          <span className="h-full w-[64px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`end-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.end)}</span>
+                        </>
+                      )}
                     </button>
                   )
                 )}
@@ -215,10 +231,10 @@ export default function GanttTab({ project }) {
               {/* timeline */}
               <div className="absolute top-0" style={{ left: NAME_W, width: timeW, height: bodyH }}>
                 {mondays.map((i) => (
-                  <div key={i} className="absolute top-0 border-l border-ink-100" style={{ left: i * dw, height: bodyH }} />
+                  <div key={i} className="absolute top-0 border-l border-ink-200" style={{ left: i * dw, height: bodyH }} />
                 ))}
                 {placed.map((r) => (
-                  <div key={r.type === 'group' ? `bg-${r.title}` : `bg-${r.task.id}`} className={`absolute left-0 right-0 border-b border-ink-100 ${r.type === 'group' ? 'bg-ink-50/70' : ''}`} style={{ top: r.y, height: r.h }} />
+                  <div key={r.type === 'group' ? `bg-${r.title}` : `bg-${r.task.id}`} className={`absolute left-0 right-0 border-b border-ink-200 ${r.type === 'group' ? 'bg-ink-50/70' : ''}`} style={{ top: r.y, height: r.h }} />
                 ))}
 
                 {g.todayOff >= 0 && g.todayOff < g.range.days && (
@@ -319,7 +335,7 @@ export default function GanttTab({ project }) {
       )}
 
       {sel && (
-        <div className="mt-3 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm" data-testid="gantt-detail">
+        <div className="mt-3 rounded-xl border border-ink-200 bg-ink-50 p-3 text-sm" data-testid="gantt-detail">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold text-ink-900">{sel.name}</p>
             <button onClick={() => setSelected(null)} className="text-xs font-medium text-ink-600" aria-label="Close details">

@@ -51,7 +51,7 @@ export default function OverviewTab({
   const recent = photos.slice(0, 4)
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_20rem] lg:gap-6">
+    <div className="grid gap-4 lg:grid-cols-[1fr_22rem] lg:gap-6">
       <div className="min-w-0 space-y-4">
         <div className={`grid gap-3 ${isAdmin ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-2'}`}>
           <Tile

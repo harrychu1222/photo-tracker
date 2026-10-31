@@ -21,13 +21,13 @@ export default function MoneyBox({ money, paid, labourHours }) {
             <dd className="text-ink-900">{fmtMoney(money.expectedMargin)}</dd>
           </div>
         )}
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 border-t border-ink-100 pt-2 text-xs text-ink-400">
+        <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem] gap-x-3 border-t border-ink-100 pt-2 text-xs text-ink-400">
           <span>Cost</span>
           <span className="text-right">Estimate</span>
           <span className="text-right">Actual</span>
         </div>
         {money.lines.map((l) => (
-          <div key={l.line} className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-sm" data-testid={`line-${l.line}`}>
+          <div key={l.line} className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem] gap-x-3 text-sm tabular-nums" data-testid={`line-${l.line}`}>
             <span className="text-ink-600">
               {l.line === 'materials' ? 'Materials' : l.line === 'other' ? 'Other expenses' : l.label}
               {l.line === 'labour' && labourHours > 0 ? <span className="text-xs text-ink-400"> · {fmtHours(labourHours)}</span> : null}
@@ -43,6 +43,12 @@ export default function MoneyBox({ money, paid, labourHours }) {
         <div className="flex justify-between border-t border-ink-100 pt-2">
           <dt className="text-ink-600">Received</dt>
           <dd className="text-ink-900" data-testid="money-received">{fmtMoney(paid.received)}</dd>
+        </div>
+        <div className="flex justify-between font-semibold">
+          <dt className="text-ink-800">Net (received − spent)</dt>
+          <dd className={paid.received - money.actual < 0 ? 'text-status-blocked' : 'text-ink-900'} data-testid="money-net">
+            {fmtMoney(Math.round((paid.received - money.actual) * 100) / 100)}
+          </dd>
         </div>
         {paid.toReceive != null && (
           <div className="flex justify-between">

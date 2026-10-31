@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import MaterialDates from './MaterialDates'
+import MaterialTimeline from './MaterialTimeline'
+import LooseMaterials from './LooseMaterials'
 import { actualByMaterial, materialVariance, sumExpenses } from '../../lib/expenses'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
@@ -95,6 +97,8 @@ export default function MaterialsTab({ project, finance }) {
 
   return (
     <div>
+      <MaterialTimeline project={project} />
+      <LooseMaterials project={project} />
       {isAdmin && (
         <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
           <p className="mb-2 text-xs font-semibold text-ink-800">Planned and actual cost, GST included (admins only)</p>

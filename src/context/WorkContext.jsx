@@ -440,13 +440,14 @@ export function WorkProvider({ children }) {
     }
   }
 
-  async function addMaterial(taskId, { name, quantity, unit, unitCost }) {
+  async function addMaterial(taskId, { name, quantity, unit, unitCost, projectId }) {
     checkMaterial({ name, quantity })
     const sort_order = (materialsByTask[taskId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0) + 1
     const { data, error } = await supabase
       .from('task_materials')
       .insert({
-        task_id: taskId,
+        task_id: taskId || null,
+        project_id: taskId ? null : projectId,
         name: name.trim(),
         quantity: Number(quantity),
         unit: (unit || '').trim() || null,
@@ -468,6 +469,16 @@ export function WorkProvider({ children }) {
       .eq('id', id)
     if (error) throw error
     await setMaterialPrice(id, unitCost)
+    await refreshCosts()
+  }
+
+  // Link a material that has no task to one (or take it off a task again with null).
+  async function linkMaterial(id, taskId) {
+    const { data, error } = await supabase.from('task_materials').update({ task_id: taskId || null }).eq('id', id).select('id')
+    if (error) {
+      throw error.code === '23502' || error.code === '23514' ? new Error('This material belongs to no project, so it cannot be left without a task.') : error
+    }
+    if (!data?.length) throw new Error('Could not link this material.')
     await refreshCosts()
   }
 
@@ -883,6 +894,7 @@ export function WorkProvider({ children }) {
     bulkAddTasks,
     copyTasks,
     addMaterial,
+    linkMaterial,
     updateMaterial,
     deleteMaterial,
     addEquipment,

@@ -13,7 +13,7 @@ function weekStart(date) {
 // Extra rows under the task bars, on the same date axis: deliveries, hours logged, cash flow.
 export default function GanttLanes({ range, dw, nameW, timeW, today, materials, time, cash, show }) {
   const off = (d) => dayDiff(range.start, d)
-  const label = 'sticky left-0 z-20 flex flex-col justify-center border-b border-r border-ink-100 bg-ink-50 px-2'
+  const label = 'sticky left-0 z-20 flex flex-col justify-center border-b border-r border-ink-200 bg-ink-50 px-2'
 
   // Deliveries: delivered on the delivered date, otherwise expected on the expected date.
   const marks = materials
@@ -44,16 +44,18 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
   const cy = (v) => CH - 8 - (v / maxCash) * (CH - 20)
   const path = (key) => cash.points.map((p, i) => `${i ? 'L' : 'M'}${cx(p).toFixed(1)},${cy(p[key]).toFixed(1)}`).join(' ')
   const lastPoint = cash?.points[cash.points.length - 1]
+  const ticks = [0, maxCash / 2, maxCash]
+  const short = (v) => (v >= 1000 ? `$${Math.round(v / 100) / 10}k` : `$${Math.round(v)}`)
 
   return (
     <div data-testid="gantt-lanes">
       {show.deliveries && (
-        <div className="flex" style={{ height: 60 }} data-testid="lane-deliveries">
+        <div className="flex border-t-[6px] border-ink-200" style={{ height: 66 }} data-testid="lane-deliveries">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Deliveries</span>
             <span className="text-[10px] text-ink-600">Expected and arrived</span>
           </div>
-          <div className="relative border-b border-ink-100" style={{ width: timeW }}>
+          <div className="relative border-b border-ink-200" style={{ width: timeW }}>
             {marks.length === 0 && <span className="absolute left-2 top-4 text-[11px] text-ink-400">No expected delivery dates yet</span>}
             {marks.map((m, i) => (
               <div key={m.id} data-testid={`delivery-${m.id}`} className="absolute" style={{ left: (off(m.day) + 0.5) * dw, top: i % 2 ? 32 : 6 }}>
@@ -68,12 +70,12 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
       )}
 
       {show.hours && (
-        <div className="flex" style={{ height: 64 }} data-testid="lane-hours">
+        <div className="flex border-t-[6px] border-ink-200" style={{ height: 70 }} data-testid="lane-hours">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Hours logged</span>
             <span className="text-[10px] text-ink-600">Per week</span>
           </div>
-          <div className="relative border-b border-ink-100" style={{ width: timeW }}>
+          <div className="relative border-b border-ink-200" style={{ width: timeW }}>
             {weekList.length === 0 && <span className="absolute left-2 top-5 text-[11px] text-ink-400">No hours logged yet</span>}
             {weekList.map(([w, h]) => (
               <div
@@ -91,15 +93,22 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
       )}
 
       {show.cash && cash && (
-        <div className="flex" style={{ height: CH + 24 }} data-testid="lane-cash">
+        <div className="flex border-t-[6px] border-ink-200" style={{ height: CH + 30 }} data-testid="lane-cash">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Cash flow</span>
-            <span className="mt-1 text-[10px] font-semibold text-[#7A4B05]">Spent {fmtMoney(lastPoint.spent)}</span>
-            <span className="text-[10px] font-semibold text-ink-900">Received {fmtMoney(lastPoint.received)}</span>
+            <span className="mt-1 text-[10px] font-semibold text-[#7A4B05]">Spent {short(lastPoint.spent)}</span>
+            <span className="text-[10px] font-semibold text-ink-900">Received {short(lastPoint.received)}</span>
+            {ticks.map((v) => (
+              <span key={v} className="absolute right-1.5 text-[10px] tabular-nums text-ink-600" style={{ top: cy(v) - 6 }} data-testid={`axis-${Math.round(v)}`}>
+                {short(v)}
+              </span>
+            ))}
           </div>
-          <div className="relative border-b border-ink-100" style={{ width: timeW }}>
+          <div className="relative border-b border-ink-200" style={{ width: timeW }}>
             <svg width={timeW} height={CH + 24} role="img" aria-label={`Cash flow: spent ${Math.round(lastPoint.spent)}, received ${Math.round(lastPoint.received)}`}>
-              <line x1="0" x2={timeW} y1={cy(0)} y2={cy(0)} stroke="#D5DEE3" />
+              {ticks.map((v) => (
+                <line key={v} x1="0" x2={timeW} y1={cy(v)} y2={cy(v)} stroke="#D5DEE3" strokeDasharray={v === 0 ? undefined : '3 4'} />
+              ))}
               {cash.quote != null && <line x1="0" x2={timeW} y1={cy(cash.quote)} y2={cy(cash.quote)} stroke="#8598A6" strokeDasharray="4 4" />}
               <path d={path('spent')} fill="none" stroke="#D98E1F" strokeWidth="2.5" strokeLinejoin="round" />
               <path d={path('received')} fill="none" stroke="#1F2A37" strokeWidth="2.5" strokeLinejoin="round" />

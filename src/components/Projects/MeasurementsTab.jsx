@@ -239,6 +239,40 @@ function SizeField({ label, value, onChange, unit }) {
   )
 }
 
+function RoomTitle({ room }) {
+  const { renameRoom } = useWork()
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(room.name)
+  const [error, setError] = useState(null)
+  async function save() {
+    setError(null)
+    try {
+      await renameRoom(room.id, name)
+      setEditing(false)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <h4 className="text-base font-semibold text-ink-900">{room.name}</h4>
+        <button onClick={() => { setName(room.name); setEditing(true) }} className="min-h-[44px] px-1 text-xs font-medium text-signal-600" aria-label={`Rename ${room.name}`}>
+          Rename
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), save())} className="rounded-lg border border-ink-200 px-2 py-1.5 text-sm" aria-label="Room name" autoFocus />
+      <button onClick={save} className="min-h-[44px] rounded-lg bg-ink-900 px-3 text-xs font-medium text-white">Save name</button>
+      <button onClick={() => setEditing(false)} className="min-h-[44px] px-2 text-xs font-medium text-ink-600">Cancel</button>
+      {error && <p className="w-full text-xs text-status-blocked">{error}</p>}
+    </div>
+  )
+}
+
 function RoomCard({ project, room, measurements }) {
   const { updateRoomSize, setRoomUnit } = useWork()
   const unit = room.dim_unit || 'mm'
@@ -321,7 +355,7 @@ function RoomCard({ project, room, measurements }) {
   return (
     <section className="rounded-xl border border-ink-100 bg-white p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h4 className="text-base font-semibold text-ink-900">{room.name}</h4>
+        <RoomTitle room={room} />
         <div className="flex overflow-hidden rounded-full border border-ink-200 text-xs" role="group" aria-label="Unit">
           {['mm', 'm'].map((u) => (
             <button
@@ -442,16 +476,6 @@ export default function MeasurementsTab({ project }) {
         out and can fill in a material's quantity.
       </p>
 
-      {rooms.length === 0 && (
-        <p className="rounded-xl border border-dashed border-ink-200 py-8 text-center text-sm text-ink-600">
-          No rooms yet. Add the first one below.
-        </p>
-      )}
-
-      {rooms.map((room) => (
-        <RoomCard key={`${room.id}:${room.dim_unit}`} project={project} room={room} measurements={all.filter((m) => m.room_id === room.id)} />
-      ))}
-
       <div className="flex gap-2">
         <input
           value={newRoom}
@@ -471,6 +495,17 @@ export default function MeasurementsTab({ project }) {
         </button>
       </div>
       {error && <p className="text-xs text-status-blocked">{error}</p>}
+
+      {rooms.length === 0 && (
+        <p className="rounded-xl border border-dashed border-ink-200 py-8 text-center text-sm text-ink-600">
+          No rooms yet. Add the first one above.
+        </p>
+      )}
+
+      {rooms.map((room) => (
+        <RoomCard key={`${room.id}:${room.dim_unit}`} project={project} room={room} measurements={all.filter((m) => m.room_id === room.id)} />
+      ))}
+
 
       <section className="rounded-xl border border-ink-100 bg-white p-3">
         <h4 className="mb-2 text-base font-semibold text-ink-900">Whole project</h4>

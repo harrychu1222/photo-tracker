@@ -397,3 +397,14 @@ No database changes. On the Plan > Gantt view:
 ## Final polish (stage B4)
 
 No database changes. Add task opens as a panel sliding in from the right on a computer (a bottom sheet on a phone). Main amber buttons now use dark text so they read clearly. On phones and tablets every text box and dropdown is at least 44px tall.
+
+## Fix-up round, Kanban board and Materials upgrade (stages C1 + C2 + C3)
+
+**Run `supabase/migration_14_loose_materials.sql` first** (safe to run twice). It lets a material exist without a task.
+
+- **Money box:** Estimate and Actual line up in fixed columns, and **Net** (received minus total spent) sits after Received.
+- **Rooms:** rooms can be renamed in Measurements, and Add room is at the top.
+- **Gantt:** start and end date columns next to each task (computer only), stronger cell borders, a gap between the task rows and each lane, and a dollar axis on the cash-flow lane.
+- **Cash flow tab:** a smaller graph, Total spent, Received and Net always shown, Labour and Materials & equipment optional, and Add payment received at the top.
+- **Plan > Board:** tasks as cards in To do, In progress, Blocked and Done columns, with a room filter above. Drag a card on a computer, or use the buttons on a phone.
+- **Materials tab:** a delivery timeline at the top, and an Add material form. A material can be added with no task, listed under "No task yet", and linked to a task later.

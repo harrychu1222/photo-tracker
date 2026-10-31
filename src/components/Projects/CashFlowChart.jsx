@@ -3,7 +3,7 @@ import { niceTicks } from '../../lib/cashflow'
 import { fmtDate, fmtMoney } from '../../lib/format'
 
 const W = 360
-const H = 240
+const H = 170
 const M = { l: 52, r: 58, t: 14, b: 30 }
 const COLORS = { goods: '#c2410c', labour: '#7c3aed', spent: '#92400e', received: '#15803d', net: '#334155', quote: '#64748b' }
 const NAMES = { goods: 'Materials & equipment', labour: 'Labour', spent: 'Total spent', received: 'Received', net: 'Net (received − spent)' }
@@ -19,7 +19,7 @@ function spreadLabels(items, minGap = 11) {
 
 // Plain SVG line chart of cumulative spent / received (and optionally net) over time.
 // Tap or drag across it to read exact figures for any date; the latest figures show by default.
-export default function CashFlowChart({ data, showNet, showTotal, label }) {
+export default function CashFlowChart({ data, showGoods, showLabour, label }) {
   const { points, quote, min, max } = data
   const [picked, setPicked] = useState(null)
   const sel = picked != null && picked < points.length ? picked : points.length - 1
@@ -33,11 +33,11 @@ export default function CashFlowChart({ data, showNet, showTotal, label }) {
   const Y = (v) => M.t + (1 - (v - y0) / (y1 - y0 || 1)) * (H - M.t - M.b)
   const line = (key) => points.map((p, i) => `${i ? 'L' : 'M'}${X(p.day).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(' ')
   const series = [
-    { key: 'goods' },
-    { key: 'labour' },
     { key: 'received' },
-    ...(showTotal ? [{ key: 'spent', dash: '1 3' }] : []),
-    ...(showNet ? [{ key: 'net', dash: '4 3' }] : [])
+    { key: 'spent' },
+    { key: 'net', dash: '4 3' },
+    ...(showGoods ? [{ key: 'goods' }] : []),
+    ...(showLabour ? [{ key: 'labour' }] : [])
   ]
   const last = points[points.length - 1]
   const cur = points[sel]

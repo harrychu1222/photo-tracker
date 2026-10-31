@@ -62,8 +62,8 @@ function PaymentForm({ project, payment, onDone }) {
 export default function CashFlowTab({ project, finance }) {
   const { paymentsByProject, paymentsError, expensesByProject, deletePayment, timeByProject, rateBook, lumpsByProject } = useWork()
   const [editing, setEditing] = useState(null)
-  const [showNet, setShowNet] = useState(false)
-  const [showTotal, setShowTotal] = useState(false)
+  const [showGoods, setShowGoods] = useState(false)
+  const [showLabour, setShowLabour] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [error, setError] = useState(null)
 
@@ -94,6 +94,13 @@ export default function CashFlowTab({ project, finance }) {
 
   return (
     <div>
+      {editing ? (
+        <PaymentForm key={editing === 'new' ? 'new' : editing.id} project={project} payment={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
+      ) : (
+        <button onClick={() => setEditing('new')} className="mb-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-signal-500 px-4 text-sm font-semibold text-ink-950 active:bg-signal-600 sm:w-auto">
+          + Add payment received
+        </button>
+      )}
       <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
         <p className="mb-2 text-xs font-semibold text-ink-800">Cash flow (admins only)</p>
         <dl className="space-y-1">
@@ -130,17 +137,17 @@ export default function CashFlowTab({ project, finance }) {
       {data ? (
         <div className="mb-4 rounded-xl border border-ink-100 bg-white p-3">
           <div className="mb-2 flex flex-wrap gap-1.5">
-            <button onClick={() => setShowTotal((v) => !v)} className={chip(showTotal)} aria-pressed={showTotal}>
-              Show total spent
+            <button onClick={() => setShowGoods((v) => !v)} className={chip(showGoods)} aria-pressed={showGoods}>
+              Materials &amp; equipment
             </button>
-            <button onClick={() => setShowNet((v) => !v)} className={chip(showNet)} aria-pressed={showNet}>
-              Show net line
+            <button onClick={() => setShowLabour((v) => !v)} className={chip(showLabour)} aria-pressed={showLabour}>
+              Labour
             </button>
           </div>
           <CashFlowChart
             data={data}
-            showNet={showNet}
-            showTotal={showTotal}
+            showGoods={showGoods}
+            showLabour={showLabour}
             label={`Cumulative spent ${fmtMoney(spentNow)} and received ${fmtMoney(receivedNow)}`}
           />
           <button onClick={() => setShowTable((v) => !v)} className="mt-3 text-xs font-medium text-signal-600" aria-expanded={showTable}>
@@ -158,13 +165,6 @@ export default function CashFlowTab({ project, finance }) {
         </p>
       )}
 
-      {editing ? (
-        <PaymentForm key={editing === 'new' ? 'new' : editing.id} project={project} payment={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
-      ) : (
-        <button onClick={() => setEditing('new')} className="mb-4 rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white">
-          + Add payment received
-        </button>
-      )}
       {error && <p className="mb-3 text-sm text-status-blocked">{error}</p>}
 
       <ul className="space-y-2">
