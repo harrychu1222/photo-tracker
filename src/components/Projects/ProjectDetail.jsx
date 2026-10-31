@@ -9,7 +9,6 @@ import CashFlowTab from './CashFlowTab'
 import TimeTab from './TimeTab'
 import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
-import KanbanBoard from './KanbanBoard'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
@@ -87,7 +86,6 @@ export default function ProjectDetail({
   ]
   const planTabs = [
     { id: 'tasks', label: `Tasks (${taskCount})` },
-    { id: 'board', label: 'Board' },
     { id: 'board', label: 'Board' },
     { id: 'gantt', label: 'Gantt' },
     { id: 'measurements', label: `Measurements (${measurementCount})` }
@@ -197,7 +195,6 @@ export default function ProjectDetail({
           />
         )}
         {tab === 'plan' && planTab === 'tasks' && <TasksTab project={project} photos={photos} />}
-        {tab === 'plan' && planTab === 'board' && <KanbanBoard project={project} photos={photos} />}
         {tab === 'plan' && planTab === 'board' && <KanbanBoard project={project} photos={photos} />}
         {tab === 'plan' && planTab === 'gantt' && <GanttTab project={project} />}
         {tab === 'plan' && planTab === 'measurements' && <MeasurementsTab project={project} />}
