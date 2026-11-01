@@ -418,3 +418,14 @@ Run `supabase/migration_15_supplier_room_level.sql` first (and migration 14 if n
 - Plan > Tasks has one List / Board switch (no separate Board tab).
 - Materials have an "Ordered from (shop)" field.
 - **+ New project** now opens a 4-step questionnaire: Project, Levels, Rooms (counts per level, custom rooms), Review. Rooms are created with their level. "Skip the questions" opens the old full form.
+
+## C5 (task templates in the questionnaire)
+
+Run `supabase/migration_16_task_templates.sql` (only needed for "Save as my template"; everything else works without it).
+
+- New questionnaire step **Tasks** (between Rooms and Review): each room gets a standard list (Kitchen, Bathroom/Ensuite, Toilet, Laundry; Flooring can be picked for any room). Untick tasks, edit hours, add your own, tick/untick each task's suggested materials and tools.
+- Waiting-on links follow the list; removing a task relinks the next one to the one before it.
+- **Save as my template** stores a room's list (room type, tasks, hours, links, materials, tools); it then appears in every room's template menu as "(mine)".
+- Material quantities from templates are starting points; fix them on the Materials tab once measured.
+- Review lists rooms grouped by level; with rooms on two or more indoor levels every room name carries its level (Ground Bathroom 1, Level 1 Bathroom 1).
+- Standard lists live in `src/lib/templates.js`.

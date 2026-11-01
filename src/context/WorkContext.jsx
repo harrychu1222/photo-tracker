@@ -404,6 +404,60 @@ export function WorkProvider({ children }) {
     return data
   }
 
+  // ---------- Task templates ----------
+
+  // items: [{ name, hours, after: [indexes in this list], materials: [[name, qty, unit]], equipment: [name] }]
+  // Adds the tasks to one room (waiting-on links included), then their materials and tools.
+  async function applyTemplate(projectId, roomId, items) {
+    if (!items.length) return 0
+    await bulkAddTasks(projectId, [roomId], items.map((i) => ({ name: i.name, parents: i.after || [], hours: i.hours })))
+    const { data: rows, error } = await supabase
+      .from('tasks')
+      .select('id, sort_order, created_at')
+      .eq('project_id', projectId)
+      .eq('room_id', roomId)
+      .order('sort_order')
+      .order('created_at')
+    if (error) throw error
+    const made = rows.slice(-items.length)
+    const mats = []
+    const tools = []
+    items.forEach((it, n) => {
+      ;(it.materials || []).forEach(([name, quantity, unit], k) =>
+        mats.push({ task_id: made[n].id, name, quantity: Number(quantity) || 1, unit: unit || null, sort_order: k + 1, created_by: userId })
+      )
+      ;(it.equipment || []).forEach((name, k) => tools.push({ task_id: made[n].id, name, kind: 'own', sort_order: k + 1, created_by: userId }))
+    })
+    if (mats.length) {
+      const { error: e1 } = await supabase.from('task_materials').insert(mats)
+      if (e1) throw e1
+    }
+    if (tools.length) {
+      const { error: e2 } = await supabase.from('task_equipment').insert(tools)
+      if (e2) throw e2
+    }
+    await refreshCosts()
+    return made.length
+  }
+
+  async function loadMyTemplates() {
+    const { data, error } = await supabase.from('task_templates').select('*').order('created_at')
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') return []
+      throw error
+    }
+    return data || []
+  }
+
+  async function saveTemplate(name, roomType, items) {
+    if (!(name || '').trim()) throw new Error('Give the template a name.')
+    const { error } = await supabase.from('task_templates').insert({ name: name.trim(), room_type: roomType, items, created_by: userId })
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Run migration 16 first (task templates).')
+      throw error
+    }
+  }
+
   // ---------- Materials and equipment ----------
 
   const hasValue = (v) => v !== '' && v != null && !Number.isNaN(Number(v))
@@ -911,6 +965,9 @@ export function WorkProvider({ children }) {
     loading,
     error,
     createRoom,
+    applyTemplate,
+    loadMyTemplates,
+    saveTemplate,
     renameRoom,
     deleteRoom,
     createTask,

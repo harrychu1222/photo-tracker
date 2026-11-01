@@ -16,17 +16,19 @@ export const ROOM_CHOICES = {
 
 export const levelById = (id) => LEVELS.find((l) => l.id === id)
 
-// plan: { [levelId]: { [roomName]: count } }  ->  [{ name, level }] in level order.
-// Two or more of a room become "Bedroom 1", "Bedroom 2". A name used on more than one level
-// gets its level in front ("Level 1 Bathroom"), so every room name stays unique in the project.
+// plan: { [levelId]: { [roomName]: count } }  ->  [{ name, level, type }] in level order.
+// Two or more of a room become "Bedroom 1", "Bedroom 2". When rooms sit on more than one indoor
+// level, every indoor room gets its level in front ("Ground Bathroom 1", "Level 1 Bathroom 1").
+// `type` is the room as chosen ("Bathroom"), used to find task templates.
 export function buildRooms(plan) {
   const list = []
   LEVELS.forEach((lv) => {
     Object.entries(plan[lv.id] || {}).forEach(([name, count]) => {
       const n = Math.max(0, Math.floor(Number(count) || 0))
-      for (let i = 1; i <= n; i++) list.push({ base: n > 1 ? `${name} ${i}` : name, level: lv.label })
+      for (let i = 1; i <= n; i++) list.push({ base: n > 1 ? `${name} ${i}` : name, level: lv.label, kind: lv.kind, type: name })
     })
   })
+  const multi = new Set(list.filter((r) => r.kind === 'indoor').map((r) => r.level)).size > 1
   const seen = {}
   list.forEach((r) => {
     const k = r.base.toLowerCase()
@@ -34,11 +36,12 @@ export function buildRooms(plan) {
   })
   const used = new Set()
   return list.map((r) => {
-    let name = seen[r.base.toLowerCase()] > 1 ? `${r.level} ${r.base}` : r.base
+    const prefix = (multi && r.kind === 'indoor') || seen[r.base.toLowerCase()] > 1
+    let name = prefix ? `${r.level} ${r.base}` : r.base
     let k = 2
     const root = name
     while (used.has(name.toLowerCase())) name = `${root} ${k++}`
     used.add(name.toLowerCase())
-    return { name, level: r.level }
+    return { name, level: r.level, type: r.type }
   })
 }
