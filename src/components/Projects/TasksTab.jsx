@@ -3,6 +3,7 @@ import TaskForm from './TaskForm'
 import RoomsManager from './RoomsManager'
 import BulkAddTasks from './BulkAddTasks'
 import CopyTasks from './CopyTasks'
+import TemplateTasks from './TemplateTasks'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
@@ -50,6 +51,7 @@ export default function TasksTab({ project, photos }) {
   const [showRooms, setShowRooms] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
   const [showCopy, setShowCopy] = useState(false)
+  const [showTpl, setShowTpl] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
 
@@ -282,6 +284,12 @@ export default function TasksTab({ project, photos }) {
             </button>
           )}
           <button
+            onClick={() => setShowTpl(true)}
+            className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
+          >
+            From template
+          </button>
+          <button
             onClick={() => setShowBulk(true)}
             className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
           >
@@ -393,6 +401,7 @@ export default function TasksTab({ project, photos }) {
         />
       )}
       {showBulk && <BulkAddTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowBulk(false)} />}
+      {showTpl && <TemplateTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowTpl(false)} />}
       {showCopy && <CopyTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowCopy(false)} />}
     </div>
   )

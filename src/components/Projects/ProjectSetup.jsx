@@ -3,7 +3,8 @@ import Icon from '../ui/Icon'
 import { useWork } from '../../context/WorkContext'
 import { LEVELS, ROOM_CHOICES, buildRooms, levelById } from '../../lib/setup'
 import { fmtDateRange } from '../../lib/format'
-import { DEFAULT_TEMPLATES, compactItems, startItems, templateKeyFor } from '../../lib/templates'
+import TemplateChecklist from './TemplateChecklist'
+import { DEFAULT_TEMPLATES, compactItems, startItems, templateKeyFor, todayISO } from '../../lib/templates'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-base focus:border-signal-500'
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
@@ -14,7 +15,7 @@ const STEPS = ['Project', 'Levels', 'Rooms', 'Tasks', 'Review']
 // A short questionnaire for a new project: details, levels, rooms. Creates the project and its
 // rooms. (Task templates come next.) `onCreate(fields)` makes the project and returns it.
 export default function ProjectSetup({ onCreate, onDone, onCancel, onFullForm }) {
-  const { createRoom, applyTemplate, loadMyTemplates, saveTemplate } = useWork()
+  const { createRoom, applyTemplate, loadMyTemplates } = useWork()
   const [step, setStep] = useState(0)
   const [f, setF] = useState({ name: '', client: '', site_address: '', start_date: '', end_date: '' })
   const [levels, setLevels] = useState(['ground'])
@@ -24,9 +25,6 @@ export default function ProjectSetup({ onCreate, onDone, onCancel, onFullForm })
   const [busy, setBusy] = useState(false)
   const [taskPlan, setTaskPlan] = useState({}) // room name -> { tpl, items }
   const [mine, setMine] = useState([])
-  const [newTask, setNewTask] = useState({})
-  const [saving, setSaving] = useState(null)
-  const [tplName, setTplName] = useState('')
   useEffect(() => { loadMyTemplates().then(setMine).catch(() => {}) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
   const chosen = LEVELS.filter((l) => levels.includes(l.id))
@@ -53,30 +51,6 @@ export default function ProjectSetup({ onCreate, onDone, onCancel, onFullForm })
     setStep(step + 1)
   }
 
-  const tplItems = (v) => {
-    if (v.startsWith('d:')) return startItems(DEFAULT_TEMPLATES[v.slice(2)])
-    const m = mine.find((t) => `m:${t.id}` === v)
-    return m ? startItems(m.items) : []
-  }
-  const setRoom = (name, fn) => setTaskPlan((tp) => ({ ...tp, [name]: fn(tp[name]) }))
-  const pickTpl = (name, v) => setRoom(name, () => ({ tpl: v, items: tplItems(v) }))
-  const editItem = (name, i, patch) => setRoom(name, (r) => ({ ...r, items: r.items.map((it, k) => (k === i ? { ...it, ...patch } : it)) }))
-  function addTask(name) {
-    const t = (newTask[name] || '').trim()
-    if (!t) return
-    setRoom(name, (r) => ({ ...r, items: [...r.items, { name: t, hours: '', after: r.items.length ? [r.items.length - 1] : [], materials: [], equipment: [], on: true, kit: true }] }))
-    setNewTask((n) => ({ ...n, [name]: '' }))
-  }
-  async function saveMine(r) {
-    try {
-      await saveTemplate(tplName, r.type, compactItems(taskPlan[r.name].items))
-      setMine(await loadMyTemplates())
-      setSaving(null)
-      setTplName('')
-    } catch (err) {
-      setError(err.message)
-    }
-  }
   const taskCount = (name) => compactItems(taskPlan[name]?.items || []).length
 
   const toggleLevel = (id) => setLevels((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))
@@ -109,7 +83,7 @@ export default function ProjectSetup({ onCreate, onDone, onCancel, onFullForm })
     try {
       for (const r of rooms) {
         const room = await createRoom(project.id, r.name, r.level)
-        await applyTemplate(project.id, room.id, compactItems(taskPlan[r.name]?.items || []))
+        await applyTemplate(project.id, room.id, compactItems(taskPlan[r.name]?.items || []), f.start_date || todayISO())
       }
     } catch (err) {
       setBusy(false)
@@ -227,54 +201,7 @@ export default function ProjectSetup({ onCreate, onDone, onCancel, onFullForm })
             {rooms.length === 0 && <p className="text-sm text-ink-600">No rooms were chosen, so there are no tasks to set up. Press Next.</p>}
             {rooms.map((r) => {
               const tp = taskPlan[r.name] || { tpl: '', items: [] }
-              const keys = Object.keys(DEFAULT_TEMPLATES)
-              return (
-                <section key={r.name} className="rounded-xl border border-ink-200 bg-white p-3" aria-label={`Tasks for ${r.name}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold text-ink-900">{r.name}</p>
-                    <select aria-label={`Template for ${r.name}`} value={tp.tpl} onChange={(e) => pickTpl(r.name, e.target.value)} className="rounded-lg border border-ink-200 bg-white px-2 py-2 text-sm">
-                      <option value="">No template</option>
-                      {keys.map((k) => <option key={k} value={`d:${k}`}>{k} (standard)</option>)}
-                      {mine.map((t) => <option key={t.id} value={`m:${t.id}`}>{t.name} (mine)</option>)}
-                    </select>
-                  </div>
-                  <ul className="mt-2 divide-y divide-ink-100">
-                    {tp.items.map((it, i) => (
-                      <li key={i} className="py-2">
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" checked={it.on !== false} onChange={(e) => editItem(r.name, i, { on: e.target.checked })} aria-label={`Include ${it.name} in ${r.name}`} className="h-5 w-5 shrink-0" />
-                          <span className={`min-w-0 flex-1 text-sm ${it.on === false ? 'text-ink-400 line-through' : 'font-medium text-ink-900'}`}>{it.name}</span>
-                          <input type="number" min="0" inputMode="decimal" value={it.hours ?? ''} onChange={(e) => editItem(r.name, i, { hours: e.target.value })} aria-label={`Hours for ${it.name} in ${r.name}`} className="w-16 rounded-lg border border-ink-200 px-2 py-1.5 text-right text-sm" />
-                          <span className="text-xs text-ink-600">h</span>
-                        </div>
-                        {it.on !== false && ((it.materials || []).length > 0 || (it.equipment || []).length > 0) && (
-                          <label className="ml-7 mt-1 flex items-start gap-2 text-xs text-ink-600">
-                            <input type="checkbox" checked={it.kit !== false} onChange={(e) => editItem(r.name, i, { kit: e.target.checked })} aria-label={`Include materials and tools for ${it.name} in ${r.name}`} className="mt-0.5 h-4 w-4 shrink-0" />
-                            <span>
-                              {(it.materials || []).length > 0 && <>Materials: {it.materials.map((m) => m[0]).join(', ')}. </>}
-                              {(it.equipment || []).length > 0 && <>Tools: {it.equipment.join(', ')}.</>}
-                            </span>
-                          </label>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-2 flex gap-2">
-                    <input value={newTask[r.name] || ''} onChange={(e) => setNewTask((n) => ({ ...n, [r.name]: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTask(r.name))} placeholder="Add a task" aria-label={`Add task to ${r.name}`} className={inputClass} />
-                    <button onClick={() => addTask(r.name)} aria-label={`Add task button for ${r.name}`} className={secondary}>Add</button>
-                  </div>
-                  {taskCount(r.name) > 0 && (
-                    saving === r.name ? (
-                      <div className="mt-2 flex gap-2">
-                        <input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Template name" aria-label="Template name" className={inputClass} />
-                        <button onClick={() => saveMine(r)} className={primary}>Save</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setSaving(r.name); setTplName(`${r.type} - my list`) }} className="mt-2 min-h-[44px] text-sm font-semibold text-ink-800 underline">Save as my template</button>
-                    )
-                  )}
-                </section>
-              )
+              return <TemplateChecklist key={r.name} label={r.name} type={r.type} value={tp} mine={mine} onChange={(v) => setTaskPlan((t) => ({ ...t, [r.name]: v }))} onSaved={async () => setMine(await loadMyTemplates())} />
             })}
           </div>
         )}

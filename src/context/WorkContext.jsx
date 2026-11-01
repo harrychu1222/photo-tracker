@@ -1,3 +1,4 @@
+import { scheduleItems } from '../lib/templates'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
@@ -408,7 +409,7 @@ export function WorkProvider({ children }) {
 
   // items: [{ name, hours, after: [indexes in this list], materials: [[name, qty, unit]], equipment: [name] }]
   // Adds the tasks to one room (waiting-on links included), then their materials and tools.
-  async function applyTemplate(projectId, roomId, items) {
+  async function applyTemplate(projectId, roomId, items, startISO) {
     if (!items.length) return 0
     await bulkAddTasks(projectId, [roomId], items.map((i) => ({ name: i.name, parents: i.after || [], hours: i.hours })))
     const { data: rows, error } = await supabase
@@ -420,6 +421,13 @@ export function WorkProvider({ children }) {
       .order('created_at')
     if (error) throw error
     const made = rows.slice(-items.length)
+    if (startISO) {
+      const plan = scheduleItems(items, startISO)
+      for (let n = 0; n < made.length; n++) {
+        const { error: e0 } = await supabase.from('tasks').update({ planned_start: plan[n].start, planned_end: plan[n].end }).eq('id', made[n].id)
+        if (e0) throw e0
+      }
+    }
     const mats = []
     const tools = []
     items.forEach((it, n) => {
@@ -436,6 +444,7 @@ export function WorkProvider({ children }) {
       const { error: e2 } = await supabase.from('task_equipment').insert(tools)
       if (e2) throw e2
     }
+    await refresh()
     await refreshCosts()
     return made.length
   }

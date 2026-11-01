@@ -429,3 +429,7 @@ Run `supabase/migration_16_task_templates.sql` (only needed for "Save as my temp
 - Material quantities from templates are starting points; fix them on the Materials tab once measured.
 - Review lists rooms grouped by level; with rooms on two or more indoor levels every room name carries its level (Ground Bathroom 1, Level 1 Bathroom 1).
 - Standard lists live in `src/lib/templates.js`.
+
+### C5 follow-up
+- Template tasks now get planned dates (working days, 8 h a day, each task starts after the ones it waits on), so they show on the Gantt. Start = project start date, or today.
+- Plan > Tasks has a **From template** button: pick a room and a template, tidy the list, set the first start date, add. Shared checklist component: `TemplateChecklist.jsx`; scheduling in `lib/templates.js`.

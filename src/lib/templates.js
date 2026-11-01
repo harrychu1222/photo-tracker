@@ -86,3 +86,34 @@ export function compactItems(items) {
 }
 
 export const startItems = (list) => (list || []).map((t) => ({ ...t, on: true, kit: true }))
+
+// ---- Scheduling: working days only (Mon-Fri), 8 hours a day, each task starts the working day
+// after the last task it waits on ends. Returns [{ start, end }] as yyyy-mm-dd, same order as items.
+const iso = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+const parse = (s) => new Date(`${s}T00:00:00Z`)
+const isWeekend = (d) => d.getUTCDay() === 0 || d.getUTCDay() === 6
+function nextWorkday(d, step = 1) {
+  const x = new Date(d)
+  if (step) x.setUTCDate(x.getUTCDate() + 1)
+  while (isWeekend(x)) x.setUTCDate(x.getUTCDate() + 1)
+  return x
+}
+export function scheduleItems(items, startISO) {
+  const out = []
+  items.forEach((it, i) => {
+    let start = nextWorkday(parse(startISO), 0)
+    ;(it.after || []).forEach((p) => {
+      const s = nextWorkday(parse(out[p].end))
+      if (s > start) start = s
+    })
+    const days = Math.max(1, Math.ceil((Number(it.hours) || 0) / 8))
+    let end = start
+    for (let k = 1; k < days; k++) end = nextWorkday(end)
+    out.push({ start: iso(start), end: iso(end) })
+  })
+  return out
+}
+export const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
