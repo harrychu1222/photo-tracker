@@ -15,7 +15,7 @@ export default function LooseMaterials({ project }) {
   const tasks = tasksByProject[project.id] || []
   const loose = materials.filter((m) => !m.task_id && m.project_id === project.id)
   const [open, setOpen] = useState(false)
-  const [f, setF] = useState({ name: '', quantity: '1', unit: '', unitCost: '', taskId: '' })
+  const [f, setF] = useState({ name: '', quantity: '1', unit: '', unitCost: '', taskId: '', supplier: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const set = (k) => (e) => setF((v) => ({ ...v, [k]: e.target.value }))
@@ -34,8 +34,8 @@ export default function LooseMaterials({ project }) {
     e.preventDefault()
     setBusy(true)
     await run(async () => {
-      await addMaterial(f.taskId || null, { name: f.name, quantity: f.quantity, unit: f.unit, unitCost: isAdmin ? f.unitCost : undefined, projectId: project.id })
-      setF({ name: '', quantity: '1', unit: '', unitCost: '', taskId: '' })
+      await addMaterial(f.taskId || null, { name: f.name, quantity: f.quantity, unit: f.unit, unitCost: isAdmin ? f.unitCost : undefined, supplier: f.supplier, projectId: project.id })
+      setF({ name: '', quantity: '1', unit: '', unitCost: '', taskId: '', supplier: '' })
       setOpen(false)
     })
     setBusy(false)
@@ -52,6 +52,7 @@ export default function LooseMaterials({ project }) {
             <input value={f.unit} onChange={set('unit')} className={inputClass} aria-label="Unit" placeholder="Unit" />
             {isAdmin && <input inputMode="decimal" value={f.unitCost} onChange={set('unitCost')} className={inputClass} aria-label="Cost per unit" placeholder="$ each" />}
           </div>
+          <input value={f.supplier} onChange={set('supplier')} placeholder="Ordered from (shop), optional" className={inputClass} aria-label="Ordered from" />
           <select value={f.taskId} onChange={set('taskId')} className={inputClass} aria-label="Task">
             <option value="">No task yet</option>
             {tasks.map((t) => (

@@ -4,7 +4,7 @@ import { fmtDate } from '../../lib/format'
 
 function dayParts(date) {
   const d = new Date(`${date}T00:00:00`)
-  return { num: d.getDate(), word: d.toLocaleDateString(undefined, { weekday: 'short' }) }
+  return { num: d.getDate(), word: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] }
 }
 
 // Phone view of the schedule: a date rail with what is due each day.

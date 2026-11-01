@@ -40,6 +40,7 @@ export default function ProjectDetail({
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('overview') // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
+  const [taskView, setTaskView] = useState('list') // 'list' | 'board'
   const [planTab, setPlanTab] = useState('tasks') // 'tasks' | 'gantt' | 'measurements'
   const [moneyTab, setMoneyTab] = useState(isAdmin ? 'cashflow' : 'expenses') // 'expenses' | 'time' | 'cashflow'
   const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
@@ -86,7 +87,6 @@ export default function ProjectDetail({
   ]
   const planTabs = [
     { id: 'tasks', label: `Tasks (${taskCount})` },
-    { id: 'board', label: 'Board' },
     { id: 'gantt', label: 'Gantt' },
     { id: 'measurements', label: `Measurements (${measurementCount})` }
   ]
@@ -194,8 +194,23 @@ export default function ProjectDetail({
             onOpenPhoto={setOpenPhoto}
           />
         )}
-        {tab === 'plan' && planTab === 'tasks' && <TasksTab project={project} photos={photos} />}
-        {tab === 'plan' && planTab === 'board' && <KanbanBoard project={project} photos={photos} />}
+        {tab === 'plan' && planTab === 'tasks' && (
+          <div>
+            <div role="group" aria-label="Task view" className="mb-4 inline-flex gap-1 rounded-xl bg-ink-100 p-1">
+              {[['list', 'List'], ['board', 'Board']].map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setTaskView(id)}
+                  aria-pressed={taskView === id}
+                  className={`min-h-[40px] rounded-lg px-4 text-sm font-semibold ${taskView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {taskView === 'board' ? <KanbanBoard project={project} photos={photos} /> : <TasksTab project={project} photos={photos} />}
+          </div>
+        )}
         {tab === 'plan' && planTab === 'gantt' && <GanttTab project={project} />}
         {tab === 'plan' && planTab === 'measurements' && <MeasurementsTab project={project} />}
         {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}

@@ -289,7 +289,7 @@ export function WorkProvider({ children }) {
 
   // Creates a room, or returns the existing one if that name is already used in the
   // project (names are unique per project, ignoring capitalisation).
-  async function createRoom(projectId, rawName) {
+  async function createRoom(projectId, rawName, level) {
     const name = (rawName || '').trim()
     if (!name) throw new Error('Type a room name first.')
     const existing = rooms.find((r) => r.project_id === projectId && r.name.toLowerCase() === name.toLowerCase())
@@ -297,11 +297,12 @@ export function WorkProvider({ children }) {
 
     const { data, error } = await supabase
       .from('project_rooms')
-      .insert({ project_id: projectId, name, created_by: userId })
+      .insert({ project_id: projectId, name, created_by: userId, ...(level ? { level } : {}) })
       .select()
       .single()
 
     if (error) {
+      if (level && (error.code === '42703' || error.code === 'PGRST204')) throw new Error('Rooms on levels need supabase/migration_15_supplier_room_level.sql. Run it in Supabase, then reload.')
       if (error.code === '23505') {
         // Someone else just added the same room — use theirs.
         const { data: all } = await supabase.from('project_rooms').select('*').eq('project_id', projectId)
@@ -440,7 +441,7 @@ export function WorkProvider({ children }) {
     }
   }
 
-  async function addMaterial(taskId, { name, quantity, unit, unitCost, projectId }) {
+  async function addMaterial(taskId, { name, quantity, unit, unitCost, projectId, supplier }) {
     checkMaterial({ name, quantity })
     const sort_order = (materialsByTask[taskId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0) + 1
     const { data, error } = await supabase
@@ -451,6 +452,7 @@ export function WorkProvider({ children }) {
         name: name.trim(),
         quantity: Number(quantity),
         unit: (unit || '').trim() || null,
+        ...((supplier || '').trim() ? { supplier: supplier.trim() } : {}),
         sort_order,
         created_by: userId
       })
@@ -486,7 +488,7 @@ export function WorkProvider({ children }) {
     const { error } = await supabase.from('task_materials').update(patch).eq('id', id)
     if (error) {
       throw error.code === '42703' || error.code === 'PGRST204'
-        ? new Error('Material status and dates need migrations 7 and 8. Run supabase/migration_7_dependencies_status_measurements.sql and supabase/migration_8_room_sizes_dates.sql in Supabase, then reload.')
+        ? new Error('Material status and dates need migrations 7 and 8. Run supabase/migration_7_dependencies_status_measurements.sql and supabase/migration_8_room_sizes_dates.sql in Supabase, then reload. The shop name needs supabase/migration_15_supplier_room_level.sql.')
         : error
     }
     await refreshCosts()

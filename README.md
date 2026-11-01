@@ -408,3 +408,13 @@ No database changes. Add task opens as a panel sliding in from the right on a co
 - **Cash flow tab:** a smaller graph, Total spent, Received and Net always shown, Labour and Materials & equipment optional, and Add payment received at the top.
 - **Plan > Board:** tasks as cards in To do, In progress, Blocked and Done columns, with a room filter above. Drag a card on a computer, or use the buttons on a phone.
 - **Materials tab:** a delivery timeline at the top, and an Add material form. A material can be added with no task, listed under "No task yet", and linked to a task later.
+
+## Fix-up round + C4 (new-project questionnaire)
+
+Run `supabase/migration_15_supplier_room_level.sql` first (and migration 14 if not yet run).
+
+- Dates are fixed `dd/mm/yyyy` everywhere in the project views (no more locale-dependent text).
+- Cash flow chart is smaller.
+- Plan > Tasks has one List / Board switch (no separate Board tab).
+- Materials have an "Ordered from (shop)" field.
+- **+ New project** now opens a 4-step questionnaire: Project, Levels, Rooms (counts per level, custom rooms), Review. Rooms are created with their level. "Skip the questions" opens the old full form.

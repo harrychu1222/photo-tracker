@@ -11,6 +11,7 @@ export default function MaterialDates({ material }) {
   const [ordered, setOrdered] = useState(material.ordered_on || '')
   const [expected, setExpected] = useState(material.expected_on || '')
   const [delivered, setDelivered] = useState(material.delivered_on || '')
+  const [supplier, setSupplier] = useState(material.supplier || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -21,6 +22,7 @@ export default function MaterialDates({ material }) {
     setOrdered(material.ordered_on || '')
     setExpected(material.expected_on || '')
     setDelivered(material.delivered_on || '')
+    setSupplier(material.supplier || '')
     setError(null)
     setEditing(true)
   }
@@ -32,7 +34,7 @@ export default function MaterialDates({ material }) {
     try {
       await setMaterialStatus(
         material.id,
-        materialDatePatch(material, { ordered_on: ordered, expected_on: expected, delivered_on: delivered })
+        { ...materialDatePatch(material, { ordered_on: ordered, expected_on: expected, delivered_on: delivered }), ...(supplier.trim() || material.supplier ? { supplier: supplier.trim() || null } : {}) }
       )
       setEditing(false)
     } catch (err) {
@@ -59,6 +61,10 @@ export default function MaterialDates({ material }) {
             <input type="date" value={delivered} onChange={(e) => setDelivered(e.target.value)} className={inputClass} aria-label="Delivered on" />
           </label>
         </div>
+        <label className="block text-xs text-ink-600">
+          Ordered from (shop or supplier)
+          <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Bunnings, Tile Warehouse" className={inputClass} aria-label="Ordered from" />
+        </label>
         <p className="text-xs text-ink-400">The status follows the dates: a delivered date marks it Delivered, an ordered date marks it Ordered.</p>
         {error && <p className="text-xs text-status-blocked">{error}</p>}
         <div className="flex gap-2">
@@ -76,7 +82,7 @@ export default function MaterialDates({ material }) {
   return (
     <p className="mt-0.5 text-xs text-ink-600">
       <button type="button" onClick={open} className="text-left underline decoration-dotted underline-offset-2" aria-label="Edit dates">
-        {text || 'Add dates'}
+        {[material.supplier, text].filter(Boolean).join(' · ') || 'Add dates and shop'}
       </button>
       {lateDays != null && (
         <span className="ml-2 font-medium text-status-blocked">

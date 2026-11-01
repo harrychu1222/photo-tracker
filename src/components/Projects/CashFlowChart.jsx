@@ -3,7 +3,7 @@ import { niceTicks } from '../../lib/cashflow'
 import { fmtDate, fmtMoney } from '../../lib/format'
 
 const W = 360
-const H = 170
+const H = 120
 const M = { l: 52, r: 58, t: 14, b: 30 }
 const COLORS = { goods: '#c2410c', labour: '#7c3aed', spent: '#92400e', received: '#15803d', net: '#334155', quote: '#64748b' }
 const NAMES = { goods: 'Materials & equipment', labour: 'Labour', spent: 'Total spent', received: 'Received', net: 'Net (received − spent)' }
@@ -58,7 +58,7 @@ export default function CashFlowChart({ data, showGoods, showLabour, label }) {
   }
 
   return (
-    <div>
+    <div className="max-w-sm">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="img"

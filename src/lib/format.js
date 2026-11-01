@@ -3,7 +3,8 @@ export function fmtDate(value) {
   if (!value) return ''
   const d = new Date(`${value}T00:00:00`)
   if (isNaN(d)) return ''
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
 }
 
 export function fmtDateRange(start, end) {

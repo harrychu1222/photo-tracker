@@ -52,7 +52,7 @@ export default function MaterialTimeline({ project }) {
             <div className="relative" style={{ width: timeW }}>
               {mondays.map((i) => (
                 <span key={i} className="absolute top-1.5 border-l border-ink-200 pl-1" style={{ left: i * DW }}>
-                  {new Date(Date.UTC(y, m - 1, d + i)).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                  {(() => { const t = new Date(Date.UTC(y, m - 1, d + i)); return `${String(t.getUTCDate()).padStart(2, '0')}/${String(t.getUTCMonth() + 1).padStart(2, '0')}` })()}
                 </span>
               ))}
             </div>

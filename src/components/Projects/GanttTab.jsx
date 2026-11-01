@@ -20,7 +20,7 @@ const SCALES = [
   { id: 'months', label: 'Months', dw: 4 }
 ]
 
-const fmtShort = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '')
+const fmtShort = (d) => fmtDate(d)
 
 const chip = (on) =>
   `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
@@ -30,7 +30,7 @@ export default function GanttTab({ project }) {
   const { tasksByProject, roomsByProject, roomsById, tasksById, materialsByTask, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const { isAdmin } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
-  const NAME_W = isDesktop ? 344 : 112 // on a computer: task name plus start and end date columns
+  const NAME_W = isDesktop ? 368 : 112 // on a computer: task name plus start and end date columns
   const [view, setView] = useState(null) // null = timeline on a computer, agenda on a phone
   const [lanes, setLanes] = useState({ deliveries: true, hours: true, cash: true })
   const tasks = tasksByProject[project.id] || []
@@ -174,8 +174,8 @@ export default function GanttTab({ project }) {
                 <span className="flex-1 px-2">Task</span>
                 {isDesktop && (
                   <>
-                    <span className="w-[64px] border-l border-ink-200 px-2">Start</span>
-                    <span className="w-[64px] border-l border-ink-200 px-2">End</span>
+                    <span className="w-[88px] border-l border-ink-200 px-2">Start</span>
+                    <span className="w-[88px] border-l border-ink-200 px-2">End</span>
                   </>
                 )}
               </div>
@@ -219,8 +219,8 @@ export default function GanttTab({ project }) {
                       <span className="min-w-0 flex-1 truncate px-2">{r.task.name}</span>
                       {isDesktop && (
                         <>
-                          <span className="h-full w-[64px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`start-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.start)}</span>
-                          <span className="h-full w-[64px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`end-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.end)}</span>
+                          <span className="h-full w-[88px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`start-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.start)}</span>
+                          <span className="h-full w-[88px] flex-none border-l border-ink-200 px-2 leading-[34px] text-ink-600" data-testid={`end-${r.task.id}`}>{fmtShort(plannedSpan(r.task)?.end)}</span>
                         </>
                       )}
                     </button>
