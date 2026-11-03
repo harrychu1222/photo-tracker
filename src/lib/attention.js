@@ -22,7 +22,7 @@ export function scheduleSummary(tasks, today = todayLocal()) {
 }
 
 // `go` says where a click should take the person: a top tab and, for Plan/Money, a sub tab.
-export function attentionItems({ tasks, materials, money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
+export function attentionItems({ tasks, materials, defects = [], money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
   const items = []
 
   const late = tasks
@@ -57,6 +57,19 @@ export function attentionItems({ tasks, materials, money, progress, isAdmin, tod
   )
   if (lateMaterials.length > limit) {
     items.push({ id: 'mat-more', tone: 'warn', title: `${plural(lateMaterials.length - limit, 'more delivery', )} late`, detail: 'See Materials', go: { tab: 'materials' } })
+  }
+
+  const openDefects = defects.filter((d) => d.status !== 'fixed')
+  if (openDefects.length > 0) {
+    const urgent = openDefects.filter((d) => d.priority === 'urgent').length
+    const oldest = Math.max(...openDefects.map((d) => Math.max(0, dayDiff(d.raised_on, today))))
+    items.push({
+      id: 'defects',
+      tone: urgent > 0 ? 'bad' : 'warn',
+      title: `${plural(openDefects.length, 'open defect')}`,
+      detail: `Oldest ${plural(oldest, 'day')}${urgent > 0 ? `, ${urgent} urgent` : ''}`,
+      go: { tab: 'defects' }
+    })
   }
 
   if (isAdmin && money && money.target > 0 && money.actual > 0 && progress.total > 0) {

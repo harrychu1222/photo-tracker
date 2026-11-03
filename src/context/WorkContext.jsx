@@ -1,4 +1,5 @@
 import { scheduleItems } from '../lib/templates'
+import { todayLocal } from '../lib/tasks'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
@@ -44,6 +45,8 @@ export function WorkProvider({ children }) {
   const [linksReady, setLinksReady] = useState(false) // false until migration 7 is in place
   const [measurements, setMeasurements] = useState([])
   const [measurementsError, setMeasurementsError] = useState(null)
+  const [defects, setDefects] = useState([])
+  const [defectsError, setDefectsError] = useState(null)
   const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
   const [expensesError, setExpensesError] = useState(null)
   const [payments, setPayments] = useState([]) // admins only
@@ -128,6 +131,19 @@ export function WorkProvider({ children }) {
       setMeasurements(
         [...m.data].sort((a, b) => (a.sort_order - b.sort_order) || (a.created_at < b.created_at ? -1 : 1))
       )
+    }
+  }, [userId])
+
+  // Defects (migration 18). Until it is run the rest of the app keeps working.
+  const refreshDefects = useCallback(async () => {
+    if (!userId) return setDefects([])
+    const { data, error } = await supabase.from('defects').select('*')
+    if (error) {
+      setDefects([])
+      setDefectsError(error.code === 'PGRST205' || error.code === '42P01' ? 'Defects are not set up yet. Run supabase/migration_18_defects.sql in Supabase, then reload.' : error.message)
+    } else {
+      setDefectsError(null)
+      setDefects([...data].sort((a, b) => (a.raised_on < b.raised_on ? -1 : a.raised_on > b.raised_on ? 1 : a.created_at < b.created_at ? -1 : 1)))
     }
   }, [userId])
 
@@ -227,6 +243,7 @@ export function WorkProvider({ children }) {
     }
     refreshCosts()
     refreshExtras()
+    refreshDefects()
     refreshExpenses()
     refreshPayments()
     refreshTime()
@@ -251,7 +268,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshExpenses, refreshPayments, refreshTime])
+  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -286,6 +303,7 @@ export function WorkProvider({ children }) {
   const materialsByTask = useMemo(() => groupBy(materials, 'task_id'), [materials])
   const measurementsByProject = useMemo(() => groupBy(measurements, 'project_id'), [measurements])
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
+  const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
   const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
 
   // Creates a room, or returns the existing one if that name is already used in the
@@ -605,6 +623,46 @@ export function WorkProvider({ children }) {
     if (error) throw error
     if (!data?.length) throw new Error('Only an admin or the person who added this item can delete it.')
     await refreshCosts()
+  }
+
+  // ---------- Defects ----------
+
+  function defectFields({ title, notes, roomId, taskId, priority, status }) {
+    if (!(title || '').trim()) throw new Error('Describe the defect, e.g. Chipped tile by the door.')
+    return {
+      title: title.trim(),
+      notes: (notes || '').trim() || null,
+      room_id: roomId || null,
+      task_id: taskId || null,
+      priority: priority || 'normal',
+      status: status || 'open',
+      fixed_on: status === 'fixed' ? todayLocal() : null
+    }
+  }
+
+  async function addDefect(projectId, input) {
+    const { error } = await supabase.from('defects').insert({ ...defectFields(input), project_id: projectId, raised_on: todayLocal(), created_by: userId })
+    if (error) throw error
+    await refreshDefects()
+  }
+
+  async function updateDefect(id, input) {
+    const { error } = await supabase.from('defects').update(defectFields(input)).eq('id', id)
+    if (error) throw error
+    await refreshDefects()
+  }
+
+  async function setDefectStatus(id, status) {
+    const { error } = await supabase.from('defects').update({ status, fixed_on: status === 'fixed' ? todayLocal() : null }).eq('id', id)
+    if (error) throw error
+    await refreshDefects()
+  }
+
+  async function deleteDefect(id) {
+    const { data, error } = await supabase.from('defects').delete().eq('id', id).select('id')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only an admin or the person who added this defect can delete it.')
+    await refreshDefects()
   }
 
   // ---------- Measurements ----------
@@ -939,6 +997,13 @@ export function WorkProvider({ children }) {
     receiptUrl,
     removeReceipt,
     measurements,
+    defects,
+    defectsError,
+    defectsByProject,
+    addDefect,
+    updateDefect,
+    setDefectStatus,
+    deleteDefect,
     measurementsByProject,
     measurementsError,
     linksReady,

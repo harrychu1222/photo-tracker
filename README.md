@@ -442,3 +442,10 @@ Run `supabase/migration_17_measurement_groups_deduct.sql` (adds `group_name` and
 - **Plan > Tasks > From template:** opens on the room's own standard list; tasks already in the room are tagged and unticked. Rooms with a standard list but no tasks show a "Rooms with no tasks yet" bar with a + button each.
 - **Level filter** (All levels / Ground / Level 1 ...) on Plan > Tasks, Board and Gantt; one shared filter. Room chips follow the level.
 - **Measurements:** each door/window has "Take its area off the wall area" (tick/untick; wall figures only count ticked ones). Special measurements are named groups with several values (Vanity: width, height off floor); "+ Value" adds more to a group.
+
+## Stage E (defects + all-projects overview)
+
+Run `supabase/migration_18_defects.sql`.
+
+- **Project > Defects tab:** add a defect (what is wrong, room, related task, priority, notes), Start work / Mark fixed / Reopen, edit, delete (admin or whoever added it). Filters: Open / Fixed / All, level, room. The tab shows the open count; the project header shows "N open defects"; Overview > Needs attention lists them (urgent ones in red, with the oldest age).
+- **Projects > Overview** (switch at the top of the project list): tiles for projects behind plan, late deliveries, open defects and (admin) net; a combined cash-flow graph of all shown projects (admin); one card per project with progress, schedule, late deliveries, defects and (admin) spent / received / net. Tap a card to open the project. Complete projects are hidden unless you tick "Include complete projects". Figures come from the same functions as the project screen (`src/lib/overview.js`).

@@ -118,6 +118,7 @@ export default function ProjectsView({ projectsApi, photos, suggestions, onUpdat
     <ProjectsList
       projects={projects}
       photoCounts={photoCounts}
+      finance={finance}
       loading={loading}
       error={error}
       onOpen={setSelectedId}

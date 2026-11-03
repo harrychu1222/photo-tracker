@@ -3,11 +3,13 @@ import { PROJECT_STATUSES, projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange } from '../../lib/format'
 import { taskProgress } from '../../lib/tasks'
 import { useWork } from '../../context/WorkContext'
+import AllProjectsOverview from './AllProjectsOverview'
 
-export default function ProjectsList({ projects, photoCounts, loading, error, onOpen, onNew }) {
+export default function ProjectsList({ projects, photoCounts, finance, loading, error, onOpen, onNew }) {
   const { tasksByProject } = useWork()
   const [statusFilter, setStatusFilter] = useState(null)
   const [search, setSearch] = useState('')
+  const [view, setView] = useState('list') // 'list' | 'overview'
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -27,6 +29,16 @@ export default function ProjectsList({ projects, photoCounts, loading, error, on
         </button>
       </div>
 
+      <div role="group" aria-label="Projects view" className="mb-4 inline-flex gap-1 rounded-xl bg-ink-100 p-1">
+        {[['list', 'Projects'], ['overview', 'Overview']].map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)} aria-pressed={view === id} className={`min-h-[40px] rounded-lg px-4 text-sm font-semibold ${view === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'overview' && !loading && <AllProjectsOverview projects={projects} finance={finance} onOpen={onOpen} />}
+      {view === 'list' && <>
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -112,6 +124,7 @@ export default function ProjectsList({ projects, photoCounts, loading, error, on
           )
         })}
       </div>
+      </>}
     </div>
   )
 }
