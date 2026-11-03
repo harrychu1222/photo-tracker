@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWork } from '../../context/WorkContext'
 import { statusMeta } from '../../statusConfig'
 import { buildGantt, conflictsFor, plannedSpan } from '../../lib/gantt'
+import LevelFilter from './LevelFilter'
+import { roomsInLevel } from '../../lib/levels'
 import { fmtDate, fmtDateRange } from '../../lib/format'
 import { fmtHours, todayLocal } from '../../lib/tasks'
 import { useAuth } from '../../context/AuthContext'
@@ -26,17 +28,20 @@ const chip = (on) =>
   `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
 
 // View-only timeline of the project's tasks: planned bars, progress, actual dates, dependency arrows.
-export default function GanttTab({ project }) {
+export default function GanttTab({ project, level = 'all', onLevel = () => {} }) {
   const { tasksByProject, roomsByProject, roomsById, tasksById, materialsByTask, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const { isAdmin } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const NAME_W = isDesktop ? 368 : 112 // on a computer: task name plus start and end date columns
   const [view, setView] = useState(null) // null = timeline on a computer, agenda on a phone
   const [lanes, setLanes] = useState({ deliveries: true, hours: true, cash: true })
-  const tasks = tasksByProject[project.id] || []
-  const rooms = roomsByProject[project.id] || []
+  const allTasks = tasksByProject[project.id] || []
+  const allRooms = roomsByProject[project.id] || []
+  const rooms = useMemo(() => roomsInLevel(allRooms, level), [allRooms, level]) // eslint-disable-line react-hooks/exhaustive-deps
+  const tasks = useMemo(() => (level === 'all' ? allTasks : allTasks.filter((t) => rooms.some((r) => r.id === t.room_id))), [allTasks, rooms, level]) // eslint-disable-line react-hooks/exhaustive-deps
   const today = todayLocal()
   const [roomFilter, setRoomFilter] = useState('all')
+  useEffect(() => setRoomFilter('all'), [level])
   const [hideDone, setHideDone] = useState(false)
   const [groupByRoom, setGroupByRoom] = useState(true)
   const [scaleId, setScaleId] = useState(null) // null = pick one that fits the project
@@ -72,7 +77,7 @@ export default function GanttTab({ project }) {
     if (scroller.current) scroller.current.scrollLeft = Math.max(0, g.todayOff * dw - 90)
   }, [dw, g.todayOff, activeView])
 
-  if (tasks.length === 0) {
+  if (allTasks.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-600">
         Add tasks with planned start and end dates on the Tasks tab, and they will appear here.
@@ -116,6 +121,7 @@ export default function GanttTab({ project }) {
           ))}
         </div>
       )}
+      <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
       {activeView === 'agenda' && <AgendaView tasks={tasks} materials={materials} today={today} roomsById={roomsById} onOpenTask={(id) => { setView('timeline'); setSelected(id) }} />}
       {activeView === 'timeline' && (<>
       <div className="mb-3 flex flex-wrap items-center gap-1.5">

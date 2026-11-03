@@ -611,25 +611,26 @@ export function WorkProvider({ children }) {
 
   const needsMigration8 = (error) =>
     error && (error.code === '42703' || error.code === 'PGRST204')
-      ? new Error('Room sizes and openings need migration 8. Run supabase/migration_8_room_sizes_dates.sql in Supabase, then reload.')
+      ? new Error('Room sizes and openings need migration 8. Run supabase/migration_8_room_sizes_dates.sql in Supabase, then reload. Grouped values and the deduct choice need supabase/migration_17_measurement_groups_deduct.sql.')
       : error
 
   // Builds the saved fields. A door / window is typed as width and height in its room's unit;
   // what is stored as its value is the area in m2.
-  function measurementFields({ roomId, label, value, unit, note, isOpening, width, height }) {
+  function measurementFields({ roomId, label, value, unit, note, isOpening, width, height, deduct, hadDeduct, groupName }) {
     if (!(label || '').trim()) throw new Error('Give the measurement a label, e.g. Vanity width.')
     const fields = {
       room_id: roomId || null,
       label: label.trim(),
       note: (note || '').trim() || null,
-      is_opening: !!isOpening
+      is_opening: !!isOpening,
+      ...((groupName || '').trim() ? { group_name: groupName.trim() } : {})
     }
     if (isOpening) {
       if (!roomId) throw new Error('Pick the room this door or window is in.')
       const roomUnit = roomsById[roomId]?.dim_unit || 'mm'
       const area = openingArea(width, height, roomUnit)
       if (area == null) throw new Error('Type the width and height, as numbers of zero or more.')
-      return { ...fields, value: area, unit: 'm²', opening_width: Number(width), opening_height: Number(height) }
+      return { ...fields, ...(deduct === false || hadDeduct ? { deduct: deduct !== false } : {}), value: area, unit: 'm²', opening_width: Number(width), opening_height: Number(height) }
     }
     if (value === '' || value == null || Number.isNaN(Number(value)) || Number(value) < 0) {
       throw new Error('The value must be a number, zero or more.')

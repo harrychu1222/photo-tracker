@@ -79,8 +79,8 @@ export function compactItems(items) {
       name: it.name,
       hours: it.hours === '' || it.hours == null ? null : Number(it.hours),
       after: [...new Set((it.after || []).flatMap((p) => resolve(p)))],
-      materials: withKit ? it.materials || [] : [],
-      equipment: withKit ? it.equipment || [] : []
+      materials: withKit ? (it.materials || []).filter((m) => String(m[0] || '').trim()).map((m) => [String(m[0]).trim(), Number(m[1]) || 1, m[2] || '']) : [],
+      equipment: withKit ? (it.equipment || []).map((e) => String(e || '').trim()).filter(Boolean) : []
     }
   })
 }
@@ -117,3 +117,6 @@ export const todayISO = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// "Ground Bathroom 2" -> "Bathroom": the room type, for finding its template.
+export const roomTypeOf = (name) => String(name || '').replace(/^(Ground|Basement|Level \d) /, '').replace(/ \d+$/, '')

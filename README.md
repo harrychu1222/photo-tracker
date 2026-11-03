@@ -433,3 +433,12 @@ Run `supabase/migration_16_task_templates.sql` (only needed for "Save as my temp
 ### C5 follow-up
 - Template tasks now get planned dates (working days, 8 h a day, each task starts after the ones it waits on), so they show on the Gantt. Start = project start date, or today.
 - Plan > Tasks has a **From template** button: pick a room and a template, tidy the list, set the first start date, add. Shared checklist component: `TemplateChecklist.jsx`; scheduling in `lib/templates.js`.
+
+## Stage D + comment round
+
+Run `supabase/migration_17_measurement_groups_deduct.sql` (adds `group_name` and `deduct` to measurements).
+
+- **Questionnaire Tasks step:** each task has "Materials & tools" you can edit: change name/quantity/unit, remove, or add your own materials and tools.
+- **Plan > Tasks > From template:** opens on the room's own standard list; tasks already in the room are tagged and unticked. Rooms with a standard list but no tasks show a "Rooms with no tasks yet" bar with a + button each.
+- **Level filter** (All levels / Ground / Level 1 ...) on Plan > Tasks, Board and Gantt; one shared filter. Room chips follow the level.
+- **Measurements:** each door/window has "Take its area off the wall area" (tick/untick; wall figures only count ticked ones). Special measurements are named groups with several values (Vanity: width, height off floor); "+ Value" adds more to a group.

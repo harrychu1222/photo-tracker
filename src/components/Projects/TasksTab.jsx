@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import TaskForm from './TaskForm'
 import RoomsManager from './RoomsManager'
 import BulkAddTasks from './BulkAddTasks'
 import CopyTasks from './CopyTasks'
 import TemplateTasks from './TemplateTasks'
+import LevelFilter from './LevelFilter'
+import { roomsInLevel } from '../../lib/levels'
+import { roomTypeOf, templateKeyFor } from '../../lib/templates'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
@@ -24,7 +27,7 @@ function Badge({ tone, children }) {
 }
 
 // The to-do list for one project. `photos` are that project's photos (used for counts and the task form).
-export default function TasksTab({ project, photos }) {
+export default function TasksTab({ project, photos, level = 'all', onLevel = () => {} }) {
   const { isAdmin } = useAuth()
   const {
     tasksByProject,
@@ -42,7 +45,8 @@ export default function TasksTab({ project, photos }) {
   } = useWork()
   const tasks = tasksByProject[project.id] || []
   const loggedByTask = hoursByTask(timeByProject[project.id] || [])
-  const rooms = roomsByProject[project.id] || []
+  const allRooms = roomsByProject[project.id] || []
+  const rooms = roomsInLevel(allRooms, level)
 
   const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | a room id
   const [hideDone, setHideDone] = useState(false)
@@ -52,6 +56,8 @@ export default function TasksTab({ project, photos }) {
   const [showBulk, setShowBulk] = useState(false)
   const [showCopy, setShowCopy] = useState(false)
   const [showTpl, setShowTpl] = useState(false)
+  const [tplRoom, setTplRoom] = useState(null)
+  useEffect(() => setRoomFilter('all'), [level])
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
 
@@ -63,6 +69,7 @@ export default function TasksTab({ project, photos }) {
     return out
   }, [photos])
 
+  const emptyRooms = allRooms.filter((r) => templateKeyFor(roomTypeOf(r.name)) && !tasks.some((t) => t.room_id === r.id))
   const deps = useMemo(() => dependencyInfo(tasks), [tasks])
 
   const progress = taskProgress(tasks)
@@ -70,6 +77,7 @@ export default function TasksTab({ project, photos }) {
 
   const visible = tasks.filter((t) => {
     if (hideDone && t.status === 'done') return false
+    if (level !== 'all' && !rooms.some((r) => r.id === t.room_id)) return false
     if (roomFilter === 'none') return !t.room_id
     if (roomFilter !== 'all') return t.room_id === roomFilter
     return true
@@ -284,7 +292,7 @@ export default function TasksTab({ project, photos }) {
             </button>
           )}
           <button
-            onClick={() => setShowTpl(true)}
+            onClick={() => { setTplRoom(null); setShowTpl(true) }}
             className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
           >
             From template
@@ -309,6 +317,19 @@ export default function TasksTab({ project, photos }) {
       {error && <p className="mb-3 text-sm text-status-blocked">{error}</p>}
       {actionError && <p className="mb-3 text-sm text-status-blocked">{actionError}</p>}
 
+      {emptyRooms.length > 0 && (
+        <div className="mb-3 rounded-xl border border-signal-200 bg-signal-50 p-3" data-testid="empty-rooms">
+          <p className="text-sm font-medium text-ink-900">Rooms with no tasks yet</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {emptyRooms.map((r) => (
+              <button key={r.id} onClick={() => { setTplRoom(r.id); setShowTpl(true) }} aria-label={`Add template tasks to ${r.name}`} className="min-h-[36px] rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-800">
+                + {r.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
       {tasks.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           <button
@@ -401,7 +422,7 @@ export default function TasksTab({ project, photos }) {
         />
       )}
       {showBulk && <BulkAddTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowBulk(false)} />}
-      {showTpl && <TemplateTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowTpl(false)} />}
+      {showTpl && <TemplateTasks project={project} defaultRoomId={tplRoom || roomFilter} onClose={() => setShowTpl(false)} />}
       {showCopy && <CopyTasks project={project} defaultRoomId={roomFilter} onClose={() => setShowCopy(false)} />}
     </div>
   )

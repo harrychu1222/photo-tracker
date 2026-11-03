@@ -17,6 +17,7 @@ function MeasurementEditor({ kind, roomId, roomUnit, initial, onSave, onCancel, 
   const [width, setWidth] = useState(initial?.opening_width ?? '')
   const [height, setHeight] = useState(initial?.opening_height ?? '')
   const [note, setNote] = useState(initial?.note || '')
+  const [deduct, setDeduct] = useState(initial?.deduct !== false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -24,7 +25,7 @@ function MeasurementEditor({ kind, roomId, roomUnit, initial, onSave, onCancel, 
     setBusy(true)
     setError(null)
     try {
-      await onSave({ roomId, label, value, unit, note, isOpening: opening, width, height })
+      await onSave({ roomId, label, value, unit, note, isOpening: opening, width, height, deduct, hadDeduct: initial?.deduct !== undefined })
     } catch (err) {
       setError(err.message)
       setBusy(false)
@@ -94,7 +95,12 @@ function MeasurementEditor({ kind, roomId, roomUnit, initial, onSave, onCancel, 
         ))}
       </datalist>
       <input value={note} onChange={(e) => setNote(e.target.value)} className={inputClass} placeholder="Note (optional)" aria-label="Note" />
-      {opening && <p className="text-xs text-ink-400">Its area is taken off the wall area of this room.</p>}
+      {opening && (
+        <label className="flex min-h-[44px] items-center gap-2 text-sm text-ink-800">
+          <input type="checkbox" checked={deduct} onChange={(e) => setDeduct(e.target.checked)} className="h-5 w-5" aria-label="Take off the wall area" />
+          Take its area off the wall area
+        </label>
+      )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
@@ -143,7 +149,7 @@ function MeasurementRow({ m, roomUnit }) {
             <span className="font-normal text-ink-600">
               ·{' '}
               {m.is_opening
-                ? `${fmtArea(m.opening_width)} × ${fmtArea(m.opening_height)} ${roomUnit} = ${fmtArea(m.value)} m²`
+                ? `${fmtArea(m.opening_width)} × ${fmtArea(m.opening_height)} ${roomUnit} = ${fmtArea(m.value)} m²${m.deduct === false ? ' · not deducted' : ''}`
                 : `${fmtArea(m.value)} ${m.unit || ''}`}
             </span>
           </p>
@@ -172,24 +178,106 @@ function MeasurementRow({ m, roomUnit }) {
   )
 }
 
+// Several named values for one thing (Vanity: width, height off floor ...). Saved as one
+// measurement per value, all sharing the group name.
+function GroupEditor({ roomId, fixedName, onSave, onCancel }) {
+  const [name, setName] = useState(fixedName || '')
+  const [lines, setLines] = useState([{ label: '', value: '', unit: 'mm' }])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const set = (i, patch) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)))
+
+  async function submit() {
+    const filled = lines.filter((l) => l.label.trim() || l.value !== '')
+    if (filled.length === 0) return setError('Add at least one value, e.g. Width 900.')
+    if (filled.length > 1 && !name.trim()) return setError('Give the group a name, e.g. Vanity.')
+    setBusy(true)
+    setError(null)
+    try {
+      await onSave(name.trim(), filled)
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg bg-ink-50 p-2.5">
+      <input value={name} onChange={(e) => setName(e.target.value)} readOnly={!!fixedName} className={inputClass} placeholder="Name, e.g. Vanity, Shower screen" aria-label="Group name" />
+      <datalist id="group-units">{UNITS.map((u) => <option key={u} value={u} />)}</datalist>
+      {lines.map((l, i) => (
+        <div key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_4.5rem_auto] items-center gap-2">
+          <input value={l.label} onChange={(e) => set(i, { label: e.target.value })} className={inputClass} placeholder="e.g. Width" aria-label={`Value ${i + 1} label`} />
+          <input type="number" inputMode="decimal" min="0" step="any" value={l.value} onChange={(e) => set(i, { value: e.target.value })} className={inputClass} placeholder="Value" aria-label={`Value ${i + 1} number`} />
+          <input value={l.unit} onChange={(e) => set(i, { unit: e.target.value })} list="group-units" className={inputClass} placeholder="Unit" aria-label={`Value ${i + 1} unit`} />
+          {lines.length > 1 ? (
+            <button type="button" onClick={() => setLines((ls) => ls.filter((_, k) => k !== i))} className="min-h-[44px] px-1 text-lg leading-none text-ink-400" aria-label={`Remove value ${i + 1}`}>×</button>
+          ) : <span />}
+        </div>
+      ))}
+      <button type="button" onClick={() => setLines((ls) => [...ls, { label: '', value: '', unit: ls[ls.length - 1]?.unit || 'mm' }])} className={smallBtn}>+ Another value</button>
+      {error && <p className="text-xs text-status-blocked">{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">{fixedName ? 'Add values' : 'Add'}</button>
+        <button type="button" onClick={onCancel} className={smallBtn}>Cancel</button>
+      </div>
+    </div>
+  )
+}
+
 // A list of rows plus add buttons. `roomId` '' means the whole project.
 function MeasurementList({ project, roomId, roomUnit, rows, allowOpenings }) {
   const { addMeasurement } = useWork()
   const [adding, setAdding] = useState(null) // 'special' | 'opening' | null
+  const [addingTo, setAddingTo] = useState(null) // a group name
+
+  async function saveLines(groupName, lines) {
+    for (const l of lines) {
+      await addMeasurement(project.id, { roomId, label: l.label || groupName, value: l.value, unit: l.unit, note: '', isOpening: false, groupName })
+    }
+  }
+  const groups = []
+  rows.forEach((m) => {
+    if (!m.group_name) return groups.push({ row: m })
+    const g = groups.find((x) => x.name === m.group_name)
+    if (g) g.rows.push(m)
+    else groups.push({ name: m.group_name, rows: [m] })
+  })
 
   return (
     <div>
-      {rows.length > 0 && (
+      {groups.length > 0 && (
         <ul className="space-y-1.5">
-          {rows.map((m) => (
-            <MeasurementRow key={m.id} m={m} roomUnit={roomUnit} />
-          ))}
+          {groups.map((g) =>
+            g.row ? (
+              <MeasurementRow key={g.row.id} m={g.row} roomUnit={roomUnit} />
+            ) : (
+              <li key={g.name} className="rounded-lg border border-ink-100 bg-ink-50/50 p-2" aria-label={`Group ${g.name}`}>
+                <p className="mb-1 px-1 text-xs font-bold uppercase tracking-[0.08em] text-ink-600">{g.name}</p>
+                <ul className="space-y-1.5">
+                  {g.rows.map((m) => <MeasurementRow key={m.id} m={m} roomUnit={roomUnit} />)}
+                </ul>
+                {addingTo === g.name ? (
+                  <div className="mt-2">
+                    <GroupEditor roomId={roomId} fixedName={g.name} onCancel={() => setAddingTo(null)} onSave={async (n, lines) => { await saveLines(n, lines); setAddingTo(null) }} />
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => setAddingTo(g.name)} className={`${smallBtn} mt-2`} aria-label={`Add a value to ${g.name}`}>+ Value</button>
+                )}
+              </li>
+            )
+          )}
         </ul>
       )}
-      {adding && (
+      {adding === 'special' && (
+        <div className="mt-2">
+          <GroupEditor roomId={roomId} onCancel={() => setAdding(null)} onSave={async (n, lines) => { await saveLines(n, lines); setAdding(null) }} />
+        </div>
+      )}
+      {adding === 'opening' && (
         <div className="mt-2">
           <MeasurementEditor
-            kind={adding}
+            kind="opening"
             roomId={roomId}
             roomUnit={roomUnit}
             saveLabel="Add"

@@ -28,8 +28,10 @@ export function openingArea(width, height, unit) {
 // (each with a `value` in m2). A figure that can't be worked out yet is null.
 export function roomCalc(room, openings = []) {
   const unit = room.dim_unit || 'mm'
-  const openingsArea = r3(openings.reduce((sum, o) => sum + (Number(o.value) || 0), 0))
-  const hasOpenings = openings.length > 0
+  // An opening can be switched to "do not deduct" (deduct === false); only the others count.
+  const deducting = openings.filter((o) => o.deduct !== false)
+  const openingsArea = r3(deducting.reduce((sum, o) => sum + (Number(o.value) || 0), 0))
+  const hasOpenings = deducting.length > 0
   const out = {
     manual: !!room.manual_areas,
     floor: null,

@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import TaskForm from './TaskForm'
+import LevelFilter from './LevelFilter'
+import { roomsInLevel } from '../../lib/levels'
 import { useWork } from '../../context/WorkContext'
 import { useMedia } from '../../hooks/useMedia'
 import { TASK_STATUSES } from '../../statusConfig'
@@ -19,19 +21,21 @@ const NEXT = {
 
 // All of a project's tasks as cards in status columns. Drag a card (on a computer) or tap its
 // buttons to change status. Tap a card to open the task.
-export default function KanbanBoard({ project, photos }) {
+export default function KanbanBoard({ project, photos, level = 'all', onLevel = () => {} }) {
   const { tasksByProject, roomsByProject, roomsById, updateTask } = useWork()
   const isDesktop = useMedia('(min-width: 768px)')
   const tasks = tasksByProject[project.id] || []
-  const rooms = roomsByProject[project.id] || []
+  const allRooms = roomsByProject[project.id] || []
+  const rooms = roomsInLevel(allRooms, level)
   const [roomFilter, setRoomFilter] = useState('all') // 'all' | 'none' | room id
+  useEffect(() => setRoomFilter('all'), [level])
   const [column, setColumn] = useState('in_progress') // phone: the column on show
   const [editing, setEditing] = useState(null)
   const [error, setError] = useState(null)
   const [dragOver, setDragOver] = useState(null)
 
   const visible = tasks.filter((t) =>
-    roomFilter === 'all' ? true : roomFilter === 'none' ? !t.room_id || !roomsById[t.room_id] : t.room_id === roomFilter
+    level !== 'all' && !rooms.some((r) => r.id === t.room_id) ? false : roomFilter === 'all' ? true : roomFilter === 'none' ? !t.room_id || !roomsById[t.room_id] : t.room_id === roomFilter
   )
   const by = (status) => visible.filter((t) => (t.status || 'todo') === status).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
   const editingTask = editing ? tasks.find((t) => t.id === editing) || null : null
@@ -105,6 +109,7 @@ export default function KanbanBoard({ project, photos }) {
         </p>
       ) : (
         <>
+          <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
           {rooms.length > 0 && (
             <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Room filter">
               <button onClick={() => setRoomFilter('all')} className={chip(roomFilter === 'all')} aria-pressed={roomFilter === 'all'}>All rooms</button>
