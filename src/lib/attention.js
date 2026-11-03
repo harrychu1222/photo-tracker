@@ -2,7 +2,7 @@
 // deliveries and spending that is running ahead of the work done.
 import { dayDiff, scheduleNote, todayLocal } from './tasks'
 import { materialLateDays } from './materials'
-import { fmtDate } from './format'
+import { fmtDate, fmtMoney } from './format'
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -22,7 +22,7 @@ export function scheduleSummary(tasks, today = todayLocal()) {
 }
 
 // `go` says where a click should take the person: a top tab and, for Plan/Money, a sub tab.
-export function attentionItems({ tasks, materials, defects = [], money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
+export function attentionItems({ tasks, materials, defects = [], milestones = [], money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
   const items = []
 
   const late = tasks
@@ -57,6 +57,18 @@ export function attentionItems({ tasks, materials, defects = [], money, progress
   )
   if (lateMaterials.length > limit) {
     items.push({ id: 'mat-more', tone: 'warn', title: `${plural(lateMaterials.length - limit, 'more delivery', )} late`, detail: 'See Materials', go: { tab: 'materials' } })
+  }
+
+  const overduePay = isAdmin ? milestones.filter((m) => !m.payment_id && m.due_on && m.due_on < today).sort((a, b) => a.due_on.localeCompare(b.due_on)) : []
+  if (overduePay.length > 0) {
+    const total = overduePay.reduce((s, m) => s + Number(m.amount || 0), 0)
+    items.push({
+      id: 'pay-overdue',
+      tone: 'bad',
+      title: overduePay.length === 1 ? `${overduePay[0].name} payment is overdue` : `${overduePay.length} payments are overdue`,
+      detail: `${fmtMoney(total)} due since ${fmtDate(overduePay[0].due_on)}`,
+      go: { tab: 'money', sub: 'quote' }
+    })
   }
 
   const openDefects = defects.filter((d) => d.status !== 'fixed')

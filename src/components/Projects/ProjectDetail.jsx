@@ -10,6 +10,7 @@ import TimeTab from './TimeTab'
 import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
+import QuoteTab from './QuoteTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
 import { fmtDateRange, fmtMoney } from '../../lib/format'
@@ -45,7 +46,7 @@ export default function ProjectDetail({
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt
   const [planTab, setPlanTab] = useState('tasks') // 'tasks' | 'gantt' | 'measurements'
   const [moneyTab, setMoneyTab] = useState(isAdmin ? 'cashflow' : 'expenses') // 'expenses' | 'time' | 'cashflow'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
+  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, milestonesByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
@@ -74,7 +75,7 @@ export default function ProjectDetail({
   const everyMaterial = projectTasks.flatMap((t) => materialsByTask[t.id] || [])
   const projectDefects = defectsByProject[project.id] || []
   const openDefects = projectDefects.filter((d) => d.status !== 'fixed').length
-  const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, money, progress, isAdmin, today })
+  const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, milestones: isAdmin ? milestonesByProject[project.id] || [] : [], money, progress, isAdmin, today })
 
   function go(nextTab, sub) {
     setTab(nextTab)
@@ -96,11 +97,10 @@ export default function ProjectDetail({
     { id: 'measurements', label: `Measurements (${measurementCount})` }
   ]
   const moneyTabs = [
+    ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }, { id: 'quote', label: 'Quote & payments' }] : []),
     { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
-    { id: 'time', label: isAdmin ? `Labour (${projectTime.length})` : `My hours (${projectTime.length})` },
-    ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }] : [])
+    { id: 'time', label: isAdmin ? `Labour (${projectTime.length})` : `My hours (${projectTime.length})` }
   ]
-  if (isAdmin) moneyTabs.unshift(moneyTabs.pop())
 
   const chip = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold'
 
@@ -225,6 +225,7 @@ export default function ProjectDetail({
         {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
         {tab === 'money' && moneyTab === 'expenses' && <ExpensesTab project={project} />}
         {tab === 'money' && moneyTab === 'time' && <TimeTab project={project} />}
+        {tab === 'money' && moneyTab === 'quote' && isAdmin && <QuoteTab project={project} quote={money.quote} />}
         {tab === 'money' && moneyTab === 'cashflow' && isAdmin && <CashFlowTab project={project} finance={finance} />}
 
         {tab === 'photos' &&

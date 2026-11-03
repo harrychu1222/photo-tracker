@@ -2,8 +2,9 @@
 // so a project shows the same numbers in both places.
 import { sumCosts, taskCost } from './costs'
 import { projectMoney } from './expenses'
-import { buildCashFlow, receivedSummary } from './cashflow'
-import { labourCost, labourEvents } from './labour'
+import { receivedSummary } from './cashflow'
+import { labourCost } from './labour'
+import { nextPayment } from './payments'
 import { materialLateDays } from './materials'
 import { scheduleSummary } from './attention'
 import { dayDiff, taskProgress, todayLocal } from './tasks'
@@ -39,7 +40,8 @@ export function projectSnapshot(project, finance, ctx, today = todayLocal()) {
     quote: money.quote,
     received: paid.received,
     toReceive: paid.toReceive,
-    net: round(paid.received - money.actual)
+    net: round(paid.received - money.actual),
+    next: nextPayment(ctx.milestonesByProject?.[project.id] || [], today)
   }
 }
 
@@ -57,12 +59,4 @@ export function overviewTotals(snaps) {
     net: sum('net'),
     toReceive: round(snaps.reduce((s, x) => s + (x.toReceive || 0), 0))
   }
-}
-
-// One cash-flow line for several projects together.
-export function combinedCashFlow(projects, ctx, today = todayLocal()) {
-  const expenses = projects.flatMap((p) => ctx.expensesByProject[p.id] || [])
-  const payments = projects.flatMap((p) => ctx.paymentsByProject[p.id] || [])
-  const labour = projects.flatMap((p) => labourEvents(ctx.timeByProject[p.id] || [], ctx.rateBook, ctx.lumpsByProject[p.id] || [], today))
-  return buildCashFlow(expenses, payments, { today, quote: null, labour })
 }

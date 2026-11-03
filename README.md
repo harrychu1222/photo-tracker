@@ -449,3 +449,13 @@ Run `supabase/migration_18_defects.sql`.
 
 - **Project > Defects tab:** add a defect (what is wrong, room, related task, priority, notes), Start work / Mark fixed / Reopen, edit, delete (admin or whoever added it). Filters: Open / Fixed / All, level, room. The tab shows the open count; the project header shows "N open defects"; Overview > Needs attention lists them (urgent ones in red, with the oldest age).
 - **Projects > Overview** (switch at the top of the project list): tiles for projects behind plan, late deliveries, open defects and (admin) net; a combined cash-flow graph of all shown projects (admin); one card per project with progress, schedule, late deliveries, defects and (admin) spent / received / net. Tap a card to open the project. Complete projects are hidden unless you tick "Include complete projects". Figures come from the same functions as the project screen (`src/lib/overview.js`).
+
+## Overview rework + F1 (quote PDF, payment schedule)
+
+Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (adds `pdf-lib`, loaded only when you create a PDF).
+
+- **Projects is now one screen:** totals across the projects shown (behind plan, late deliveries, open defects; admin also Received, Spent, Net, Still to receive), then one big card per project (progress, schedule, late deliveries, defects, photos; admin: Quote / Received / Spent / Net and the next payment). Tap a card to open the project. The separate Overview switch and the combined graph are gone.
+- **Money > Quote & payments (admin):**
+  - *Payment schedule:* named payments with amount (or % of the quote) and optional due date; "Start with deposit 20%, progress 40% and 30%, final 10%"; Mark received (records a payment under Cash flow, with the date you choose) and Undo received (removes that payment); totals show scheduled, received, still to come and what is not yet scheduled (or over the quote).
+  - *Quote PDF:* asks for your business details (name, ABN, phone, email, address, terms, days valid), saved for next time; optional scope notes; optionally lists the tasks by room and the payment schedule; text only; shows the GST-included price and the GST amount, with a signature block. File: `Quote - <project> - <date>.pdf`.
+- Overdue payments appear under Needs attention and on the project card.

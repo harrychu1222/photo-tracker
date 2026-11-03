@@ -45,6 +45,9 @@ export function WorkProvider({ children }) {
   const [linksReady, setLinksReady] = useState(false) // false until migration 7 is in place
   const [measurements, setMeasurements] = useState([])
   const [measurementsError, setMeasurementsError] = useState(null)
+  const [business, setBusiness] = useState(null)
+  const [milestones, setMilestones] = useState([])
+  const [quoteError, setQuoteError] = useState(null)
   const [defects, setDefects] = useState([])
   const [defectsError, setDefectsError] = useState(null)
   const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
@@ -133,6 +136,25 @@ export function WorkProvider({ children }) {
       )
     }
   }, [userId])
+
+  // Business details and the payment schedule (migration 19).
+  const refreshQuote = useCallback(async () => {
+    if (!userId || !isAdmin) {
+      setBusiness(null)
+      setMilestones([])
+      return
+    }
+    const [b, m] = await Promise.all([supabase.from('business_profile').select('*').maybeSingle(), supabase.from('payment_milestones').select('*')])
+    const err = b.error || m.error
+    if (err) {
+      setQuoteError(err.code === 'PGRST205' || err.code === '42P01' ? 'The quote and payment schedule are not set up yet. Run supabase/migration_19_quote_payments.sql in Supabase, then reload.' : err.message)
+      setMilestones([])
+      return
+    }
+    setQuoteError(null)
+    setBusiness(b.data || null)
+    setMilestones(m.data)
+  }, [userId, isAdmin])
 
   // Defects (migration 18). Until it is run the rest of the app keeps working.
   const refreshDefects = useCallback(async () => {
@@ -244,6 +266,7 @@ export function WorkProvider({ children }) {
     refreshCosts()
     refreshExtras()
     refreshDefects()
+    refreshQuote()
     refreshExpenses()
     refreshPayments()
     refreshTime()
@@ -268,7 +291,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshExpenses, refreshPayments, refreshTime])
+  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshQuote, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -303,6 +326,7 @@ export function WorkProvider({ children }) {
   const materialsByTask = useMemo(() => groupBy(materials, 'task_id'), [materials])
   const measurementsByProject = useMemo(() => groupBy(measurements, 'project_id'), [measurements])
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
+  const milestonesByProject = useMemo(() => groupBy(milestones, 'project_id'), [milestones])
   const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
   const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
 
@@ -623,6 +647,82 @@ export function WorkProvider({ children }) {
     if (error) throw error
     if (!data?.length) throw new Error('Only an admin or the person who added this item can delete it.')
     await refreshCosts()
+  }
+
+  // ---------- Quote details and payment schedule ----------
+
+  async function saveBusiness(f) {
+    if (!(f.name || '').trim()) throw new Error('Enter your business name.')
+    const row = {
+      singleton: true,
+      name: f.name.trim(),
+      abn: (f.abn || '').trim() || null,
+      phone: (f.phone || '').trim() || null,
+      email: (f.email || '').trim() || null,
+      address: (f.address || '').trim() || null,
+      terms: (f.terms || '').trim() || null,
+      valid_days: Math.min(365, Math.max(1, Math.floor(Number(f.valid_days) || 30))),
+      updated_at: new Date().toISOString()
+    }
+    const { error } = await supabase.from('business_profile').upsert(row, { onConflict: 'singleton' })
+    if (error) throw error
+    await refreshQuote()
+    return row
+  }
+
+  function milestoneFields({ name, amount, due_on }) {
+    if (!(name || '').trim()) throw new Error('Name the payment, e.g. Deposit.')
+    const a = Number(amount)
+    if (amount === '' || amount == null || !Number.isFinite(a) || a < 0) throw new Error('Enter the amount as a number.')
+    return { name: name.trim(), amount: Math.round(a * 100) / 100, due_on: due_on || null }
+  }
+
+  async function addMilestone(projectId, input) {
+    const sort_order = (milestonesByProject[projectId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0) + 1
+    const { error } = await supabase.from('payment_milestones').insert({ ...milestoneFields(input), project_id: projectId, sort_order, created_by: userId })
+    if (error) throw error
+    await refreshQuote()
+  }
+
+  async function addMilestones(projectId, list) {
+    const base = (milestonesByProject[projectId] || []).reduce((max, m) => Math.max(max, m.sort_order || 0), 0)
+    const rows = list.map((x, i) => ({ ...milestoneFields(x), project_id: projectId, sort_order: base + i + 1, created_by: userId }))
+    const { error } = await supabase.from('payment_milestones').insert(rows)
+    if (error) throw error
+    await refreshQuote()
+  }
+
+  async function updateMilestone(id, input) {
+    const { error } = await supabase.from('payment_milestones').update(milestoneFields(input)).eq('id', id)
+    if (error) throw error
+    await refreshQuote()
+  }
+
+  async function deleteMilestone(id) {
+    const { error } = await supabase.from('payment_milestones').delete().eq('id', id)
+    if (error) throw error
+    await refreshQuote()
+  }
+
+  // Marking a payment received records it under Cash flow and links it to the milestone.
+  async function receiveMilestone(m, date) {
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({ project_id: m.project_id, created_by: userId, received_on: date || todayLocal(), description: m.name, amount_ex_gst: m.amount })
+      .select()
+      .single()
+    if (error) throw error
+    const { error: e2 } = await supabase.from('payment_milestones').update({ payment_id: data.id }).eq('id', m.id)
+    if (e2) throw e2
+    await Promise.all([refreshPayments(), refreshQuote()])
+  }
+
+  async function undoReceive(m) {
+    const { error } = await supabase.from('payments').delete().eq('id', m.payment_id)
+    if (error) throw error
+    const { error: e2 } = await supabase.from('payment_milestones').update({ payment_id: null }).eq('id', m.id)
+    if (e2) throw e2
+    await Promise.all([refreshPayments(), refreshQuote()])
   }
 
   // ---------- Defects ----------
@@ -997,6 +1097,17 @@ export function WorkProvider({ children }) {
     receiptUrl,
     removeReceipt,
     measurements,
+    business,
+    milestones,
+    milestonesByProject,
+    quoteError,
+    saveBusiness,
+    addMilestone,
+    addMilestones,
+    updateMilestone,
+    deleteMilestone,
+    receiveMilestone,
+    undoReceive,
     defects,
     defectsError,
     defectsByProject,

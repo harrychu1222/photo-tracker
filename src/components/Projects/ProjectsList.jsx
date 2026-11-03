@@ -1,15 +1,40 @@
 import { useMemo, useState } from 'react'
 import { PROJECT_STATUSES, projectStatusMeta } from '../../statusConfig'
-import { fmtDateRange } from '../../lib/format'
-import { taskProgress } from '../../lib/tasks'
+import { fmtDate, fmtDateRange, fmtMoney } from '../../lib/format'
+import { overviewTotals, projectSnapshot } from '../../lib/overview'
+import { todayLocal } from '../../lib/tasks'
+import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
-import AllProjectsOverview from './AllProjectsOverview'
 
+const chip = (on) => `flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const bad = 'font-semibold text-status-blocked'
+
+function Tile({ label, value, sub, tone, testId }) {
+  return (
+    <div className="rounded-xl border border-ink-100 bg-white p-3" data-testid={testId}>
+      <p className="text-xs font-semibold text-ink-600">{label}</p>
+      <p className={`mt-1 text-xl font-bold tracking-tight ${tone === 'bad' ? 'text-status-blocked' : 'text-ink-900'}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-ink-600">{sub}</p>}
+    </div>
+  )
+}
+
+function Money({ label, value, tone }) {
+  return (
+    <div>
+      <p className="text-xs text-ink-600">{label}</p>
+      <p className={`text-sm font-semibold ${tone === 'bad' ? 'text-status-blocked' : 'text-ink-900'}`}>{value}</p>
+    </div>
+  )
+}
+
+// The one Projects screen: totals across the projects shown, then one big status card per project.
 export default function ProjectsList({ projects, photoCounts, finance, loading, error, onOpen, onNew }) {
-  const { tasksByProject } = useWork()
+  const { isAdmin } = useAuth()
+  const work = useWork()
   const [statusFilter, setStatusFilter] = useState(null)
   const [search, setSearch] = useState('')
-  const [view, setView] = useState('list') // 'list' | 'overview'
+  const today = todayLocal()
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -20,6 +45,9 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
     })
   }, [projects, statusFilter, search])
 
+  const snaps = useMemo(() => visible.map((p) => projectSnapshot(p, finance?.[p.id], work, today)), [visible, finance, work, today])
+  const totals = overviewTotals(snaps)
+
   return (
     <div className="px-4 py-4 md:px-10 md:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -29,16 +57,6 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
         </button>
       </div>
 
-      <div role="group" aria-label="Projects view" className="mb-4 inline-flex gap-1 rounded-xl bg-ink-100 p-1">
-        {[['list', 'Projects'], ['overview', 'Overview']].map(([id, label]) => (
-          <button key={id} onClick={() => setView(id)} aria-pressed={view === id} className={`min-h-[40px] rounded-lg px-4 text-sm font-semibold ${view === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {view === 'overview' && !loading && <AllProjectsOverview projects={projects} finance={finance} onOpen={onOpen} />}
-      {view === 'list' && <>
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -47,22 +65,9 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
       />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
-        <button
-          onClick={() => setStatusFilter(null)}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
-            statusFilter === null ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
-          }`}
-        >
-          All
-        </button>
+        <button onClick={() => setStatusFilter(null)} className={chip(statusFilter === null)} aria-pressed={statusFilter === null}>All</button>
         {PROJECT_STATUSES.map((s) => (
-          <button
-            key={s.value}
-            onClick={() => setStatusFilter(statusFilter === s.value ? null : s.value)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
-              statusFilter === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
-            }`}
-          >
+          <button key={s.value} onClick={() => setStatusFilter(statusFilter === s.value ? null : s.value)} className={chip(statusFilter === s.value)} aria-pressed={statusFilter === s.value}>
             <span className="status-dot" style={{ backgroundColor: s.color }} />
             {s.label}
           </button>
@@ -70,61 +75,85 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
       </div>
 
       {loading && <p className="py-10 text-center text-sm text-ink-400">Loading projects…</p>}
-      {error && <p className="py-6 text-center text-sm text-status-blocked">{error}</p>}
-
+      {error && <p className="py-4 text-center text-sm text-status-blocked">{error}</p>}
       {!loading && !error && projects.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-ink-600">No projects yet. Create one to start grouping photos and, soon, tasks.</p>
+        <p className="rounded-xl border border-dashed border-ink-200 py-12 text-center text-sm text-ink-600">No projects yet. Tap “+ New project” to start one.</p>
+      )}
+      {!loading && projects.length > 0 && visible.length === 0 && <p className="py-10 text-center text-sm text-ink-400">No projects match.</p>}
+
+      {visible.length > 0 && (
+        <div data-testid="all-overview">
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <Tile testId="tile-behind" label="Behind plan" value={totals.behind} sub={totals.overdueTasks ? `${totals.overdueTasks} overdue task${totals.overdueTasks === 1 ? '' : 's'}` : 'No overdue tasks'} tone={totals.behind ? 'bad' : undefined} />
+            <Tile testId="tile-late" label="Late deliveries" value={totals.lateDeliveries} tone={totals.lateDeliveries ? 'bad' : undefined} />
+            <Tile testId="tile-defects" label="Open defects" value={totals.openDefects} sub={totals.urgentDefects ? `${totals.urgentDefects} urgent` : undefined} tone={totals.urgentDefects ? 'bad' : undefined} />
+          </div>
+          {isAdmin && (
+            <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4" data-testid="money-tiles">
+              <Tile testId="tile-received" label="Received" value={fmtMoney(totals.received)} />
+              <Tile testId="tile-spent" label="Spent" value={fmtMoney(totals.spent)} />
+              <Tile testId="tile-net" label="Net (received − spent)" value={fmtMoney(totals.net)} tone={totals.net < 0 ? 'bad' : undefined} />
+              <Tile testId="tile-toreceive" label="Still to receive" value={fmtMoney(totals.toReceive)} sub="Of the quotes shown" />
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" role="list" aria-label="Projects">
+            {snaps.map((s) => {
+              const p = s.project
+              const st = projectStatusMeta(p.status)
+              const count = photoCounts[p.id] || 0
+              const overdue = s.next?.state.kind === 'overdue'
+              return (
+                <button key={p.id} role="listitem" onClick={() => onOpen(p.id)} aria-label={`Open ${p.name}`} data-testid={`ov-${p.id}`} className="flex flex-col rounded-2xl border border-ink-100 bg-white p-4 text-left active:bg-ink-50">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-lg font-bold leading-tight text-ink-900">{p.name}</p>
+                    <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-800">
+                      <span className="status-dot" style={{ backgroundColor: st.color }} />
+                      {st.label}
+                    </span>
+                  </div>
+                  {(p.client || p.site_address) && <p className="mt-1 text-sm text-ink-600">{[p.client, p.site_address].filter(Boolean).join(' — ')}</p>}
+                  {fmtDateRange(p.start_date, p.end_date) && <p className="text-xs text-ink-400">{fmtDateRange(p.start_date, p.end_date)}</p>}
+
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-baseline justify-between text-sm">
+                      <span className="font-semibold text-ink-900">{s.progress.total ? `${s.progress.percent}% done` : 'No tasks yet'}</span>
+                      {s.progress.total > 0 && <span className="text-xs text-ink-600">{s.progress.done} of {s.progress.total} tasks</span>}
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-ink-100" aria-hidden="true">
+                      <div className="h-full rounded-full bg-status-done" style={{ width: `${s.progress.total ? s.progress.percent : 0}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-700">
+                    <span className={s.behindDays ? bad : ''}>{s.behindDays ? `${s.behindDays} day${s.behindDays === 1 ? '' : 's'} behind` : 'On track'}</span>
+                    {s.lateDeliveries > 0 && <span className={bad}>{s.lateDeliveries} late deliver{s.lateDeliveries === 1 ? 'y' : 'ies'}</span>}
+                    {s.openDefects > 0 && <span className={s.urgentDefects ? bad : ''}>{s.openDefects} open defect{s.openDefects === 1 ? '' : 's'}{s.urgentDefects ? ` (${s.urgentDefects} urgent)` : ''}</span>}
+                    <span className="text-ink-600">{count} photo{count === 1 ? '' : 's'}</span>
+                  </div>
+
+                  {isAdmin && (
+                    <div className="mt-3 border-t border-ink-100 pt-3">
+                      <div className="grid grid-cols-4 gap-2">
+                        <Money label="Quote" value={s.quote ? fmtMoney(s.quote) : '—'} />
+                        <Money label="Received" value={fmtMoney(s.received)} />
+                        <Money label="Spent" value={fmtMoney(s.spent)} />
+                        <Money label="Net" value={fmtMoney(s.net)} tone={s.net < 0 ? 'bad' : undefined} />
+                      </div>
+                      {s.next && (
+                        <p className={`mt-2 text-xs ${overdue ? bad : 'text-ink-600'}`}>
+                          Next payment: {s.next.milestone.name}, {fmtMoney(s.next.milestone.amount)}
+                          {s.next.milestone.due_on ? `, ${overdue ? 'was due' : 'due'} ${fmtDate(s.next.milestone.due_on)}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
-
-      {!loading && !error && projects.length > 0 && visible.length === 0 && (
-        <p className="py-10 text-center text-sm text-ink-600">No projects match these filters.</p>
-      )}
-
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {visible.map((p) => {
-          const status = projectStatusMeta(p.status)
-          const count = photoCounts[p.id] || 0
-          const dates = fmtDateRange(p.start_date, p.end_date)
-          const progress = taskProgress(tasksByProject[p.id] || [])
-          return (
-            <button
-              key={p.id}
-              onClick={() => onOpen(p.id)}
-              className="rounded-xl border border-ink-100 bg-white p-4 text-left active:bg-ink-50 md:hover:border-ink-200"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-base font-semibold text-ink-900">{p.name}</p>
-                <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-800">
-                  <span className="status-dot" style={{ backgroundColor: status.color }} />
-                  {status.label}
-                </span>
-              </div>
-              {(p.client || p.site_address) && (
-                <p className="mt-1 truncate text-sm text-ink-600">
-                  {[p.client, p.site_address].filter(Boolean).join(' — ')}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-ink-400">
-                {[
-                  dates,
-                  progress.total > 0 ? `${progress.done}/${progress.total} tasks done` : null,
-                  `${count} photo${count === 1 ? '' : 's'}`
-                ]
-                  .filter(Boolean)
-                  .join('  ·  ')}
-              </p>
-              {progress.total > 0 && (
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100">
-                  <div className="h-full rounded-full bg-signal-500" style={{ width: `${progress.percent}%` }} />
-                </div>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      </>}
     </div>
   )
 }
