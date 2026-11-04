@@ -29,6 +29,7 @@ export default function AppShell({
 }) {
   const navItems = [
     { id: 'projects', label: 'Projects', icon: 'projects' },
+    { id: 'myday', label: 'My Day', icon: 'calendar' },
     { id: 'photos', label: 'Photos', icon: 'photos' },
     ...(isAdmin ? [{ id: 'team', label: 'Team', icon: 'team' }] : [])
   ]
@@ -96,7 +97,7 @@ export default function AppShell({
     )
   }
 
-  const left = navItems.slice(0, isAdmin ? 2 : 1)
+  const left = navItems.slice(0, 2)
   const right = navItems.slice(left.length)
   const item = (n) => (
     <button

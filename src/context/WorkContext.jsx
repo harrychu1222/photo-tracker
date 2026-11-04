@@ -46,6 +46,8 @@ export function WorkProvider({ children }) {
   const [measurements, setMeasurements] = useState([])
   const [measurementsError, setMeasurementsError] = useState(null)
   const [business, setBusiness] = useState(null)
+  const [team, setTeam] = useState([]) // everyone with a login: { id, email }
+  const [quoteDrafts, setQuoteDrafts] = useState({}) // project id -> saved quote wording
   const [milestones, setMilestones] = useState([])
   const [quoteError, setQuoteError] = useState(null)
   const [defects, setDefects] = useState([])
@@ -144,7 +146,9 @@ export function WorkProvider({ children }) {
       setMilestones([])
       return
     }
-    const [b, m] = await Promise.all([supabase.from('business_profile').select('*').maybeSingle(), supabase.from('payment_milestones').select('*')])
+    const [b, m, q] = await Promise.all([supabase.from('business_profile').select('*').maybeSingle(), supabase.from('payment_milestones').select('*'), supabase.from('project_quotes').select('*')])
+    // Migration 20 may not be run yet: the quote wording is then simply not saved.
+    setQuoteDrafts(q.error ? {} : Object.fromEntries((q.data || []).map((r) => [r.project_id, r])))
     const err = b.error || m.error
     if (err) {
       setQuoteError(err.code === 'PGRST205' || err.code === '42P01' ? 'The quote and payment schedule are not set up yet. Run supabase/migration_19_quote_payments.sql in Supabase, then reload.' : err.message)
@@ -155,6 +159,13 @@ export function WorkProvider({ children }) {
     setBusiness(b.data || null)
     setMilestones(m.data)
   }, [userId, isAdmin])
+
+  // Everyone with a login, for "assigned to". Profiles are readable by every signed-in user.
+  const refreshTeam = useCallback(async () => {
+    if (!userId) return setTeam([])
+    const { data, error } = await supabase.from('profiles').select('id, email')
+    setTeam(error ? [] : [...(data || [])].sort((a, b) => a.email.localeCompare(b.email)))
+  }, [userId])
 
   // Defects (migration 18). Until it is run the rest of the app keeps working.
   const refreshDefects = useCallback(async () => {
@@ -267,6 +278,7 @@ export function WorkProvider({ children }) {
     refreshExtras()
     refreshDefects()
     refreshQuote()
+    refreshTeam()
     refreshExpenses()
     refreshPayments()
     refreshTime()
@@ -291,7 +303,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshQuote, refreshExpenses, refreshPayments, refreshTime])
+  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshQuote, refreshTeam, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -725,6 +737,22 @@ export function WorkProvider({ children }) {
     await Promise.all([refreshPayments(), refreshQuote()])
   }
 
+  async function saveQuoteDraft(projectId, draft) {
+    const row = {
+      project_id: projectId,
+      lines: draft.lines || [],
+      notes: (draft.notes || '').trim() || null,
+      price_label: (draft.price_label || '').trim() || null,
+      gst_note: (draft.gst_note || '').trim() || null,
+      updated_at: new Date().toISOString()
+    }
+    const { error } = await supabase.from('project_quotes').upsert(row, { onConflict: 'project_id' })
+    if (error) {
+      throw error.code === 'PGRST205' || error.code === '42P01' ? new Error('Saving the quote wording needs supabase/migration_20_assign_quote_wording.sql. Run it in Supabase, then reload.') : error
+    }
+    await refreshQuote()
+  }
+
   // ---------- Defects ----------
 
   function defectFields({ title, notes, roomId, taskId, priority, status }) {
@@ -1098,6 +1126,9 @@ export function WorkProvider({ children }) {
     removeReceipt,
     measurements,
     business,
+    team,
+    quoteDrafts,
+    saveQuoteDraft,
     milestones,
     milestonesByProject,
     quoteError,

@@ -12,11 +12,11 @@ export function addDaysISO(iso, days) {
   return d.toISOString().slice(0, 10)
 }
 
-// input: { business, project, quote, tasks: [{ room, name }], milestones: [{ name, amount, due_on }],
-//          notes, includeTasks, includeSchedule, date (yyyy-mm-dd) }
+// input: { business, project, quote, lines: [{ room, text, details }], milestones: [{ name, amount, due_on }],
+//          notes, priceLabel, gstNote, includeSchedule, date (yyyy-mm-dd) }
 export async function buildQuotePdf(input) {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
-  const { business = {}, project, quote, tasks = [], milestones = [], notes = '', includeTasks, includeSchedule, date } = input
+  const { business = {}, project, quote, lines = [], milestones = [], notes = '', priceLabel = '', gstNote = '', includeSchedule, date } = input
   const doc = await PDFDocument.create()
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const bold = await doc.embedFont(StandardFonts.HelveticaBold)
@@ -75,24 +75,27 @@ export async function buildQuotePdf(input) {
   if (project.site_address) text(`Site: ${project.site_address}`, { size: 10 })
   text(`Project: ${project.name}`, { size: 10 })
 
-  if ((notes || '').trim()) { heading('Scope of work'); text(notes, { size: 10 }) }
-  if (includeTasks && tasks.length) {
-    heading((notes || '').trim() ? 'Work included' : 'Scope of work')
+  if ((notes || '').trim() || lines.length) heading('Scope of work')
+  if ((notes || '').trim()) { text(notes, { size: 10 }); space(4) }
+  if (lines.length) {
     const rooms = []
-    tasks.forEach((t) => { let g = rooms.find((r) => r.room === t.room); if (!g) rooms.push((g = { room: t.room, names: [] })); g.names.push(t.name) })
+    lines.forEach((l) => { let g = rooms.find((r) => r.room === (l.room || '')); if (!g) rooms.push((g = { room: l.room || '', items: [] })); g.items.push(l) })
     rooms.forEach((g) => {
       if (g.room) text(g.room, { f: bold, size: 10, gap: 2 })
-      g.names.forEach((n) => text(`-  ${n}`, { size: 10, x: M + 8, width: W - 2 * M - 8, gap: 2 }))
+      g.items.forEach((l) => {
+        text(`-  ${l.text}`, { size: 10, x: M + 8, width: W - 2 * M - 8, gap: 2 })
+        if ((l.details || '').trim()) text(l.details, { size: 9, color: grey, x: M + 22, width: W - 2 * M - 22, gap: 2 })
+      })
       space(4)
     })
   }
 
   heading('Price')
   need(30)
-  page.drawText('Total price (GST included)', { x: M, y: y - 12, size: 12, font: bold, color: ink })
+  page.drawText(safe((priceLabel || '').trim() || 'Total price (GST included)'), { x: M, y: y - 12, size: 12, font: bold, color: ink })
   right(aud(quote), W - M, 12, bold)
   y -= 18
-  text(`Includes GST of ${aud(quote / 11)}`, { size: 9, color: grey })
+  text((gstNote || '').trim() || `Includes GST of ${aud(quote / 11)}`, { size: 9, color: grey })
 
   if (includeSchedule && milestones.length) {
     heading('Payment schedule')

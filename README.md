@@ -459,3 +459,10 @@ Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (ad
   - *Payment schedule:* named payments with amount (or % of the quote) and optional due date; "Start with deposit 20%, progress 40% and 30%, final 10%"; Mark received (records a payment under Cash flow, with the date you choose) and Undo received (removes that payment); totals show scheduled, received, still to come and what is not yet scheduled (or over the quote).
   - *Quote PDF:* asks for your business details (name, ABN, phone, email, address, terms, days valid), saved for next time; optional scope notes; optionally lists the tasks by room and the payment schedule; text only; shows the GST-included price and the GST amount, with a signature block. File: `Quote - <project> - <date>.pdf`.
 - Overdue payments appear under Needs attention and on the project card.
+
+## F2 + quote wording
+- Run `supabase/migration_20_assign_quote_wording.sql` (adds `tasks.assigned_user` and the `project_quotes` table, admin-only).
+- Tasks can be assigned to anyone with a login (task form → "Assigned to"). Plan/Board have an "Assigned to" filter.
+- **My Day** (main nav): your assigned tasks as Overdue / Today / This week / No dates, with Start and Done buttons. Admins can view anyone's.
+- Quote wording: Money → Quote & payments → "Edit quote wording". Each task becomes an editable scope line with materials/grade details; the price heading and GST line are editable too. Saved per project.
+- Workers without logins can't be assigned yet.

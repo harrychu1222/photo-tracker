@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useWork } from '../../context/WorkContext'
 import { fmtDate, fmtMoney } from '../../lib/format'
 import { amountFromPct, milestoneState, scheduleTotals, sortMilestones, standardSplit } from '../../lib/payments'
 import { buildQuotePdf } from '../../lib/quotepdf'
+import { autoGstNote, defaultLines, mergeLines } from '../../lib/quotelines'
 import { todayLocal } from '../../lib/tasks'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-base focus:border-signal-500'
@@ -14,9 +15,8 @@ const seg = (on) => `min-h-[40px] rounded-lg px-3 text-xs font-semibold ${on ? '
 
 // ---------- Quote PDF ----------
 
-function QuoteDialog({ project, quote, milestones, onClose }) {
-  const { business, saveBusiness, tasksByProject, roomsById } = useWork()
-  const tasks = tasksByProject[project.id] || []
+function QuoteDialog({ project, quote, milestones, draft, onEditWording, onClose }) {
+  const { business, saveBusiness } = useWork()
   const [f, setF] = useState({
     name: business?.name || '',
     abn: business?.abn || '',
@@ -26,8 +26,7 @@ function QuoteDialog({ project, quote, milestones, onClose }) {
     terms: business?.terms || '',
     valid_days: business?.valid_days || 30
   })
-  const [notes, setNotes] = useState('')
-  const [includeTasks, setIncludeTasks] = useState(tasks.length > 0)
+  const shown = draft.lines.filter((l) => l.on !== false)
   const [includeSchedule, setIncludeSchedule] = useState(milestones.length > 0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -43,10 +42,11 @@ function QuoteDialog({ project, quote, milestones, onClose }) {
         business: saved,
         project,
         quote,
-        tasks: tasks.map((t) => ({ room: roomsById[t.room_id]?.name || '', name: t.name })),
+        lines: shown,
         milestones: sortMilestones(milestones),
-        notes,
-        includeTasks,
+        notes: draft.notes,
+        priceLabel: draft.priceLabel,
+        gstNote: draft.gstNote,
         includeSchedule,
         date
       })
@@ -72,8 +72,12 @@ function QuoteDialog({ project, quote, milestones, onClose }) {
           <h2 className="text-lg font-semibold text-ink-900">Create quote PDF</h2>
           <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">×</button>
         </div>
-        <p className="mb-3 text-sm text-ink-600">Quote price: <b className="text-ink-900">{fmtMoney(quote)}</b> (GST included). Your details are saved for next time.</p>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-ink-600">Your business</p>
+        <p className="mb-1 text-sm text-ink-600">Quote price: <b className="text-ink-900">{fmtMoney(quote)}</b> (GST included).</p>
+        <p className="mb-3 text-sm text-ink-600">
+          {shown.length} line{shown.length === 1 ? '' : 's'} of work will be listed.{' '}
+          <button onClick={onEditWording} className="font-semibold text-ink-900 underline">Edit the wording</button>
+        </p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-ink-600">Your business (saved for next time)</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label htmlFor="qb-name" className={labelClass}>Business name</label>
@@ -104,14 +108,7 @@ function QuoteDialog({ project, quote, milestones, onClose }) {
             <textarea id="qb-terms" rows={3} value={f.terms} onChange={set('terms')} className={inputClass} />
           </div>
         </div>
-        <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-[0.08em] text-ink-600">This quote</p>
-        <label htmlFor="qb-notes" className={labelClass}>Scope notes, inclusions and exclusions (optional)</label>
-        <textarea id="qb-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
-        <label className="mt-2 flex min-h-[44px] items-center gap-2 text-sm text-ink-800">
-          <input type="checkbox" checked={includeTasks} onChange={(e) => setIncludeTasks(e.target.checked)} disabled={tasks.length === 0} className="h-5 w-5" aria-label="List the tasks" />
-          List the project's tasks as the work included{tasks.length === 0 ? ' (no tasks yet)' : ''}
-        </label>
-        <label className="flex min-h-[44px] items-center gap-2 text-sm text-ink-800">
+        <label className="mt-3 flex min-h-[44px] items-center gap-2 text-sm text-ink-800">
           <input type="checkbox" checked={includeSchedule} onChange={(e) => setIncludeSchedule(e.target.checked)} disabled={milestones.length === 0} className="h-5 w-5" aria-label="Include the payment schedule" />
           Include the payment schedule{milestones.length === 0 ? ' (none yet)' : ''}
         </label>
@@ -119,6 +116,82 @@ function QuoteDialog({ project, quote, milestones, onClose }) {
         <button onClick={create} disabled={busy} className={`${primary} mt-3 w-full`}>{busy ? 'Creating…' : 'Create PDF'}</button>
       </div>
     </div>
+  )
+}
+
+// ---------- Quote wording ----------
+
+// Reword the work lines, add the materials or grade, reorder or hide lines, and edit the price lines.
+function QuoteEditor({ project, quote, draft, defaults, onDone }) {
+  const { saveQuoteDraft } = useWork()
+  const [lines, setLines] = useState(draft.lines)
+  const [notes, setNotes] = useState(draft.notes)
+  const [priceLabel, setPriceLabel] = useState(draft.priceLabel)
+  const [gstNote, setGstNote] = useState(draft.gstNote)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const edit = (i, patch) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)))
+  const move = (i, d) => setLines((ls) => { const a = [...ls]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a })
+  const addLine = () => setLines((ls) => [...ls, { key: `c:${Date.now()}`, room: ls[ls.length - 1]?.room || '', text: '', details: '', on: true }])
+
+  async function save() {
+    setBusy(true)
+    setError(null)
+    try {
+      await saveQuoteDraft(project.id, { lines: lines.filter((l) => l.text.trim()), notes, price_label: priceLabel, gst_note: gstNote })
+      onDone()
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="mb-4 space-y-3 rounded-xl border border-ink-100 bg-ink-50 p-3" aria-label="Quote wording">
+      <p className="text-sm font-semibold text-ink-900">Quote wording</p>
+      <p className="text-xs text-ink-600">Each line starts as one of your tasks. Reword it the way the client should read it, and add what is used in the detail line (for example the product and grade). Untick a line to leave it off the quote.</p>
+      <div>
+        <label htmlFor="qw-notes" className={labelClass}>Intro, inclusions and exclusions (optional)</label>
+        <textarea id="qw-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
+      </div>
+      <ul className="space-y-2">
+        {lines.map((l, i) => (
+          <li key={l.key} className="rounded-lg border border-ink-100 bg-white p-2" data-testid={`qline-${i}`}>
+            <div className="flex items-start gap-2">
+              <input type="checkbox" checked={l.on !== false} onChange={(e) => edit(i, { on: e.target.checked })} className="mt-3 h-5 w-5 shrink-0" aria-label={`Include line ${i + 1}`} />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {l.room && <p className="text-xs font-semibold text-ink-600">{l.room}</p>}
+                <input value={l.text} onChange={(e) => edit(i, { text: e.target.value })} className={inputClass} placeholder="What is done" aria-label={`Line ${i + 1} wording`} />
+                <textarea rows={2} value={l.details} onChange={(e) => edit(i, { details: e.target.value })} className={`${inputClass} text-sm`} placeholder="Materials, brand, grade, finish…" aria-label={`Line ${i + 1} details`} />
+              </div>
+              <div className="flex shrink-0 flex-col">
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="min-h-[36px] px-2 text-ink-600 disabled:opacity-30" aria-label={`Move line ${i + 1} up`}>▲</button>
+                <button type="button" onClick={() => move(i, 1)} disabled={i === lines.length - 1} className="min-h-[36px] px-2 text-ink-600 disabled:opacity-30" aria-label={`Move line ${i + 1} down`}>▼</button>
+                {String(l.key).startsWith('c:') && <button type="button" onClick={() => setLines((ls) => ls.filter((_, k) => k !== i))} className="min-h-[36px] px-2 text-lg leading-none text-ink-400" aria-label={`Remove line ${i + 1}`}>×</button>}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={addLine} className={secondary}>+ Add a line</button>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="qw-label" className={labelClass}>Price heading</label>
+          <input id="qw-label" value={priceLabel} onChange={(e) => setPriceLabel(e.target.value)} placeholder="Total price (GST included)" className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="qw-gst" className={labelClass}>GST line under the price</label>
+          <input id="qw-gst" value={gstNote} onChange={(e) => setGstNote(e.target.value)} placeholder={autoGstNote(quote, fmtMoney)} className={inputClass} />
+          <p className="mt-1 text-xs text-ink-600">Leave empty to use the line shown.</p>
+        </div>
+      </div>
+      {error && <p className="text-sm text-status-blocked" role="alert">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={save} disabled={busy} className={primary}>{busy ? 'Saving…' : 'Save wording'}</button>
+        <button onClick={() => confirm('Start again from your task list? Your changes to the lines are lost.') && setLines(defaults)} className={secondary}>Reset lines to my tasks</button>
+        <button onClick={onDone} className={secondary}>Cancel</button>
+      </div>
+    </section>
   )
 }
 
@@ -183,15 +256,19 @@ function MilestoneForm({ project, quote, milestone, onDone }) {
 }
 
 export default function QuoteTab({ project, quote }) {
-  const { milestonesByProject, quoteError, paymentsByProject, addMilestones, deleteMilestone, receiveMilestone, undoReceive } = useWork()
+  const { milestonesByProject, quoteError, paymentsByProject, addMilestones, deleteMilestone, receiveMilestone, undoReceive, quoteDrafts, roomsByProject, tasksByProject, materialsByTask } = useWork()
   const list = sortMilestones(milestonesByProject[project.id] || [])
   const payments = paymentsByProject[project.id] || []
   const [editing, setEditing] = useState(null) // 'new' | a milestone | null
   const [receiving, setReceiving] = useState(null) // { id, date }
   const [pdf, setPdf] = useState(false)
+  const [wording, setWording] = useState(false)
   const [error, setError] = useState(null)
   const today = todayLocal()
   const t = scheduleTotals(list, quote)
+  const defaults = useMemo(() => defaultLines(roomsByProject[project.id] || [], tasksByProject[project.id] || [], materialsByTask), [roomsByProject, tasksByProject, materialsByTask, project.id])
+  const saved = quoteDrafts[project.id]
+  const draft = { lines: mergeLines(saved?.lines, defaults), notes: saved?.notes || '', priceLabel: saved?.price_label || '', gstNote: saved?.gst_note || '' }
 
   async function act(fn) {
     setError(null)
@@ -211,8 +288,12 @@ export default function QuoteTab({ project, quote }) {
         <p className="mt-1 text-sm text-ink-900">
           {quote > 0 ? <>Quote price <b>{fmtMoney(quote)}</b> (GST included)</> : 'No quote price yet. Set one on the project (Edit) to create a quote PDF.'}
         </p>
-        <button onClick={() => setPdf(true)} disabled={!(quote > 0)} className={`${primary} mt-3`}>Create quote PDF</button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={() => setWording(true)} disabled={!(quote > 0) || wording} className={secondary}>Edit quote wording</button>
+          <button onClick={() => setPdf(true)} disabled={!(quote > 0)} className={primary}>Create quote PDF</button>
+        </div>
       </section>
+      {wording && <QuoteEditor key={`${project.id}-${saved?.updated_at || 'new'}`} project={project} quote={quote} draft={draft} defaults={defaults} onDone={() => setWording(false)} />}
 
       <section aria-label="Payment schedule">
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -286,7 +367,7 @@ export default function QuoteTab({ project, quote }) {
         )}
         {error && <p className="mt-2 text-sm text-status-blocked" role="alert">{error}</p>}
       </section>
-      {pdf && <QuoteDialog project={project} quote={quote} milestones={list} onClose={() => setPdf(false)} />}
+      {pdf && <QuoteDialog project={project} quote={quote} milestones={list} draft={draft} onEditWording={() => { setPdf(false); setWording(true) }} onClose={() => setPdf(false)} />}
     </div>
   )
 }

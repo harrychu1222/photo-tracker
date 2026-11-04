@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import TaskForm from './TaskForm'
 import LevelFilter from './LevelFilter'
+import WhoFilter from './WhoFilter'
+import { initialsOf, matchWho, personName } from '../../lib/people'
+import { useAuth } from '../../context/AuthContext'
 import { roomsInLevel } from '../../lib/levels'
 import { useWork } from '../../context/WorkContext'
 import { useMedia } from '../../hooks/useMedia'
@@ -21,8 +24,9 @@ const NEXT = {
 
 // All of a project's tasks as cards in status columns. Drag a card (on a computer) or tap its
 // buttons to change status. Tap a card to open the task.
-export default function KanbanBoard({ project, photos, level = 'all', onLevel = () => {} }) {
-  const { tasksByProject, roomsByProject, roomsById, updateTask } = useWork()
+export default function KanbanBoard({ project, photos, level = 'all', onLevel = () => {}, who = 'all', onWho = () => {} }) {
+  const { tasksByProject, roomsByProject, roomsById, updateTask, team } = useWork()
+  const { user } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const tasks = tasksByProject[project.id] || []
   const allRooms = roomsByProject[project.id] || []
@@ -35,7 +39,7 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
   const [dragOver, setDragOver] = useState(null)
 
   const visible = tasks.filter((t) =>
-    level !== 'all' && !rooms.some((r) => r.id === t.room_id) ? false : roomFilter === 'all' ? true : roomFilter === 'none' ? !t.room_id || !roomsById[t.room_id] : t.room_id === roomFilter
+    !matchWho(t, who, user?.id) ? false : level !== 'all' && !rooms.some((r) => r.id === t.room_id) ? false : roomFilter === 'all' ? true : roomFilter === 'none' ? !t.room_id || !roomsById[t.room_id] : t.room_id === roomFilter
   )
   const by = (status) => visible.filter((t) => (t.status || 'todo') === status).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
   const editingTask = editing ? tasks.find((t) => t.id === editing) || null : null
@@ -67,6 +71,11 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
         <button onClick={() => setEditing(task.id)} className="block w-full text-left" aria-label={`Open task ${task.name}`}>
           <span className="block text-sm font-semibold text-ink-900">{task.name}</span>
           {room && <span className="mt-1 inline-block rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-800">{room}</span>}
+          {task.assigned_user && (
+            <span className="ml-1 mt-1 inline-block rounded-md bg-[#D5E6FF] px-2 py-0.5 text-[11px] font-semibold text-[#1F3A5F]" title={personName(team.find((m) => m.id === task.assigned_user)?.email)}>
+              {initialsOf(team.find((m) => m.id === task.assigned_user)?.email)}
+            </span>
+          )}
           <span className="mt-2 flex items-center gap-2">
             <span className="h-2 flex-1 overflow-hidden rounded-full bg-ink-100">
               <span className="block h-full rounded-full bg-signal-500" style={{ width: `${task.percent_complete || 0}%` }} />
@@ -109,6 +118,7 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
         </p>
       ) : (
         <>
+          <WhoFilter who={who} onWho={onWho} />
           <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
           {rooms.length > 0 && (
             <div className="mb-3 flex gap-1.5 overflow-x-auto" role="group" aria-label="Room filter">

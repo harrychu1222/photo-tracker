@@ -1,3 +1,4 @@
+import { personName } from '../../lib/people'
 import { useState } from 'react'
 import RoomPicker from './RoomPicker'
 import TaskCosts from './TaskCosts'
@@ -14,7 +15,7 @@ const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 // Create (task = null) or edit one task of a project.
 export default function TaskForm({ project, task, projectTasks, photos = [], onClose }) {
   const { user, isAdmin } = useAuth()
-  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady } = useWork()
+  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady, team } = useWork()
 
   const [name, setName] = useState(task?.name || '')
   const [roomId, setRoomId] = useState(task?.room_id || '')
@@ -25,6 +26,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
   const [actualStart, setActualStart] = useState(task?.actual_start || '')
   const [actualEnd, setActualEnd] = useState(task?.actual_end || '')
   const [hours, setHours] = useState(task?.planned_hours ?? '')
+  const [assignee, setAssignee] = useState(task?.assigned_user || '')
   const [blockerIds, setBlockerIds] = useState(task?.blocked_by_ids || [])
   const [notes, setNotes] = useState(task?.notes || '')
 
@@ -87,6 +89,8 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
       actual_start: actualStart || null,
       actual_end: actualEnd || null,
       planned_hours: hours === '' ? null : Number(hours),
+      // Only sent when used, so tasks still save before migration 20 is run.
+      ...(assignee || task?.assigned_user !== undefined ? { assigned_user: assignee || null } : {}),
       // Before migration 7 only the old single link exists.
       ...(linksReady ? {} : { blocked_by: blockerIds[0] || null }),
       notes: notes.trim() || null
@@ -199,6 +203,13 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
                 className={inputClass}
                 placeholder="Total hours across everyone, e.g. 12"
               />
+            </div>
+            <div className="mt-3">
+              <label htmlFor="tf-assignee" className={labelClass}>Assigned to (optional)</label>
+              <select id="tf-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className={inputClass}>
+                <option value="">Nobody yet</option>
+                {team.map((m) => <option key={m.id} value={m.id}>{personName(m.email)}{m.id === user?.id ? ' (me)' : ''}</option>)}
+              </select>
             </div>
           </fieldset>
 

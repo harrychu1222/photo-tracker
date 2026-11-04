@@ -5,6 +5,8 @@ import BulkAddTasks from './BulkAddTasks'
 import CopyTasks from './CopyTasks'
 import TemplateTasks from './TemplateTasks'
 import LevelFilter from './LevelFilter'
+import WhoFilter from './WhoFilter'
+import { matchWho, personName } from '../../lib/people'
 import { roomsInLevel } from '../../lib/levels'
 import { roomTypeOf, templateKeyFor } from '../../lib/templates'
 import { useAuth } from '../../context/AuthContext'
@@ -27,8 +29,8 @@ function Badge({ tone, children }) {
 }
 
 // The to-do list for one project. `photos` are that project's photos (used for counts and the task form).
-export default function TasksTab({ project, photos, level = 'all', onLevel = () => {} }) {
-  const { isAdmin } = useAuth()
+export default function TasksTab({ project, photos, level = 'all', onLevel = () => {}, who = 'all', onWho = () => {} }) {
+  const { isAdmin, user } = useAuth()
   const {
     tasksByProject,
     roomsByProject,
@@ -41,7 +43,8 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
     updateTask,
     timeByProject,
     loading,
-    error
+    error,
+    team
   } = useWork()
   const tasks = tasksByProject[project.id] || []
   const loggedByTask = hoursByTask(timeByProject[project.id] || [])
@@ -78,6 +81,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
   const visible = tasks.filter((t) => {
     if (hideDone && t.status === 'done') return false
     if (level !== 'all' && !rooms.some((r) => r.id === t.room_id)) return false
+    if (!matchWho(t, who, user?.id)) return false
     if (roomFilter === 'none') return !t.room_id
     if (roomFilter !== 'all') return t.room_id === roomFilter
     return true
@@ -228,6 +232,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
               {[
                 room?.name,
                 dates,
+                task.assigned_user ? `Assigned to ${personName(team.find((m) => m.id === task.assigned_user)?.email)}` : null,
                 loggedByTask[task.id] != null
                   ? `${fmtHours(loggedByTask[task.id])} ${isAdmin ? 'logged' : 'logged by you'}${task.planned_hours != null ? ` of ${fmtHours(task.planned_hours)} planned` : ''}`
                   : task.planned_hours != null
@@ -329,6 +334,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
           </div>
         </div>
       )}
+      <WhoFilter who={who} onWho={onWho} />
       <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
       {tasks.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-1.5">

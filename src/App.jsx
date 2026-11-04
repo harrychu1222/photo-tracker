@@ -7,6 +7,7 @@ import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
 import TeamView from './components/Team/TeamView'
+import MyDay from './components/Projects/MyDay'
 import { usePhotos } from './hooks/usePhotos'
 import { useProjects } from './hooks/useProjects'
 import { useWork } from './context/WorkContext'
@@ -98,6 +99,8 @@ export default function App() {
             onCreateProject={createProject}
           />
         </div>
+      ) : tab === 'myday' ? (
+        <MyDay projects={projects} onOpenProject={openProject} />
       ) : tab === 'team' ? (
         <div className="mx-auto max-w-3xl">
           <TeamView />

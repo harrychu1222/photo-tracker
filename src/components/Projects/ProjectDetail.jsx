@@ -43,6 +43,7 @@ export default function ProjectDetail({
   const [openPhoto, setOpenPhoto] = useState(null)
   const [tab, setTab] = useState('overview') // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
   const [taskView, setTaskView] = useState('list') // 'list' | 'board'
+  const [who, setWho] = useState('all') // Plan filter: whose tasks
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt
   const [planTab, setPlanTab] = useState('tasks') // 'tasks' | 'gantt' | 'measurements'
   const [moneyTab, setMoneyTab] = useState(isAdmin ? 'cashflow' : 'expenses') // 'expenses' | 'time' | 'cashflow'
@@ -216,7 +217,7 @@ export default function ProjectDetail({
                 </button>
               ))}
             </div>
-            {taskView === 'board' ? <KanbanBoard project={project} photos={photos} level={level} onLevel={setLevel} /> : <TasksTab project={project} photos={photos} level={level} onLevel={setLevel} />}
+            {taskView === 'board' ? <KanbanBoard project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} /> : <TasksTab project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} />}
           </div>
         )}
         {tab === 'plan' && planTab === 'gantt' && <GanttTab project={project} level={level} onLevel={setLevel} />}
