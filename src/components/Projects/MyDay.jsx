@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
 import { fmtDate, fmtDateRange } from '../../lib/format'
-import { personName } from '../../lib/people'
+import { assigneeLabel, isAssigned, knownNames, matchWho, nameKey, personName } from '../../lib/people'
 import { fmtHours, statusPatch, todayLocal } from '../../lib/tasks'
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -17,7 +17,7 @@ const addDays = (iso, n) => {
 export default function MyDay({ projects, onOpenProject }) {
   const { user, isAdmin } = useAuth()
   const { tasksByProject, roomsById, updateTask, team, loading } = useWork()
-  const [who, setWho] = useState('me') // admins: 'me' | 'all' | a user id
+  const [who, setWho] = useState('me') // admins: 'me' | 'all' | a user id | 'name:<typed name>'
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState(null)
   const today = todayLocal()
@@ -26,7 +26,7 @@ export default function MyDay({ projects, onOpenProject }) {
 
   const mine = projects.flatMap((p) =>
     (tasksByProject[p.id] || [])
-      .filter((t) => t.status !== 'done' && t.assigned_user && (who === 'me' ? t.assigned_user === user?.id : who === 'all' || t.assigned_user === who))
+      .filter((t) => t.status !== 'done' && isAssigned(t) && matchWho(t, who, user?.id))
       .map((t) => ({ t, p }))
   )
   const byDate = (a, b) => (a.t.planned_end || a.t.planned_start || '9999').localeCompare(b.t.planned_end || b.t.planned_start || '9999')
@@ -47,7 +47,7 @@ export default function MyDay({ projects, onOpenProject }) {
     setBusyId(null)
   }
 
-  const nameOf = (id) => personName(team.find((m) => m.id === id)?.email)
+  const names = knownNames(Object.values(tasksByProject).flat())
 
   const card = ({ t, p }, tone) => {
     const st = taskStatusMeta(t.status)
@@ -59,7 +59,7 @@ export default function MyDay({ projects, onOpenProject }) {
             <p className="text-sm font-semibold text-ink-900">{t.name}</p>
             <p className="text-xs text-ink-600">{[p.name, room].filter(Boolean).join(' · ')}</p>
             <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-semibold text-status-blocked' : 'text-ink-600'}`}>
-              {[tone === 'bad' && t.planned_end ? `Was due ${fmtDate(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' ? nameOf(t.assigned_user) : null].filter(Boolean).join(' · ') || 'No dates yet'}
+              {[tone === 'bad' && t.planned_end ? `Was due ${fmtDate(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
             </p>
           </div>
           <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-800">
@@ -90,11 +90,12 @@ export default function MyDay({ projects, onOpenProject }) {
       <p className="mb-4 mt-1 text-sm text-ink-600">
         {WEEKDAYS[day]} {fmtDate(today)} · {now.length} on today{overdue.length ? ` · ${overdue.length} overdue` : ''}
       </p>
-      {isAdmin && team.length > 1 && (
+      {isAdmin && (team.length > 1 || names.length > 0) && (
         <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Show tasks for" className="mb-4 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm md:max-w-xs">
           <option value="me">My tasks</option>
           <option value="all">Everyone's tasks</option>
           {team.filter((m) => m.id !== user?.id).map((m) => <option key={m.id} value={m.id}>{personName(m.email)}</option>)}
+          {names.map((n) => <option key={n} value={nameKey(n)}>{n}</option>)}
         </select>
       )}
       {error && <p className="mb-3 text-sm text-status-blocked" role="alert">{error}</p>}

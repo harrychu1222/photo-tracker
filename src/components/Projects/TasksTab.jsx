@@ -6,7 +6,7 @@ import CopyTasks from './CopyTasks'
 import TemplateTasks from './TemplateTasks'
 import LevelFilter from './LevelFilter'
 import WhoFilter from './WhoFilter'
-import { matchWho, personName } from '../../lib/people'
+import { assigneeLabel, matchWho } from '../../lib/people'
 import { roomsInLevel } from '../../lib/levels'
 import { roomTypeOf, templateKeyFor } from '../../lib/templates'
 import { useAuth } from '../../context/AuthContext'
@@ -232,7 +232,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
               {[
                 room?.name,
                 dates,
-                task.assigned_user ? `Assigned to ${personName(team.find((m) => m.id === task.assigned_user)?.email)}` : null,
+                assigneeLabel(task, team) ? `Assigned to ${assigneeLabel(task, team)}` : null,
                 loggedByTask[task.id] != null
                   ? `${fmtHours(loggedByTask[task.id])} ${isAdmin ? 'logged' : 'logged by you'}${task.planned_hours != null ? ` of ${fmtHours(task.planned_hours)} planned` : ''}`
                   : task.planned_hours != null

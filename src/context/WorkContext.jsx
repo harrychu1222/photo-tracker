@@ -52,6 +52,9 @@ export function WorkProvider({ children }) {
   const [quoteError, setQuoteError] = useState(null)
   const [defects, setDefects] = useState([])
   const [defectsError, setDefectsError] = useState(null)
+  const [diary, setDiary] = useState([])
+  const [checks, setChecks] = useState([])
+  const [siteError, setSiteError] = useState(null)
   const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
   const [expensesError, setExpensesError] = useState(null)
   const [payments, setPayments] = useState([]) // admins only
@@ -167,6 +170,26 @@ export function WorkProvider({ children }) {
     setTeam(error ? [] : [...(data || [])].sort((a, b) => a.email.localeCompare(b.email)))
   }, [userId])
 
+  // Site diary + compliance checklists (migration 21).
+  const refreshSite = useCallback(async () => {
+    if (!userId) {
+      setDiary([])
+      setChecks([])
+      return
+    }
+    const [d, c] = await Promise.all([supabase.from('diary_entries').select('*'), supabase.from('compliance_items').select('*')])
+    const err = d.error || c.error
+    if (err) {
+      setDiary([])
+      setChecks([])
+      setSiteError(err.code === 'PGRST205' || err.code === '42P01' ? 'The site diary is not set up yet. Run supabase/migration_21_assign_by_name_site_diary.sql in Supabase, then reload.' : err.message)
+      return
+    }
+    setSiteError(null)
+    setDiary([...d.data].sort((a, b) => (a.entry_date < b.entry_date ? 1 : a.entry_date > b.entry_date ? -1 : a.created_at < b.created_at ? 1 : -1)))
+    setChecks([...c.data].sort((a, b) => a.sort - b.sort || (a.created_at < b.created_at ? -1 : 1)))
+  }, [userId])
+
   // Defects (migration 18). Until it is run the rest of the app keeps working.
   const refreshDefects = useCallback(async () => {
     if (!userId) return setDefects([])
@@ -277,6 +300,7 @@ export function WorkProvider({ children }) {
     refreshCosts()
     refreshExtras()
     refreshDefects()
+    refreshSite()
     refreshQuote()
     refreshTeam()
     refreshExpenses()
@@ -303,7 +327,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshQuote, refreshTeam, refreshExpenses, refreshPayments, refreshTime])
+  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshSite, refreshQuote, refreshTeam, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -340,6 +364,8 @@ export function WorkProvider({ children }) {
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
   const milestonesByProject = useMemo(() => groupBy(milestones, 'project_id'), [milestones])
   const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
+  const diaryByProject = useMemo(() => groupBy(diary, 'project_id'), [diary])
+  const checksByProject = useMemo(() => groupBy(checks, 'project_id'), [checks])
   const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
 
   // Creates a room, or returns the existing one if that name is already used in the
@@ -753,6 +779,76 @@ export function WorkProvider({ children }) {
     await refreshQuote()
   }
 
+  // ---------- Site diary + compliance checklists ----------
+
+  function diaryFields({ date, weather, onSite, workDone, issues }) {
+    if (!(workDone || '').trim() && !(issues || '').trim()) throw new Error('Write what was done, or note an issue.')
+    return {
+      entry_date: date || todayLocal(),
+      weather: weather || null,
+      on_site: (onSite || '').trim() || null,
+      work_done: (workDone || '').trim() || null,
+      issues: (issues || '').trim() || null
+    }
+  }
+
+  async function addDiary(projectId, input) {
+    const { error } = await supabase.from('diary_entries').insert({ ...diaryFields(input), project_id: projectId, created_by: userId })
+    if (error) throw new Error(error.message)
+    await refreshSite()
+  }
+
+  async function updateDiary(id, input) {
+    const { data, error } = await supabase.from('diary_entries').update(diaryFields(input)).eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only an admin or the person who wrote this entry can change it.')
+    await refreshSite()
+  }
+
+  async function deleteDiary(id) {
+    const { data, error } = await supabase.from('diary_entries').delete().eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only an admin or the person who wrote this entry can delete it.')
+    await refreshSite()
+  }
+
+  // items: array of strings; they are added under one list name.
+  async function addChecklist(projectId, listName, items) {
+    const clean = items.map((t) => String(t).trim()).filter(Boolean)
+    if (!listName.trim() || !clean.length) throw new Error('Give the checklist a name and at least one item.')
+    const base = checks.filter((c) => c.project_id === projectId).length
+    const rows = clean.map((text, i) => ({ project_id: projectId, list_name: listName.trim(), text, sort: base + i, created_by: userId }))
+    const { error } = await supabase.from('compliance_items').insert(rows)
+    if (error) throw new Error(error.message)
+    await refreshSite()
+  }
+
+  async function setCheckDone(id, done, note) {
+    const patch = { done, done_on: done ? todayLocal() : null, done_by: done ? userId : null }
+    if (note !== undefined) patch.note = (note || '').trim() || null
+    const { error } = await supabase.from('compliance_items').update(patch).eq('id', id)
+    if (error) throw new Error(error.message)
+    await refreshSite()
+  }
+
+  async function saveCheckNote(id, note) {
+    const { error } = await supabase.from('compliance_items').update({ note: (note || '').trim() || null }).eq('id', id)
+    if (error) throw new Error(error.message)
+    await refreshSite()
+  }
+
+  async function deleteCheck(id) {
+    const { data, error } = await supabase.from('compliance_items').delete().eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only an admin or the person who added this item can delete it.')
+    await refreshSite()
+  }
+
+  async function deleteChecklist(projectId, listName) {
+    const ids = checks.filter((c) => c.project_id === projectId && c.list_name === listName).map((c) => c.id)
+    for (const id of ids) await deleteCheck(id)
+  }
+
   // ---------- Defects ----------
 
   function defectFields({ title, notes, roomId, taskId, priority, status }) {
@@ -1139,6 +1235,17 @@ export function WorkProvider({ children }) {
     deleteMilestone,
     receiveMilestone,
     undoReceive,
+    diaryByProject,
+    checksByProject,
+    siteError,
+    addDiary,
+    updateDiary,
+    deleteDiary,
+    addChecklist,
+    setCheckDone,
+    saveCheckNote,
+    deleteCheck,
+    deleteChecklist,
     defects,
     defectsError,
     defectsByProject,

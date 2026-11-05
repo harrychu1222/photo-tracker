@@ -466,3 +466,9 @@ Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (ad
 - **My Day** (main nav): your assigned tasks as Overdue / Today / This week / No dates, with Start and Done buttons. Admins can view anyone's.
 - Quote wording: Money → Quote & payments → "Edit quote wording". Each task becomes an editable scope line with materials/grade details; the price heading and GST line are editable too. Saved per project.
 - Workers without logins can't be assigned yet.
+
+## F3 + assign by name
+- Run `supabase/migration_21_assign_by_name_site_diary.sql` (adds `tasks.assigned_name`, `diary_entries`, `compliance_items`).
+- **Assign by name:** in the task form choose "Someone else (type a name)…" for a worker without a login. Typed names are remembered and offered next time; the Assigned-to filter and the manager's My Day picker list them. (Workers can't log in to see their own day; the manager reads it for them.)
+- **Site diary** (project → Site diary → Diary): date, weather, who was on site (pre-filled from in-progress jobs), what was done, delays/issues. Authors and admins can edit/delete.
+- **Compliance checklists** (Site diary → Checklists): start from site safety, waterproofing, plumbing, electrical or handover, edit the items, tick off (date recorded), add notes such as certificate numbers. Check the items against your state's rules.

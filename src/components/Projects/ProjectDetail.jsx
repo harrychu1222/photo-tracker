@@ -10,6 +10,7 @@ import TimeTab from './TimeTab'
 import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
+import SiteTab from './SiteTab'
 import QuoteTab from './QuoteTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
@@ -90,7 +91,8 @@ export default function ProjectDetail({
     { id: 'materials', label: `Materials (${lineCount})` },
     { id: 'money', label: isAdmin ? 'Money' : 'Hours & expenses' },
     { id: 'photos', label: `Photos (${photos.length})` },
-    { id: 'defects', label: `Defects (${openDefects})` }
+    { id: 'defects', label: `Defects (${openDefects})` },
+    { id: 'site', label: 'Site diary' }
   ]
   const planTabs = [
     { id: 'tasks', label: `Tasks (${taskCount})` },
@@ -223,6 +225,7 @@ export default function ProjectDetail({
         {tab === 'plan' && planTab === 'gantt' && <GanttTab project={project} level={level} onLevel={setLevel} />}
         {tab === 'plan' && planTab === 'measurements' && <MeasurementsTab project={project} />}
         {tab === 'defects' && <DefectsTab project={project} />}
+        {tab === 'site' && <SiteTab project={project} />}
         {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
         {tab === 'money' && moneyTab === 'expenses' && <ExpensesTab project={project} />}
         {tab === 'money' && moneyTab === 'time' && <TimeTab project={project} />}

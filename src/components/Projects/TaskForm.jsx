@@ -1,4 +1,4 @@
-import { personName } from '../../lib/people'
+import { knownNames, personName } from '../../lib/people'
 import { useState } from 'react'
 import RoomPicker from './RoomPicker'
 import TaskCosts from './TaskCosts'
@@ -15,7 +15,8 @@ const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 // Create (task = null) or edit one task of a project.
 export default function TaskForm({ project, task, projectTasks, photos = [], onClose }) {
   const { user, isAdmin } = useAuth()
-  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady, team } = useWork()
+  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady, team, tasksByProject, workers } = useWork()
+  const typedNames = knownNames(Object.values(tasksByProject).flat(), (workers || []).map((w) => w.name))
 
   const [name, setName] = useState(task?.name || '')
   const [roomId, setRoomId] = useState(task?.room_id || '')
@@ -26,7 +27,9 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
   const [actualStart, setActualStart] = useState(task?.actual_start || '')
   const [actualEnd, setActualEnd] = useState(task?.actual_end || '')
   const [hours, setHours] = useState(task?.planned_hours ?? '')
-  const [assignee, setAssignee] = useState(task?.assigned_user || '')
+  // '' nobody | a user id | 'n:<name>' a typed name | '__new' type a new name
+  const [assignee, setAssignee] = useState(task?.assigned_user || ((task?.assigned_name || '').trim() ? `n:${task.assigned_name.trim()}` : ''))
+  const [newName, setNewName] = useState('')
   const [blockerIds, setBlockerIds] = useState(task?.blocked_by_ids || [])
   const [notes, setNotes] = useState(task?.notes || '')
 
@@ -90,7 +93,10 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
       actual_end: actualEnd || null,
       planned_hours: hours === '' ? null : Number(hours),
       // Only sent when used, so tasks still save before migration 20 is run.
-      ...(assignee || task?.assigned_user !== undefined ? { assigned_user: assignee || null } : {}),
+      ...(assignee || task?.assigned_user !== undefined ? { assigned_user: assignee && !assignee.startsWith('n:') && assignee !== '__new' ? assignee : null } : {}),
+      ...(assignee.startsWith('n:') || (assignee === '__new' && newName.trim()) || task?.assigned_name !== undefined
+        ? { assigned_name: assignee.startsWith('n:') ? assignee.slice(2) : assignee === '__new' ? newName.trim() : null }
+        : {}),
       // Before migration 7 only the old single link exists.
       ...(linksReady ? {} : { blocked_by: blockerIds[0] || null }),
       notes: notes.trim() || null
@@ -209,7 +215,12 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
               <select id="tf-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className={inputClass}>
                 <option value="">Nobody yet</option>
                 {team.map((m) => <option key={m.id} value={m.id}>{personName(m.email)}{m.id === user?.id ? ' (me)' : ''}</option>)}
+                {typedNames.map((n) => <option key={n} value={`n:${n}`}>{n}</option>)}
+                <option value="__new">Someone else (type a name)…</option>
               </select>
+              {assignee === '__new' && (
+                <input aria-label="Worker name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Worker's name, e.g. Dave" className={`${inputClass} mt-2`} />
+              )}
             </div>
           </fieldset>
 

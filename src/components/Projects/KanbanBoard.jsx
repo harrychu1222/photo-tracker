@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import TaskForm from './TaskForm'
 import LevelFilter from './LevelFilter'
 import WhoFilter from './WhoFilter'
-import { initialsOf, matchWho, personName } from '../../lib/people'
+import { assigneeLabel, matchWho } from '../../lib/people'
 import { useAuth } from '../../context/AuthContext'
 import { roomsInLevel } from '../../lib/levels'
 import { useWork } from '../../context/WorkContext'
@@ -71,9 +71,9 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
         <button onClick={() => setEditing(task.id)} className="block w-full text-left" aria-label={`Open task ${task.name}`}>
           <span className="block text-sm font-semibold text-ink-900">{task.name}</span>
           {room && <span className="mt-1 inline-block rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-800">{room}</span>}
-          {task.assigned_user && (
-            <span className="ml-1 mt-1 inline-block rounded-md bg-[#D5E6FF] px-2 py-0.5 text-[11px] font-semibold text-[#1F3A5F]" title={personName(team.find((m) => m.id === task.assigned_user)?.email)}>
-              {initialsOf(team.find((m) => m.id === task.assigned_user)?.email)}
+          {assigneeLabel(task, team) && (
+            <span className="ml-1 mt-1 inline-block rounded-md bg-[#D5E6FF] px-2 py-0.5 text-[11px] font-semibold text-[#1F3A5F]" title={assigneeLabel(task, team)}>
+              {assigneeLabel(task, team).slice(0, 2).toUpperCase()}
             </span>
           )}
           <span className="mt-2 flex items-center gap-2">
