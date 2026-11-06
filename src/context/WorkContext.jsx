@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
 import { shrinkImage } from '../lib/image'
+import { knownNames } from '../lib/people'
 import { convertOpeningUnit, convertRoomUnit, openingArea } from '../lib/rooms'
 
 // Rooms and tasks for every project, shared by the Projects screens and the photo
@@ -55,6 +56,11 @@ export function WorkProvider({ children }) {
   const [diary, setDiary] = useState([])
   const [checks, setChecks] = useState([])
   const [siteError, setSiteError] = useState(null)
+  const [taskWorkers, setTaskWorkers] = useState([])
+  const [taskWorkersReady, setTaskWorkersReady] = useState(false)
+  const [checkTemplates, setCheckTemplates] = useState([])
+  const [issues, setIssues] = useState([])
+  const [issuesReady, setIssuesReady] = useState(false)
   const [expenses, setExpenses] = useState([]) // admins get everyone's; crew only their own (RLS)
   const [expensesError, setExpensesError] = useState(null)
   const [payments, setPayments] = useState([]) // admins only
@@ -177,7 +183,19 @@ export function WorkProvider({ children }) {
       setChecks([])
       return
     }
-    const [d, c] = await Promise.all([supabase.from('diary_entries').select('*'), supabase.from('compliance_items').select('*')])
+    const [d, c, tw, ct, di] = await Promise.all([
+      supabase.from('diary_entries').select('*'),
+      supabase.from('compliance_items').select('*'),
+      supabase.from('task_workers').select('*'),
+      supabase.from('checklist_templates').select('*'),
+      supabase.from('diary_issues').select('*')
+    ])
+    // Migration 22 tables are optional: the rest keeps working until it is run.
+    setTaskWorkersReady(!tw.error)
+    setTaskWorkers(tw.error ? [] : [...tw.data].sort((a, b) => a.name.localeCompare(b.name)))
+    setCheckTemplates(ct.error ? [] : [...ct.data].sort((a, b) => a.name.localeCompare(b.name)))
+    setIssuesReady(!di.error)
+    setIssues(di.error ? [] : [...di.data].sort((a, b) => (a.created_at < b.created_at ? -1 : 1)))
     const err = d.error || c.error
     if (err) {
       setDiary([])
@@ -364,6 +382,11 @@ export function WorkProvider({ children }) {
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
   const milestonesByProject = useMemo(() => groupBy(milestones, 'project_id'), [milestones])
   const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
+  const issuesByEntry = useMemo(() => groupBy(issues, 'entry_id'), [issues])
+  const workerNames = useMemo(
+    () => (taskWorkersReady ? taskWorkers.map((w) => w.name) : knownNames(tasks)),
+    [taskWorkersReady, taskWorkers, tasks]
+  )
   const diaryByProject = useMemo(() => groupBy(diary, 'project_id'), [diary])
   const checksByProject = useMemo(() => groupBy(checks, 'project_id'), [checks])
   const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
@@ -779,26 +802,116 @@ export function WorkProvider({ children }) {
     await refreshQuote()
   }
 
-  // ---------- Site diary + compliance checklists ----------
+  // ---------- Worker names (migration 22) ----------
 
-  function diaryFields({ date, weather, onSite, workDone, issues }) {
-    if (!(workDone || '').trim() && !(issues || '').trim()) throw new Error('Write what was done, or note an issue.')
-    return {
-      entry_date: date || todayLocal(),
-      weather: weather || null,
-      on_site: (onSite || '').trim() || null,
-      work_done: (workDone || '').trim() || null,
-      issues: (issues || '').trim() || null
-    }
-  }
+  const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
 
-  async function addDiary(projectId, input) {
-    const { error } = await supabase.from('diary_entries').insert({ ...diaryFields(input), project_id: projectId, created_by: userId })
+  async function addTaskWorker(name) {
+    const n = (name || '').trim()
+    if (!n) throw new Error('Type a name.')
+    if (!taskWorkersReady || taskWorkers.some((w) => sameName(w.name, n))) return
+    const { error } = await supabase.from('task_workers').insert({ name: n, created_by: userId })
     if (error) throw new Error(error.message)
     await refreshSite()
   }
 
+  async function renameTaskWorker(id, newName) {
+    const n = (newName || '').trim()
+    const old = taskWorkers.find((w) => w.id === id)
+    if (!n || !old) throw new Error('Type the new name.')
+    if (taskWorkers.some((w) => w.id !== id && sameName(w.name, n))) throw new Error('That name is already in the list.')
+    const { data, error } = await supabase.from('task_workers').update({ name: n }).eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only a manager can rename workers.')
+    for (const t of tasks.filter((x) => sameName(x.assigned_name, old.name))) await supabase.from('tasks').update({ assigned_name: n }).eq('id', t.id)
+    await Promise.all([refreshSite(), refresh()])
+  }
+
+  // Unassigns their open tasks; finished tasks keep the name as history.
+  async function removeTaskWorker(id) {
+    const old = taskWorkers.find((w) => w.id === id)
+    if (!old) return 0
+    const open = tasks.filter((t) => sameName(t.assigned_name, old.name) && t.status !== 'done')
+    const { data, error } = await supabase.from('task_workers').delete().eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only a manager can remove workers.')
+    for (const t of open) await supabase.from('tasks').update({ assigned_name: null }).eq('id', t.id)
+    await Promise.all([refreshSite(), refresh()])
+    return open.length
+  }
+
+  // ---------- Checklist templates + diary issues (migration 22) ----------
+
+  async function saveChecklistTemplate(name, items) {
+    const n = (name || '').trim()
+    const list = items.map((t) => String(t).trim()).filter(Boolean)
+    if (!n || !list.length) throw new Error('A template needs a name and at least one item.')
+    const { error } = await supabase.from('checklist_templates').upsert({ name: n, items: list, created_by: userId }, { onConflict: 'name' })
+    if (error) throw new Error(error.code === 'PGRST205' || error.code === '42P01' ? 'Run supabase/migration_22_workers_templates_issues.sql in Supabase first.' : error.message)
+    await refreshSite()
+  }
+
+  async function deleteChecklistTemplate(id) {
+    const { data, error } = await supabase.from('checklist_templates').delete().eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only a manager can delete templates.')
+    await refreshSite()
+  }
+
+  async function addIssue(entryId, projectId, text) {
+    if (!(text || '').trim()) throw new Error('Describe the issue.')
+    if (!issuesReady) throw new Error('Run supabase/migration_22_workers_templates_issues.sql in Supabase to track issues.')
+    const { error } = await supabase.from('diary_issues').insert({ entry_id: entryId, project_id: projectId, text: text.trim(), created_by: userId })
+    if (error) throw new Error(error.message)
+    await refreshSite()
+  }
+
+  // Managers set resolved or not, the date it was resolved, and a comment.
+  async function updateIssue(id, { resolved, resolvedOn, comment }) {
+    const patch = { resolved: !!resolved, resolved_on: resolved ? resolvedOn || todayLocal() : null, resolved_by: resolved ? userId : null, comment: (comment || '').trim() || null }
+    const { data, error } = await supabase.from('diary_issues').update(patch).eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only a manager can resolve issues.')
+    await refreshSite()
+  }
+
+  async function deleteIssue(id) {
+    const { data, error } = await supabase.from('diary_issues').delete().eq('id', id).select('id')
+    if (error) throw new Error(error.message)
+    if (!data?.length) throw new Error('Only a manager or the person who added this issue can delete it.')
+    await refreshSite()
+  }
+
+  // ---------- Site diary + compliance checklists ----------
+
+  const issueLines = (v) => String(v || '').split('\n').map((s) => s.trim()).filter(Boolean)
+
+  function diaryFields({ date, weather, onSite, workDone }) {
+    return {
+      entry_date: date || todayLocal(),
+      weather: (Array.isArray(weather) ? weather.join(', ') : weather || '') || null,
+      on_site: (onSite || '').trim() || null,
+      work_done: (workDone || '').trim() || null
+    }
+  }
+
+  async function addDiary(projectId, input) {
+    const lines = issueLines(input.issues)
+    if (!(input.workDone || '').trim() && !lines.length) throw new Error('Write what was done, or note an issue.')
+    const fields = diaryFields(input)
+    // Before migration 22 the issue text is kept on the entry itself.
+    if (lines.length && !issuesReady) fields.issues = lines.join('\n')
+    const { data, error } = await supabase.from('diary_entries').insert({ ...fields, project_id: projectId, created_by: userId }).select().single()
+    if (error) throw new Error(error.message)
+    if (lines.length && issuesReady) {
+      const { error: e2 } = await supabase.from('diary_issues').insert(lines.map((text) => ({ entry_id: data.id, project_id: projectId, text, created_by: userId })))
+      if (e2) throw new Error(e2.message)
+    }
+    await refreshSite()
+  }
+
   async function updateDiary(id, input) {
+    if (!(input.workDone || '').trim() && !input.hasIssues) throw new Error('Write what was done, or note an issue.')
     const { data, error } = await supabase.from('diary_entries').update(diaryFields(input)).eq('id', id).select('id')
     if (error) throw new Error(error.message)
     if (!data?.length) throw new Error('Only an admin or the person who wrote this entry can change it.')
@@ -1235,6 +1348,21 @@ export function WorkProvider({ children }) {
     deleteMilestone,
     receiveMilestone,
     undoReceive,
+    taskWorkers,
+    taskWorkersReady,
+    workerNames,
+    addTaskWorker,
+    renameTaskWorker,
+    removeTaskWorker,
+    checkTemplates,
+    saveChecklistTemplate,
+    deleteChecklistTemplate,
+    issues,
+    issuesReady,
+    issuesByEntry,
+    addIssue,
+    updateIssue,
+    deleteIssue,
     diaryByProject,
     checksByProject,
     siteError,

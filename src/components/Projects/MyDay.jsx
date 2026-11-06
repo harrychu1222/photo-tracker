@@ -3,7 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
 import { fmtDate, fmtDateRange } from '../../lib/format'
-import { assigneeLabel, isAssigned, knownNames, matchWho, nameKey, personName } from '../../lib/people'
+import WorkersPanel from './WorkersPanel'
+import { assigneeLabel, isAssigned, matchWho, nameKey, personName } from '../../lib/people'
 import { fmtHours, statusPatch, todayLocal } from '../../lib/tasks'
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -16,7 +17,8 @@ const addDays = (iso, n) => {
 // The signed-in person's jobs: what is overdue, what is on today, and what is coming this week.
 export default function MyDay({ projects, onOpenProject }) {
   const { user, isAdmin } = useAuth()
-  const { tasksByProject, roomsById, updateTask, team, loading } = useWork()
+  const { tasksByProject, roomsById, updateTask, team, loading, workerNames: names } = useWork()
+  const [managing, setManaging] = useState(false)
   const [who, setWho] = useState('me') // admins: 'me' | 'all' | a user id | 'name:<typed name>'
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState(null)
@@ -47,7 +49,6 @@ export default function MyDay({ projects, onOpenProject }) {
     setBusyId(null)
   }
 
-  const names = knownNames(Object.values(tasksByProject).flat())
 
   const card = ({ t, p }, tone) => {
     const st = taskStatusMeta(t.status)
@@ -97,6 +98,12 @@ export default function MyDay({ projects, onOpenProject }) {
           {team.filter((m) => m.id !== user?.id).map((m) => <option key={m.id} value={m.id}>{personName(m.email)}</option>)}
           {names.map((n) => <option key={n} value={nameKey(n)}>{n}</option>)}
         </select>
+      )}
+      {isAdmin && (
+        <div className="mb-4">
+          <button onClick={() => setManaging((m) => !m)} aria-expanded={managing} className="min-h-[44px] text-sm font-medium text-ink-600 underline">{managing ? 'Hide workers' : 'Manage workers'}</button>
+          {managing && <WorkersPanel />}
+        </div>
       )}
       {error && <p className="mb-3 text-sm text-status-blocked" role="alert">{error}</p>}
       {loading && <p className="py-6 text-center text-sm text-ink-400">Loading…</p>}

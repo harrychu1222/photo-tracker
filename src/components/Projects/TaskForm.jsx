@@ -1,4 +1,4 @@
-import { knownNames, personName } from '../../lib/people'
+import { personName } from '../../lib/people'
 import { useState } from 'react'
 import RoomPicker from './RoomPicker'
 import TaskCosts from './TaskCosts'
@@ -15,8 +15,7 @@ const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 // Create (task = null) or edit one task of a project.
 export default function TaskForm({ project, task, projectTasks, photos = [], onClose }) {
   const { user, isAdmin } = useAuth()
-  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady, team, tasksByProject, workers } = useWork()
-  const typedNames = knownNames(Object.values(tasksByProject).flat(), (workers || []).map((w) => w.name))
+  const { createTask, updateTask, deleteTask, roomsById, setTaskBlockers, linksReady, team, workerNames: typedNames, addTaskWorker } = useWork()
 
   const [name, setName] = useState(task?.name || '')
   const [roomId, setRoomId] = useState(task?.room_id || '')
@@ -105,6 +104,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
     setError(null)
     setSaving(true)
     try {
+      if (assignee === '__new' && newName.trim()) await addTaskWorker(newName)
       let saved = task
       if (task) await updateTask(task.id, fields)
       else saved = await createTask({ ...fields, project_id: project.id })

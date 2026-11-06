@@ -22,8 +22,9 @@ export function scheduleSummary(tasks, today = todayLocal()) {
 }
 
 // `go` says where a click should take the person: a top tab and, for Plan/Money, a sub tab.
-export function attentionItems({ tasks, materials, defects = [], milestones = [], money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
+export function attentionItems({ tasks, materials, defects = [], milestones = [], openIssues = 0, money, progress, isAdmin, today = todayLocal(), limit = 3 }) {
   const items = []
+  if (openIssues > 0) items.push({ id: 'site-issues', tone: 'warn', title: `${plural(openIssues, 'unresolved site issue')}`, detail: 'See the site diary', go: { tab: 'site' } })
 
   const late = tasks
     .filter((t) => t.status !== 'done' && !t.actual_end)

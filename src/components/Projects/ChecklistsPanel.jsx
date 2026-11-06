@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { fmtDate } from '../../lib/format'
 import { CHECKLIST_TEMPLATES, groupLists, listProgress } from '../../lib/checklists'
@@ -7,7 +8,8 @@ const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 
 function AddList({ project, existing, onDone }) {
-  const { addChecklist } = useWork()
+  const { addChecklist, checkTemplates, deleteChecklistTemplate } = useWork()
+  const { isAdmin } = useAuth()
   const [pick, setPick] = useState('')
   const [name, setName] = useState('')
   const [text, setText] = useState('')
@@ -16,7 +18,8 @@ function AddList({ project, existing, onDone }) {
 
   function choose(v) {
     setPick(v)
-    const t = CHECKLIST_TEMPLATES.find((x) => x.name === v)
+    const mine = v.startsWith('my:') ? checkTemplates.find((x) => x.id === v.slice(3)) : null
+    const t = mine ? { name: mine.name, items: mine.items } : CHECKLIST_TEMPLATES.find((x) => x.name === v)
     setName(t ? t.name : '')
     setText(t ? t.items.join('\n') : '')
   }
@@ -42,8 +45,18 @@ function AddList({ project, existing, onDone }) {
         <label htmlFor="cl-pick" className={labelClass}>Start from</label>
         <select id="cl-pick" value={pick} onChange={(e) => choose(e.target.value)} className={inputClass}>
           <option value="">My own list</option>
-          {CHECKLIST_TEMPLATES.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+          {checkTemplates.length > 0 && (
+            <optgroup label="My templates">
+              {checkTemplates.map((t) => <option key={t.id} value={`my:${t.id}`}>{t.name}</option>)}
+            </optgroup>
+          )}
+          <optgroup label="Built-in">
+            {CHECKLIST_TEMPLATES.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+          </optgroup>
         </select>
+        {isAdmin && pick.startsWith('my:') && (
+          <button type="button" onClick={() => confirm('Delete this template? Checklists already on projects are kept.') && deleteChecklistTemplate(pick.slice(3)).then(() => choose('')).catch((err) => setError(err.message))} className="mt-1 min-h-[40px] text-xs font-medium text-ink-400 underline">Delete this template</button>
+        )}
       </div>
       <div>
         <label htmlFor="cl-name" className={labelClass}>Checklist name</label>
@@ -99,7 +112,9 @@ function Item({ item, onError }) {
 }
 
 export default function ChecklistsPanel({ project }) {
-  const { checksByProject, addChecklist, deleteChecklist } = useWork()
+  const { checksByProject, addChecklist, deleteChecklist, saveChecklistTemplate, checkTemplates } = useWork()
+  const { isAdmin } = useAuth()
+  const [saved, setSaved] = useState(null)
   const lists = groupLists(checksByProject[project.id] || [])
   const [adding, setAdding] = useState(false)
   const [extra, setExtra] = useState({}) // list name -> new item text
@@ -142,6 +157,14 @@ export default function ChecklistsPanel({ project }) {
               <input value={extra[l.name] || ''} onChange={(e) => setExtra((x) => ({ ...x, [l.name]: e.target.value }))} placeholder="Add an item" aria-label={`Add item to ${l.name}`} className={inputClass} />
               <button type="submit" className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">Add</button>
             </form>
+            {isAdmin && (
+              <button
+                onClick={() => run(async () => { await saveChecklistTemplate(l.name, l.items.map((i) => i.text)); setSaved(l.name) })}
+                className="mr-4 mt-2 min-h-[36px] text-xs font-medium text-ink-600 underline"
+                aria-label={`Save ${l.name} as my template`}
+              >{checkTemplates.some((t) => t.name === l.name) ? 'Update my template' : 'Save as my template'}</button>
+            )}
+            {saved === l.name && <span className="text-xs text-ink-600" role="status">Template saved.</span>}
             <button onClick={() => confirm(`Delete the whole "${l.name}" checklist?`) && run(() => deleteChecklist(project.id, l.name))} className="mt-2 min-h-[36px] text-xs font-medium text-ink-400 underline" aria-label={`Delete checklist ${l.name}`}>Delete checklist</button>
           </section>
         )

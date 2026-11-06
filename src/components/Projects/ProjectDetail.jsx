@@ -11,6 +11,7 @@ import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
 import SiteTab from './SiteTab'
+import ExportDialog from './ExportDialog'
 import QuoteTab from './QuoteTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
@@ -48,7 +49,7 @@ export default function ProjectDetail({
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt
   const [planTab, setPlanTab] = useState('tasks') // 'tasks' | 'gantt' | 'measurements'
   const [moneyTab, setMoneyTab] = useState(isAdmin ? 'cashflow' : 'expenses') // 'expenses' | 'time' | 'cashflow'
-  const { tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, milestonesByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
+  const { issues, tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, milestonesByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
@@ -72,12 +73,14 @@ export default function ProjectDetail({
   const actualDates = fmtDateRange(actual.start, actual.end)
 
   const today = todayLocal()
+  const [exporting, setExporting] = useState(false)
   const progress = taskProgress(projectTasks)
   const schedule = scheduleSummary(projectTasks, today)
   const everyMaterial = projectTasks.flatMap((t) => materialsByTask[t.id] || [])
   const projectDefects = defectsByProject[project.id] || []
+  const openIssues = issues.filter((i) => i.project_id === project.id && !i.resolved).length
   const openDefects = projectDefects.filter((d) => d.status !== 'fixed').length
-  const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, milestones: isAdmin ? milestonesByProject[project.id] || [] : [], money, progress, isAdmin, today })
+  const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, milestones: isAdmin ? milestonesByProject[project.id] || [] : [], openIssues, money, progress, isAdmin, today })
 
   function go(nextTab, sub) {
     setTab(nextTab)
@@ -92,7 +95,7 @@ export default function ProjectDetail({
     { id: 'money', label: isAdmin ? 'Money' : 'Hours & expenses' },
     { id: 'photos', label: `Photos (${photos.length})` },
     { id: 'defects', label: `Defects (${openDefects})` },
-    { id: 'site', label: 'Site diary' }
+    { id: 'site', label: openIssues ? `Site diary (${openIssues})` : 'Site diary' }
   ]
   const planTabs = [
     { id: 'tasks', label: `Tasks (${taskCount})` },
@@ -113,12 +116,18 @@ export default function ProjectDetail({
         <button onClick={onBack} className="flex min-h-[44px] items-center gap-1 text-sm font-medium text-ink-600">
           <Icon name="back" size={16} /> All projects
         </button>
-        {canEdit && (
-          <button onClick={onEdit} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
-            Edit
+        <div className="flex gap-2">
+          <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+            Export
           </button>
-        )}
+          {canEdit && (
+            <button onClick={onEdit} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+              Edit
+            </button>
+          )}
+        </div>
       </div>
+      {exporting && <ExportDialog projects={[project]} onClose={() => setExporting(false)} />}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-2xl font-bold tracking-tight text-ink-900">{project.name}</h2>

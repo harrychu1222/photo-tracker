@@ -3,6 +3,7 @@ import { PROJECT_STATUSES, projectStatusMeta } from '../../statusConfig'
 import { fmtDate, fmtDateRange, fmtMoney } from '../../lib/format'
 import { overviewTotals, projectSnapshot } from '../../lib/overview'
 import { todayLocal } from '../../lib/tasks'
+import ExportDialog from './ExportDialog'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 
@@ -47,15 +48,24 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
 
   const snaps = useMemo(() => visible.map((p) => projectSnapshot(p, finance?.[p.id], work, today)), [visible, finance, work, today])
   const totals = overviewTotals(snaps)
+  const [exporting, setExporting] = useState(false)
 
   return (
     <div className="px-4 py-4 md:px-10 md:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-bold tracking-tight text-ink-900">Projects</h2>
-        <button onClick={onNew} className="min-h-[44px] rounded-lg bg-signal-500 px-4 text-sm font-semibold text-ink-950 active:bg-signal-600">
-          + New project
-        </button>
+        <div className="flex items-center gap-2">
+          {projects.length > 0 && (
+            <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+              Export all
+            </button>
+          )}
+          <button onClick={onNew} className="min-h-[44px] rounded-lg bg-signal-500 px-4 text-sm font-semibold text-ink-950 active:bg-signal-600">
+            + New project
+          </button>
+        </div>
       </div>
+      {exporting && <ExportDialog projects={visible} snaps={snaps} onClose={() => setExporting(false)} />}
 
       <input
         value={search}

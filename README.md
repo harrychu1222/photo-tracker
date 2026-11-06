@@ -472,3 +472,10 @@ Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (ad
 - **Assign by name:** in the task form choose "Someone else (type a name)…" for a worker without a login. Typed names are remembered and offered next time; the Assigned-to filter and the manager's My Day picker list them. (Workers can't log in to see their own day; the manager reads it for them.)
 - **Site diary** (project → Site diary → Diary): date, weather, who was on site (pre-filled from in-progress jobs), what was done, delays/issues. Authors and admins can edit/delete.
 - **Compliance checklists** (Site diary → Checklists): start from site safety, waterproofing, plumbing, electrical or handover, edit the items, tick off (date recorded), add notes such as certificate numbers. Check the items against your state's rules.
+
+## F3b + F4 (CSV export)
+- Run `supabase/migration_22_workers_templates_issues.sql` (worker names list, checklist templates, resolvable diary issues). It also carries over existing typed names and old issue text.
+- **Worker names:** My Day → "Manage workers" (managers): add, rename (updates their tasks), remove (unassigns open tasks; finished tasks keep the name).
+- **Checklist templates:** "Save as my template" on any checklist (managers); your templates show under "Start from → My templates" on every project. Saving under the same name overwrites.
+- **Diary weather** is multi-select. **Issues** are separate items under a diary entry; anyone can add one, managers mark it Resolved/Not resolved with a date and comment (and can reopen). Open issues show on the Site diary tab and in "needs attention".
+- **Export (CSV):** project screen → Export, or Projects → Export all. Tasks, materials, measurements, defects, diary + issues, checklists, labour hours; managers also get expenses, payments received, payment schedule (plus an all-projects summary). Dates dd/mm/yyyy, amounts GST-included, expenses/payments have a "GST part (amount / 11)" column. Date range presets (this/last financial year, custom) apply to expenses, payments and labour. No new dependency (small built-in zip writer).
