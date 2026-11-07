@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { clientPhotoUrl, fetchClientView } from '../../lib/clientApi'
+import { fetchClientPhotoUrls, fetchClientView } from '../../lib/clientApi'
 import { CLIENT_STATUS, groupByRoom, overallPercent } from '../../lib/clientshare'
 import { fmtDate, fmtDateRange } from '../../lib/format'
 
@@ -17,13 +17,18 @@ function setMeta(name, content) {
 export default function ClientView({ token }) {
   const [state, setState] = useState({ status: 'loading' })
   const [open, setOpen] = useState(null)
+  const [urls, setUrls] = useState({})
 
   useEffect(() => {
     setMeta('robots', 'noindex, nofollow')
     setMeta('referrer', 'no-referrer')
     let live = true
     fetchClientView(token)
-      .then((data) => live && setState(data ? { status: 'ok', data } : { status: 'invalid' }))
+      .then((data) => {
+        if (!live) return
+        setState(data ? { status: 'ok', data } : { status: 'invalid' })
+        if (data?.photos?.length) fetchClientPhotoUrls(token).then((u) => live && setUrls(u)).catch(() => {})
+      })
       .catch(() => live && setState({ status: 'error' }))
     return () => {
       live = false
@@ -43,6 +48,15 @@ export default function ClientView({ token }) {
   const { project, tasks, photos } = state.data
   const pct = overallPercent(tasks)
   const groups = groupByRoom(tasks)
+  const taskIds = new Set(tasks.map((t) => t.id))
+  const photosOf = (id) => photos.filter((p) => p.task_id === id)
+  const otherPhotos = photos.filter((p) => !p.task_id || !taskIds.has(p.task_id))
+  const thumb = (p) => (
+    <button key={p.id} onClick={() => urls[p.id] && setOpen(p)} className="overflow-hidden rounded-lg border border-ink-100 bg-white text-left" aria-label={`Open photo ${p.room || ''} ${fmtDate(String(p.taken).slice(0, 10))}`}>
+      {urls[p.id] ? <img src={urls[p.id]} alt={p.room || 'Site photo'} loading="lazy" className="aspect-square w-full object-cover" /> : <span className="block aspect-square w-full bg-ink-100" />}
+      <span className="block px-2 py-1 text-xs text-ink-600">{[p.room, fmtDate(String(p.taken).slice(0, 10))].filter(Boolean).join(' · ')}</span>
+    </button>
+  )
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 md:py-10" data-testid="client-view">
@@ -79,6 +93,9 @@ export default function ClientView({ token }) {
                         {st.label}
                       </span>
                     </div>
+                    {photosOf(t.id).length > 0 && (
+                      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label={`Photos for ${t.name}`}>{photosOf(t.id).map(thumb)}</div>
+                    )}
                     {t.status === 'in_progress' && Number(t.percent) > 0 && (
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-status-progress" style={{ width: `${t.percent}%` }} /></div>
                     )}
@@ -90,17 +107,10 @@ export default function ClientView({ token }) {
         ))}
       </section>
 
-      {photos.length > 0 && (
+      {otherPhotos.length > 0 && (
         <section className="mt-6" aria-label="Photos">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-[0.08em] text-ink-600">Photos</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {photos.map((p) => (
-              <button key={p.path} onClick={() => setOpen(p)} className="overflow-hidden rounded-lg border border-ink-100 bg-white text-left" aria-label={`Open photo ${p.room || ''} ${fmtDate(String(p.taken).slice(0, 10))}`}>
-                <img src={clientPhotoUrl(p.path)} alt={p.room || 'Site photo'} loading="lazy" className="aspect-square w-full object-cover" />
-                <span className="block px-2 py-1 text-xs text-ink-600">{[p.room, fmtDate(String(p.taken).slice(0, 10))].filter(Boolean).join(' · ')}</span>
-              </button>
-            ))}
-          </div>
+          <h2 className="mb-2 text-sm font-bold uppercase tracking-[0.08em] text-ink-600">More photos</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{otherPhotos.map(thumb)}</div>
         </section>
       )}
       <p className="mt-8 text-center text-xs text-ink-400">Shared by your builder. This page shows progress only.</p>
@@ -108,7 +118,7 @@ export default function ClientView({ token }) {
       {open && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/90 p-3" role="dialog" aria-label="Photo" onClick={() => setOpen(null)}>
           <button onClick={() => setOpen(null)} aria-label="Close photo" className="absolute right-3 top-3 min-h-[44px] min-w-[44px] text-3xl leading-none text-white">×</button>
-          <img src={clientPhotoUrl(open.path)} alt={open.room || 'Site photo'} className="max-h-full max-w-full object-contain" />
+          <img src={urls[open.id]} alt={open.room || 'Site photo'} className="max-h-full max-w-full object-contain" />
         </div>
       )}
     </main>

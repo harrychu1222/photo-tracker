@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase, PHOTOS_BUCKET } from '../../supabaseClient'
+import { supabase } from '../../supabaseClient'
 import { fmtDate } from '../../lib/format'
 import { EXPIRY_OPTIONS, expiresAtFor, hashToken, linkState, linkUrl, newToken } from '../../lib/clientshare'
 
-const CLIENT_BUCKET = 'client-photos'
+const OLD_COPIES_BUCKET = 'client-photos' // first version copied photos here; they are cleaned up on open
 const inputClass = 'rounded-lg border border-ink-200 bg-white px-3 py-2 text-base focus:border-signal-500'
 const MISSING = 'Client sharing is not set up yet. Run supabase/migration_23_client_link.sql in Supabase, then reload.'
 const isMissing = (e) => e && (e.code === 'PGRST205' || e.code === '42P01')
 const dayOf = (iso) => (iso ? String(iso).slice(0, 10) : '')
 
 // Managers: switch the client progress link on or off and choose which photos the client sees.
-export default function ClientShareDialog({ project, photos, onClose }) {
+export default function ClientShareDialog({ project, photos, tasks, onClose }) {
   const [links, setLinks] = useState([])
-  const [shared, setShared] = useState([]) // client_shared_photos rows
-  const [picked, setPicked] = useState(new Set())
-  const [expiry, setExpiry] = useState('90')
+  const [choices, setChoices] = useState([]) // client_photo_choices rows
+  const [picked, setPicked] = useState(new Set()) // photo ids the client will see
+  const [expiry, setExpiry] = useState('7')
   const [fresh, setFresh] = useState(null) // the URL, shown once
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(null)
@@ -22,17 +22,28 @@ export default function ClientShareDialog({ project, photos, onClose }) {
   const [note, setNote] = useState(null)
   const [ready, setReady] = useState(false)
 
+  const taskOf = (photo) => tasks.find((t) => t.id === photo.task_id)
+  // Without a manager's choice, a photo shows once its task is Done.
+  const isDefault = (photo) => taskOf(photo)?.status === 'done'
+
   const load = useCallback(async () => {
-    const [l, s] = await Promise.all([
+    // The first version copied photos into a public folder. Remove any leftovers.
+    const old = await supabase.from('client_shared_photos').select('*').eq('project_id', project.id)
+    if (!old.error && old.data?.length) {
+      await supabase.storage.from(OLD_COPIES_BUCKET).remove(old.data.map((r) => r.public_path))
+      await supabase.from('client_shared_photos').delete().eq('project_id', project.id)
+    }
+    const [l, c] = await Promise.all([
       supabase.from('client_links').select('*').eq('project_id', project.id).order('created_at', { ascending: false }),
-      supabase.from('client_shared_photos').select('*').eq('project_id', project.id)
+      supabase.from('client_photo_choices').select('*').eq('project_id', project.id)
     ])
-    const err = l.error || s.error
+    const err = l.error || c.error
     if (err) return setError(isMissing(err) ? MISSING : err.message)
     setLinks(l.data)
-    setShared(s.data)
-    setPicked(new Set(s.data.map((r) => r.photo_id)))
+    setChoices(c.data)
+    setPicked(new Set(photos.filter((p) => { const ch = c.data.find((x) => x.photo_id === p.id); return ch ? ch.share : isDefault(p) }).map((p) => p.id)))
     setReady(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id])
 
   useEffect(() => {
@@ -40,10 +51,9 @@ export default function ClientShareDialog({ project, photos, onClose }) {
   }, [load])
 
   const active = links.find((l) => linkState(l) === 'active')
-  const sharedIds = new Set(shared.map((r) => r.photo_id))
-  const toAdd = photos.filter((p) => picked.has(p.id) && !sharedIds.has(p.id))
-  const toRemove = shared.filter((r) => !picked.has(r.photo_id))
-  const changed = toAdd.length + toRemove.length > 0
+  const choiceOf = (id) => choices.find((c) => c.photo_id === id)
+  const effective = (p) => (choiceOf(p.id) ? choiceOf(p.id).share : isDefault(p))
+  const changed = photos.some((p) => picked.has(p.id) !== effective(p))
 
   async function run(label, fn) {
     setBusy(label)
@@ -81,43 +91,33 @@ export default function ClientShareDialog({ project, photos, onClose }) {
       await load()
     })
 
-  const updatePhotos = () =>
+  // Only differences from the default are stored; matching the default removes the choice.
+  const savePhotos = () =>
     run('photos', async () => {
-      let n = 0
-      for (const p of toAdd) {
-        n += 1
-        setNote(`Copying photo ${n} of ${toAdd.length}…`)
-        const { data: blob, error: de } = await supabase.storage.from(PHOTOS_BUCKET).download(p.storage_path)
-        if (de || !blob) throw new Error('Could not read one of the photos.')
-        const ext = (p.storage_path.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-        const path = `${project.id}/${crypto.randomUUID()}.${ext}`
-        const { error: ue } = await supabase.storage.from(CLIENT_BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false })
-        if (ue) throw new Error(ue.message)
-        const { error: ie } = await supabase.from('client_shared_photos').insert({ project_id: project.id, photo_id: p.id, public_path: path })
-        if (ie) {
-          await supabase.storage.from(CLIENT_BUCKET).remove([path])
-          throw new Error(isMissing(ie) ? MISSING : ie.message)
-        }
+      const upserts = []
+      const removes = []
+      for (const p of photos) {
+        const want = picked.has(p.id)
+        if (want !== isDefault(p)) upserts.push({ project_id: project.id, photo_id: p.id, share: want })
+        else if (choiceOf(p.id)) removes.push(p.id)
       }
-      if (toRemove.length) {
-        await supabase.storage.from(CLIENT_BUCKET).remove(toRemove.map((r) => r.public_path))
-        const { error: re } = await supabase.from('client_shared_photos').delete().eq('project_id', project.id).in('photo_id', toRemove.map((r) => r.photo_id))
-        if (re) throw new Error(re.message)
+      if (upserts.length) {
+        const { error: e } = await supabase.from('client_photo_choices').upsert(upserts, { onConflict: 'project_id,photo_id' })
+        if (e) throw new Error(isMissing(e) ? MISSING : e.message)
       }
-      setNote(`Done. ${picked.size} photo${picked.size === 1 ? '' : 's'} visible to the client.`)
+      if (removes.length) {
+        const { error: e } = await supabase.from('client_photo_choices').delete().eq('project_id', project.id).in('photo_id', removes)
+        if (e) throw new Error(e.message)
+      }
+      setNote('Saved. The client page now shows the ticked photos.')
       await load()
     })
 
   const stopAll = () =>
     run('stop', async () => {
-      if (shared.length) {
-        await supabase.storage.from(CLIENT_BUCKET).remove(shared.map((r) => r.public_path))
-        const { error: re } = await supabase.from('client_shared_photos').delete().eq('project_id', project.id)
-        if (re) throw new Error(re.message)
-      }
       await revokeActive()
       setFresh(null)
-      setNote('Sharing stopped: the link is off and the shared photo copies are deleted.')
+      setNote('Sharing stopped: the link is off.')
       await load()
     })
 
@@ -139,7 +139,7 @@ export default function ClientShareDialog({ project, photos, onClose }) {
           <h3 className="text-lg font-bold text-ink-900">Share progress with {project.name}'s client</h3>
           <button onClick={onClose} aria-label="Close" className="text-2xl leading-none text-ink-400">×</button>
         </div>
-        <p className="mb-3 text-sm text-ink-600">The client sees your schedule (tasks, rooms, dates, progress) and the photos you tick below. Never money, notes, hours, defects or worker names. Anyone with the link can view it, so only send it to your client.</p>
+        <p className="mb-3 text-sm text-ink-600">The client sees your schedule (tasks, rooms, dates, progress) and photos. Never money, notes, hours, defects or worker names. Anyone with the link can view it, so only send it to your client.</p>
         {error && <p className="mb-2 text-sm text-status-blocked" role="alert">{error}</p>}
         {note && <p className="mb-2 text-sm text-ink-800" role="status">{note}</p>}
 
@@ -174,7 +174,8 @@ export default function ClientShareDialog({ project, photos, onClose }) {
             </section>
 
             <section className="mb-4 rounded-xl border border-ink-100 p-3" aria-label="Photos">
-              <h4 className="mb-1 text-sm font-semibold text-ink-900">Photos the client can see ({sharedIds.size} shared)</h4>
+              <h4 className="mb-1 text-sm font-semibold text-ink-900">Photos the client can see ({photos.filter(effective).length} now)</h4>
+              <p className="mb-2 text-xs text-ink-600">Photos linked to a task appear under that task once the task is Done. Untick a photo to hide it, or tick any other photo to show it.</p>
               {photos.length === 0 ? (
                 <p className="text-sm text-ink-600">No photos are linked to this project yet.</p>
               ) : (
@@ -182,24 +183,26 @@ export default function ClientShareDialog({ project, photos, onClose }) {
                   <div className="mb-2 flex gap-3 text-sm">
                     <button onClick={() => setPicked(new Set(photos.map((p) => p.id)))} className="min-h-[40px] font-medium text-ink-600 underline">Select all</button>
                     <button onClick={() => setPicked(new Set())} className="min-h-[40px] font-medium text-ink-600 underline">Select none</button>
+                    <button onClick={() => setPicked(new Set(photos.filter(isDefault).map((p) => p.id)))} className="min-h-[40px] font-medium text-ink-600 underline">Completed tasks only</button>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {photos.map((p, i) => (
-                      <label key={p.id} className={`relative block overflow-hidden rounded-lg border-2 ${picked.has(p.id) ? 'border-signal-500' : 'border-ink-100'}`}>
-                        {p.url ? <img src={p.url} alt="" className="aspect-square w-full object-cover" /> : <span className="block aspect-square bg-ink-100" />}
-                        <input type="checkbox" checked={picked.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Share photo ${i + 1}`} className="absolute left-1.5 top-1.5 h-5 w-5" />
-                      </label>
-                    ))}
+                    {photos.map((p, i) => {
+                      const t = taskOf(p)
+                      return (
+                        <label key={p.id} className={`relative block overflow-hidden rounded-lg border-2 ${picked.has(p.id) ? 'border-signal-500' : 'border-ink-100'}`}>
+                          {p.url ? <img src={p.url} alt="" className="aspect-square w-full object-cover" /> : <span className="block aspect-square bg-ink-100" />}
+                          <input type="checkbox" checked={picked.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Share photo ${i + 1}`} className="absolute left-1.5 top-1.5 h-5 w-5" />
+                          <span className="block truncate px-1.5 py-1 text-[11px] text-ink-600">{t ? `${t.name}${t.status === 'done' ? ' ✓' : ''}` : 'No task'}</span>
+                        </label>
+                      )
+                    })}
                   </div>
-                  <button disabled={!changed || busy === 'photos'} onClick={updatePhotos} className="mt-3 min-h-[44px] rounded-lg bg-signal-500 px-4 text-sm font-semibold text-ink-950 disabled:opacity-50">
-                    {changed ? `Update shared photos (${toAdd.length ? `+${toAdd.length}` : ''}${toAdd.length && toRemove.length ? ' ' : ''}${toRemove.length ? `−${toRemove.length}` : ''})` : 'Update shared photos'}
-                  </button>
-                  <p className="mt-1 text-xs text-ink-600">Ticked photos are copied to a separate public folder under random names. Unticking deletes the copy.</p>
+                  <button disabled={!changed || busy === 'photos'} onClick={savePhotos} className="mt-3 min-h-[44px] rounded-lg bg-signal-500 px-4 text-sm font-semibold text-ink-950 disabled:opacity-50">Save photo choices</button>
                 </>
               )}
             </section>
 
-            <button disabled={busy === 'stop' || (!active && !shared.length)} onClick={() => confirm('Stop all sharing? The link turns off and every shared photo copy is deleted.') && stopAll()} className="min-h-[44px] rounded-lg border border-[#C0503E] px-4 text-sm font-semibold text-[#7A2A1D] disabled:opacity-40">Stop all sharing</button>
+            <button disabled={busy === 'stop' || !active} onClick={() => confirm('Stop all sharing? The link turns off.') && stopAll()} className="min-h-[44px] rounded-lg border border-[#C0503E] px-4 text-sm font-semibold text-[#7A2A1D] disabled:opacity-40">Stop all sharing</button>
           </>
         )}
         <div className="mt-3"><button onClick={onClose} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-900">Close</button></div>

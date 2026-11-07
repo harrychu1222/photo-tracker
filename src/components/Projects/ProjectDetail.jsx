@@ -135,7 +135,7 @@ export default function ProjectDetail({
         </div>
       </div>
       {exporting && <ExportDialog projects={[project]} onClose={() => setExporting(false)} />}
-      {sharing && <ClientShareDialog project={project} photos={photos} onClose={() => setSharing(false)} />}
+      {sharing && <ClientShareDialog project={project} photos={photos} tasks={projectTasks} onClose={() => setSharing(false)} />}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-2xl font-bold tracking-tight text-ink-900">{project.name}</h2>

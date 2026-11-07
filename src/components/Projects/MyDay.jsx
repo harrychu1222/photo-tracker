@@ -60,7 +60,7 @@ export default function MyDay({ projects, onOpenProject }) {
             <p className="text-sm font-semibold text-ink-900">{t.name}</p>
             <p className="text-xs text-ink-600">{[p.name, room].filter(Boolean).join(' · ')}</p>
             <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-semibold text-status-blocked' : 'text-ink-600'}`}>
-              {[tone === 'bad' && t.planned_end ? `Was due ${fmtDate(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
+              {[tone === 'bad' && t.planned_end ? `Was due ${fmtDate(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' && who !== 'all' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
             </p>
           </div>
           <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-800">
@@ -77,11 +77,32 @@ export default function MyDay({ projects, onOpenProject }) {
     )
   }
 
+  const byWorker = (list) => {
+    const groups = []
+    for (const x of list) {
+      const name = assigneeLabel(x.t, team) || 'Unassigned'
+      let g = groups.find((y) => y.name === name)
+      if (!g) groups.push((g = { name, items: [] }))
+      g.items.push(x)
+    }
+    return groups.sort((a, b) => a.name.localeCompare(b.name))
+  }
+
   const section = (title, list, tone) =>
     list.length > 0 && (
       <section className="mb-5" aria-label={title}>
         <h3 className={`mb-2 text-xs font-bold uppercase tracking-[0.08em] ${tone === 'bad' ? 'text-status-blocked' : 'text-ink-600'}`}>{title} ({list.length})</h3>
-        <ul className="space-y-2">{list.map((x) => card(x, tone))}</ul>
+        {who === 'all' ? (
+          // Everyone's view: each section is split by worker.
+          byWorker(list).map((g) => (
+            <div key={g.name} className="mb-3" role="group" aria-label={`${title}: ${g.name}`}>
+              <h4 className="mb-1.5 text-sm font-semibold text-ink-900">{g.name} ({g.items.length})</h4>
+              <ul className="space-y-2">{g.items.map((x) => card(x, tone))}</ul>
+            </div>
+          ))
+        ) : (
+          <ul className="space-y-2">{list.map((x) => card(x, tone))}</ul>
+        )}
       </section>
     )
 

@@ -17,4 +17,10 @@ export async function fetchClientView(token) {
   return data // null when the link is wrong, expired or switched off
 }
 
-export const clientPhotoUrl = (path) => clientViewer().storage.from('client-photos').getPublicUrl(path).data.publicUrl
+// Short-lived addresses for the photos this link may see, keyed by photo id (the server function
+// checks the link itself; a wrong or switched-off link gets nothing).
+export async function fetchClientPhotoUrls(token) {
+  const { data, error } = await clientViewer().functions.invoke('client-photos', { body: { token } })
+  if (error || !data?.photos) return {}
+  return Object.fromEntries(data.photos.map((p) => [p.id, p.url]))
+}

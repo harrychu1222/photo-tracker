@@ -22,9 +22,10 @@ export function parseClientToken(hash) {
 }
 
 export const EXPIRY_OPTIONS = [
+  { value: '3', label: '3 days' },
+  { value: '7', label: '7 days' },
   { value: '30', label: '30 days' },
   { value: '90', label: '90 days' },
-  { value: '180', label: '6 months' },
   { value: 'never', label: 'No expiry' }
 ]
 export const expiresAtFor = (value, now = new Date()) => (value === 'never' ? null : new Date(now.getTime() + Number(value) * 86400000).toISOString())
