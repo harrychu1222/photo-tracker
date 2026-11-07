@@ -485,3 +485,26 @@ Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (ad
 - Project → **Share with client** (managers only): create a link (30/90/180 days or no expiry), tick the photos the client may see, copy the link. The client opens it with no login and sees the schedule (task names, rooms, dates, progress) and the ticked photos. Never money, notes, hours, defects, diary, checklists or worker names; "blocked" shows as "Not started".
 - Security: the link is `https://your-site/#c=<256-bit secret>`. The part after `#` is never sent to a server in a request. Only the SHA-256 hash is stored, so the link can't be read back later (make a new one if lost; it replaces the old). The public page can only call `client_view(token)`, which returns a fixed set of fields, or nothing for a wrong, expired or switched-off link. The new tables are manager-only (RLS). The page sends `noindex` and no-referrer.
 - Photos: ticked photos are copied into the separate public bucket under random names (the private `photos` bucket is untouched). Unticking, or "Stop all sharing", deletes the copies. Anyone who already knows a copy's exact URL can open it until it's deleted, so use "Stop all sharing" if a link is ever sent to the wrong person. Deleting a project or photo removes the database rows but not the copies; use "Stop all sharing" first.
+
+## F5b: completed-task photos, My Day by worker, link expiry
+- Run `supabase/migration_24_client_photos_by_task.sql` (after migration 23). The Edge Function `client-photos` (`supabase/functions/client-photos/index.ts`) must be deployed; it already is on the "Photo Tag App" project. To redeploy: Supabase dashboard → Edge Functions → client-photos, or `supabase functions deploy client-photos`.
+- The client page now shows, under each task, the photos linked to that task once the task is Done. Managers can untick a photo to hide it, or tick any other photo to show it (under "More photos" if it has no task). Only differences from that default are stored (`client_photo_choices`).
+- Photos are no longer copied into a public bucket. The function checks the link, then returns one-hour signed addresses for the private photos. Leftover public copies from the first version are deleted when the share dialog opens. The empty `client-photos` bucket and the `client_shared_photos` table can be dropped later.
+- Link expiry options: 3 days, 7 days (default), 30 days, 90 days, no expiry.
+- My Day, "Everyone's tasks": each section (Overdue, Today, Coming up, No dates) is split by worker.
+- Photos only show on the client page if they are linked to a task, so ask the crew to pick the task when they add photos.
+
+## Companies (M1) - separate space for each company (database part)
+
+`supabase/migration_25_companies.sql` gives every company its own private space. Your current data becomes the first company ("My company"; rename it later). Nothing is deleted.
+
+**Do this in order:**
+1. **Back up first.** Supabase dashboard > Database > Backups (or export the tables). Do not skip this.
+2. Run `migration_25_companies.sql` in the SQL editor, then **immediately push this version of the app** (two save calls changed: business profile and checklist templates). Between the two steps those two saves may fail; everything else keeps working.
+3. Make yourself the app owner, once (put your own login email in):
+   `insert into platform_owners(user_id) select id from profiles where lower(email)=lower('YOUR EMAIL') on conflict do nothing;`
+4. Check you still see all your projects and the team list, and that crew still cannot see money.
+
+**What it guarantees (tested on a real Postgres with two companies, 84 checks):** people only see and change their own company's rows in every table; money stays manager-only; a row cannot point at another company's project/task; photos and receipts files are company-scoped (this also fixes an old gap where any signed-in user could open any photo file); the app owner sees nothing inside a company unless they start a read-only, logged support session with a reason; a suspended company is locked out; client links still work.
+
+**New tables you add later must have a `company_id` column** (see the end of the migration). The screens for creating companies, inviting people and the owner's Platform view come in the next stage; until then new people join with the existing invite codes (they join your company).
