@@ -12,6 +12,7 @@ import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
 import SiteTab from './SiteTab'
 import ExportDialog from './ExportDialog'
+import ClientShareDialog from './ClientShareDialog'
 import QuoteTab from './QuoteTab'
 import { useWork } from '../../context/WorkContext'
 import { projectStatusMeta } from '../../statusConfig'
@@ -74,6 +75,7 @@ export default function ProjectDetail({
 
   const today = todayLocal()
   const [exporting, setExporting] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const progress = taskProgress(projectTasks)
   const schedule = scheduleSummary(projectTasks, today)
   const everyMaterial = projectTasks.flatMap((t) => materialsByTask[t.id] || [])
@@ -116,7 +118,12 @@ export default function ProjectDetail({
         <button onClick={onBack} className="flex min-h-[44px] items-center gap-1 text-sm font-medium text-ink-600">
           <Icon name="back" size={16} /> All projects
         </button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {isAdmin && (
+            <button onClick={() => setSharing(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+              Share with client
+            </button>
+          )}
           <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
             Export
           </button>
@@ -128,6 +135,7 @@ export default function ProjectDetail({
         </div>
       </div>
       {exporting && <ExportDialog projects={[project]} onClose={() => setExporting(false)} />}
+      {sharing && <ClientShareDialog project={project} photos={photos} onClose={() => setSharing(false)} />}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-2xl font-bold tracking-tight text-ink-900">{project.name}</h2>
