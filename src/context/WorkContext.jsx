@@ -725,7 +725,7 @@ export function WorkProvider({ children }) {
       valid_days: Math.min(365, Math.max(1, Math.floor(Number(f.valid_days) || 30))),
       updated_at: new Date().toISOString()
     }
-    const { error } = await supabase.from('business_profile').upsert(row, { onConflict: 'singleton' })
+    const { error } = await supabase.from('business_profile').upsert(row, { onConflict: 'company_id' })
     if (error) throw error
     await refreshQuote()
     return row
@@ -846,7 +846,7 @@ export function WorkProvider({ children }) {
     const n = (name || '').trim()
     const list = items.map((t) => String(t).trim()).filter(Boolean)
     if (!n || !list.length) throw new Error('A template needs a name and at least one item.')
-    const { error } = await supabase.from('checklist_templates').upsert({ name: n, items: list, created_by: userId }, { onConflict: 'name' })
+    const { error } = await supabase.from('checklist_templates').upsert({ name: n, items: list, created_by: userId }, { onConflict: 'company_id,name' })
     if (error) throw new Error(error.code === 'PGRST205' || error.code === '42P01' ? 'Run supabase/migration_22_workers_templates_issues.sql in Supabase first.' : error.message)
     await refreshSite()
   }
