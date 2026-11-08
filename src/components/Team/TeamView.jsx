@@ -4,11 +4,54 @@ import { useAuth } from '../../context/AuthContext'
 
 // Admin-only: see everyone with access and promote or demote them, without touching SQL.
 export default function TeamView() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, company, support, refreshAccount } = useAuth()
   const [people, setPeople] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busyId, setBusyId] = useState(null)
+  const [invites, setInvites] = useState([])
+  const [invRole, setInvRole] = useState('crew')
+  const [invLabel, setInvLabel] = useState('')
+  const [shown, setShown] = useState(null)
+  const [coName, setCoName] = useState('')
+
+  const loadInvites = useCallback(async () => {
+    const { data } = await supabase
+      .from('invite_codes')
+      .select('code, label, role, max_uses, uses, expires_at')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+    setInvites((data || []).filter((i) => i.uses < i.max_uses))
+  }, [])
+
+  async function makeInvite(e) {
+    e.preventDefault()
+    setError(null)
+    const { data, error } = await supabase.rpc('create_company_invite', {
+      p_label: invLabel.trim() || null,
+      p_role: invRole,
+      p_max_uses: 1,
+      p_days: 14
+    })
+    if (error) return setError(error.message)
+    setShown(data)
+    setInvLabel('')
+    loadInvites()
+  }
+
+  async function removeInvite(code) {
+    const { error } = await supabase.rpc('revoke_company_invite', { p_code: code })
+    if (error) setError(error.message)
+    else loadInvites()
+  }
+
+  async function renameCo(e) {
+    e.preventDefault()
+    const { error } = await supabase.rpc('rename_company', { p_name: coName })
+    if (error) return setError(error.message)
+    setCoName('')
+    refreshAccount()
+  }
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from('profiles').select('id, email, role, created_at').order('email')
@@ -22,7 +65,8 @@ export default function TeamView() {
 
   useEffect(() => {
     load()
-  }, [load])
+    loadInvites()
+  }, [load, loadInvites])
 
   async function setRole(person, role) {
     const verb = role === 'admin' ? 'make an admin (can see all costs and change roles)' : 'change to crew (cannot see costs)'
@@ -50,8 +94,8 @@ export default function TeamView() {
     <div className="px-4 py-4">
       <h2 className="text-xl font-semibold text-ink-900">Team</h2>
       <p className="mb-4 mt-1 text-sm text-ink-600">
-        Admins see costs and manage the team. Crew see tasks, schedules, photos, and materials without prices. To invite
-        someone, share an invite code (see the README).
+        Admins see costs and manage the team. Crew see tasks, schedules, photos, and materials without prices. To add
+        someone, make an invite code below and send it to them.
       </p>
 
       {error && <p className="mb-3 text-sm text-status-blocked">{error}</p>}
@@ -83,6 +127,63 @@ export default function TeamView() {
           </li>
         ))}
       </ul>
+      {!support && (
+        <>
+          <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Invite someone</h3>
+          <form onSubmit={makeInvite} className="rounded-xl border border-ink-100 bg-white p-3">
+            <div className="flex flex-wrap gap-2">
+              <input
+                aria-label="Who is it for"
+                value={invLabel}
+                onChange={(e) => setInvLabel(e.target.value)}
+                placeholder="Who is it for (optional)"
+                className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-base"
+              />
+              <select
+                aria-label="Role"
+                value={invRole}
+                onChange={(e) => setInvRole(e.target.value)}
+                className="rounded-lg border border-ink-200 px-3 py-2 text-base"
+              >
+                <option value="crew">Crew</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white">Make code</button>
+            </div>
+            {shown && (
+              <p className="mt-3 text-sm text-ink-900">
+                Send them this code (one use, 14 days): <span className="select-all font-mono font-semibold">{shown}</span>
+              </p>
+            )}
+          </form>
+          {invites.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {invites.map((i) => (
+                <li key={i.code} className="flex items-center justify-between gap-2 text-xs text-ink-600">
+                  <span className="min-w-0 truncate">
+                    <span className="font-mono">{i.code}</span> · {i.role === 'admin' ? 'Admin' : 'Crew'}
+                    {i.label ? ` · ${i.label}` : ''}
+                  </span>
+                  <button onClick={() => removeInvite(i.code)} className="flex-shrink-0 rounded-lg border border-ink-200 px-2 py-1 font-medium">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Company name</h3>
+          <form onSubmit={renameCo} className="flex gap-2">
+            <input
+              aria-label="Company name"
+              value={coName}
+              onChange={(e) => setCoName(e.target.value)}
+              placeholder={company?.name || 'Company name'}
+              className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-base"
+            />
+            <button className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600">Rename</button>
+          </form>
+        </>
+      )}
       <p className="mt-4 text-xs text-ink-400">
         A person's new role applies the next time they open or reload the app. There must always be at least one admin.
       </p>

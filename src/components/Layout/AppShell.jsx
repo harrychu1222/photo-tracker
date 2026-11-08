@@ -25,14 +25,31 @@ export default function AppShell({
   projects,
   selectedId,
   onOpenProject,
+  company,
+  isOwner,
+  support,
+  onStopSupport,
   children
 }) {
   const navItems = [
     { id: 'projects', label: 'Projects', icon: 'projects' },
     { id: 'myday', label: 'My Day', icon: 'calendar' },
     { id: 'photos', label: 'Photos', icon: 'photos' },
-    ...(isAdmin ? [{ id: 'team', label: 'Team', icon: 'team' }] : [])
+    ...(isAdmin ? [{ id: 'team', label: 'Team', icon: 'team' }] : []),
+    ...(isOwner ? [{ id: 'platform', label: 'Platform', icon: 'logo' }] : [])
   ]
+
+  const banner = support ? (
+    <div
+      role="status"
+      className="sticky top-0 z-20 flex min-h-9 items-center justify-between gap-3 bg-amber-400 px-3 py-1 text-xs font-semibold text-ink-950"
+    >
+      <span className="min-w-0 truncate">Viewing {support.companyName} (read-only)</span>
+      <button onClick={onStopSupport} className="flex-none rounded-md bg-ink-950 px-2.5 py-1 text-xs font-semibold text-white">
+        Stop viewing
+      </button>
+    </div>
+  ) : null
 
   if (isDesktop) {
     const active = projects.filter((p) => p.status === 'active' || p.status === 'quoting').slice(0, 8)
@@ -41,6 +58,7 @@ export default function AppShell({
         <aside className="sticky top-0 flex h-screen w-[232px] flex-none flex-col gap-6 overflow-y-auto bg-ink-950 px-3 py-5">
           <div className="px-2">
             <Brand />
+            {company?.name && <p className="mt-1.5 truncate pl-[38px] text-xs text-ink-400">{company.name}</p>}
           </div>
           <nav aria-label="Main" className="flex flex-col gap-1">
             <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Workspace</p>
@@ -92,7 +110,10 @@ export default function AppShell({
             </button>
           </div>
         </aside>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-w-0 flex-1">
+          {banner}
+          {children}
+        </main>
       </div>
     )
   }
@@ -114,10 +135,11 @@ export default function AppShell({
   )
   return (
     <div className="min-h-screen bg-ink-50 pb-20">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between bg-ink-950 px-4">
+      {banner}
+      <header className={`sticky ${support ? 'top-9' : 'top-0'} z-10 flex h-14 items-center justify-between bg-ink-950 px-4`}>
         <Brand />
         <div className="flex items-center gap-1">
-          <span className="max-w-[9rem] truncate text-xs text-ink-400">{email}</span>
+          <span className="max-w-[9rem] truncate text-xs text-ink-400">{company?.name || email}</span>
           <button
             onClick={onSignOut}
             aria-label="Sign out"

@@ -7,6 +7,7 @@ import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
 import TeamView from './components/Team/TeamView'
+import PlatformView from './components/Team/PlatformView'
 import MyDay from './components/Projects/MyDay'
 import { usePhotos } from './hooks/usePhotos'
 import { useProjects } from './hooks/useProjects'
@@ -14,7 +15,7 @@ import { useWork } from './context/WorkContext'
 import { useMedia } from './hooks/useMedia'
 
 export default function App() {
-  const { user, loading, isAdmin, signOut } = useAuth()
+  const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [authView, setAuthView] = useState('login')
@@ -86,6 +87,10 @@ export default function App() {
       projects={projects}
       selectedId={tab === 'projects' ? selectedProjectId : null}
       onOpenProject={openProject}
+      company={company}
+      isOwner={isOwner}
+      support={support}
+      onStopSupport={stopSupport}
     >
       {tab === 'photos' ? (
         <div className={photoWidth}>
@@ -101,6 +106,10 @@ export default function App() {
         </div>
       ) : tab === 'myday' ? (
         <MyDay projects={projects} onOpenProject={openProject} />
+      ) : tab === 'platform' && isOwner ? (
+        <div className="mx-auto max-w-3xl">
+          <PlatformView />
+        </div>
       ) : tab === 'team' ? (
         <div className="mx-auto max-w-3xl">
           <TeamView />

@@ -6,6 +6,12 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = loading, null = signed out
   const [role, setRole] = useState('crew')
+  // Company space: { id, name } of the company being shown, whether this person is the app
+  // owner, and the read-only support session (if the owner is looking inside a company).
+  const [company, setCompany] = useState(null)
+  const [isOwner, setIsOwner] = useState(false)
+  const [support, setSupport] = useState(null)
+  const [accountVersion, setAccountVersion] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -25,6 +31,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!userId) {
       setRole('crew')
+      setCompany(null)
+      setIsOwner(false)
+      setSupport(null)
       return
     }
     let cancelled = false
@@ -37,17 +46,46 @@ export function AuthProvider({ children }) {
         if (cancelled) return
         setRole(!error && data?.role === 'admin' ? 'admin' : 'crew')
       })
+    // Company details. Each lookup is tolerant: before the companies migration is run these
+    // simply come back empty and the app behaves as before.
+    supabase
+      .from('companies')
+      .select('id, name, status')
+      .maybeSingle()
+      .then(({ data, error }) => !cancelled && setCompany(!error && data ? data : null))
+    supabase.rpc('is_platform_owner').then(({ data, error }) => !cancelled && setIsOwner(!error && data === true))
+    supabase.rpc('support_status').then(({ data, error }) => {
+      if (cancelled) return
+      const row = !error && Array.isArray(data) ? data[0] : null
+      setSupport(row ? { companyId: row.company_id, companyName: row.company_name, reason: row.reason } : null)
+    })
     return () => {
       cancelled = true
     }
-  }, [userId])
+  }, [userId, accountVersion])
 
   const value = {
     session,
     user: session?.user ?? null,
     loading: session === undefined,
     role,
-    isAdmin: role === 'admin',
+    // In a support session the owner sees what a manager of that company sees (read-only).
+    isAdmin: role === 'admin' || !!support,
+    company,
+    isOwner,
+    support,
+    // Start or stop looking inside a company, then reload so every screen refetches.
+    startSupport: async (companyId, reason) => {
+      const { error } = await supabase.rpc('start_support', { p_company: companyId, p_reason: reason })
+      if (!error) window.location.reload()
+      return error
+    },
+    stopSupport: async () => {
+      const { error } = await supabase.rpc('stop_support')
+      if (!error) window.location.reload()
+      return error
+    },
+    refreshAccount: () => setAccountVersion((v) => v + 1),
     signOut: () => supabase.auth.signOut()
   }
 
