@@ -10,6 +10,8 @@ export default function PlatformView() {
   const [log, setLog] = useState([])
   const [error, setError] = useState(null)
   const [name, setName] = useState('')
+  const [adminCode, setAdminCode] = useState('')
+  const [crewCode, setCrewCode] = useState('')
   const [newCode, setNewCode] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -33,11 +35,18 @@ export default function PlatformView() {
     e.preventDefault()
     if (!name.trim()) return
     setBusy(true)
-    const { data, error } = await supabase.rpc('platform_create_company', { p_name: name })
+    const { error } = await supabase.rpc('platform_create_company', {
+      p_name: name,
+      p_admin_code: adminCode.trim(),
+      p_crew_code: crewCode.trim() || null
+    })
     setBusy(false)
     if (error) return setError(error.message)
-    setNewCode({ company: name.trim(), code: data })
+    setError(null)
+    setNewCode({ company: name.trim(), admin: adminCode.trim(), crew: crewCode.trim() })
     setName('')
+    setAdminCode('')
+    setCrewCode('')
     load()
   }
 
@@ -101,23 +110,42 @@ export default function PlatformView() {
         <label htmlFor="newco" className="mb-1 block text-sm font-medium text-ink-800">
           Add a company
         </label>
-        <div className="flex gap-2">
-          <input
-            id="newco"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Company name"
-            className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-base"
-          />
-          <button disabled={busy} className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-            Create
-          </button>
-        </div>
+        <input
+          id="newco"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Company name"
+          className="mb-2 w-full rounded-lg border border-ink-200 px-3 py-2 text-base"
+        />
+        <input
+          aria-label="Manager code"
+          value={adminCode}
+          onChange={(e) => setAdminCode(e.target.value)}
+          placeholder="Manager code (you choose, 6+ characters)"
+          className="mb-2 w-full rounded-lg border border-ink-200 px-3 py-2 text-base"
+        />
+        <input
+          aria-label="Crew code"
+          value={crewCode}
+          onChange={(e) => setCrewCode(e.target.value)}
+          placeholder="Crew code for their crew (optional)"
+          className="mb-2 w-full rounded-lg border border-ink-200 px-3 py-2 text-base"
+        />
+        <button disabled={busy} className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+          Create company
+        </button>
         {newCode && (
-          <p className="mt-3 text-sm text-ink-900">
-            Invite code for {newCode.company}'s first manager (one use, 14 days):{' '}
-            <span className="select-all font-mono font-semibold">{newCode.code}</span>
-          </p>
+          <div className="mt-3 text-sm text-ink-900">
+            <p>
+              {newCode.company} created. Manager signs up with <span className="select-all font-mono font-semibold">{newCode.admin}</span>{' '}
+              (one use, 30 days).
+            </p>
+            {newCode.crew && (
+              <p className="mt-1">
+                Their crew sign up with <span className="select-all font-mono font-semibold">{newCode.crew}</span> (up to 100 people, 1 year).
+              </p>
+            )}
+          </div>
         )}
       </form>
 
