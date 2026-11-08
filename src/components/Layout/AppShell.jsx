@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import Icon from '../ui/Icon'
+import FeedbackDialog from './FeedbackDialog'
 import { projectStatusMeta } from '../../statusConfig'
 
 function Brand() {
@@ -31,6 +33,8 @@ export default function AppShell({
   onStopSupport,
   children
 }) {
+  const [showFeedback, setShowFeedback] = useState(false)
+  const feedback = showFeedback ? <FeedbackDialog page={tab} onClose={() => setShowFeedback(false)} /> : null
   const navItems = [
     { id: 'projects', label: 'Projects', icon: 'projects' },
     { id: 'myday', label: 'My Day', icon: 'calendar' },
@@ -103,6 +107,12 @@ export default function AppShell({
             </button>
             <p className="truncate px-1 text-xs text-ink-400">{email}</p>
             <button
+              onClick={() => setShowFeedback(true)}
+              className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-ink-200 hover:bg-ink-900"
+            >
+              <Icon name="logo" size={16} /> Send feedback
+            </button>
+            <button
               onClick={onSignOut}
               className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-ink-200 hover:bg-ink-900"
             >
@@ -113,6 +123,7 @@ export default function AppShell({
         <main className="min-w-0 flex-1">
           {banner}
           {children}
+          {feedback}
         </main>
       </div>
     )
@@ -139,7 +150,10 @@ export default function AppShell({
       <header className={`sticky ${support ? 'top-9' : 'top-0'} z-10 flex h-14 items-center justify-between bg-ink-950 px-4`}>
         <Brand />
         <div className="flex items-center gap-1">
-          <span className="max-w-[9rem] truncate text-xs text-ink-400">{company?.name || email}</span>
+          <span className="max-w-[6rem] truncate text-xs text-ink-400">{company?.name || email}</span>
+          <button onClick={() => setShowFeedback(true)} className="rounded-lg px-2 py-2 text-xs font-medium text-ink-200 active:bg-ink-800">
+            Feedback
+          </button>
           <button
             onClick={onSignOut}
             aria-label="Sign out"
@@ -150,6 +164,7 @@ export default function AppShell({
         </div>
       </header>
       {children}
+      {feedback}
       <nav
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-10 flex h-[68px] items-center justify-around border-t border-ink-100 bg-white"

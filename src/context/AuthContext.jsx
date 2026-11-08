@@ -12,11 +12,14 @@ export function AuthProvider({ children }) {
   const [isOwner, setIsOwner] = useState(false)
   const [support, setSupport] = useState(null)
   const [accountVersion, setAccountVersion] = useState(0)
+  const [removed, setRemoved] = useState(false) // a manager took this person out of the company
+  const [recovering, setRecovering] = useState(false) // arrived from a password-reset email
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
       setSession(newSession)
     })
 
@@ -31,6 +34,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!userId) {
       setRole('crew')
+      setRemoved(false)
       setCompany(null)
       setIsOwner(false)
       setSupport(null)
@@ -39,12 +43,13 @@ export function AuthProvider({ children }) {
     let cancelled = false
     supabase
       .from('profiles')
-      .select('role')
+      .select('*')
       .eq('id', userId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return
-        setRole(!error && data?.role === 'admin' ? 'admin' : 'crew')
+        setRemoved(!error && !!data?.removed_at)
+        setRole(!error && data?.role === 'admin' && !data?.removed_at ? 'admin' : 'crew')
       })
     // Company details. Each lookup is tolerant: before the companies migration is run these
     // simply come back empty and the app behaves as before.
@@ -74,6 +79,9 @@ export function AuthProvider({ children }) {
     company,
     isOwner,
     support,
+    removed,
+    recovering,
+    finishRecovery: () => setRecovering(false),
     // Start or stop looking inside a company, then reload so every screen refetches.
     startSupport: async (companyId, reason) => {
       const { error } = await supabase.rpc('start_support', { p_company: companyId, p_reason: reason })

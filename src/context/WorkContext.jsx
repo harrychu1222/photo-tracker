@@ -172,8 +172,9 @@ export function WorkProvider({ children }) {
   // Everyone with a login, for "assigned to". Profiles are readable by every signed-in user.
   const refreshTeam = useCallback(async () => {
     if (!userId) return setTeam([])
-    const { data, error } = await supabase.from('profiles').select('id, email')
-    setTeam(error ? [] : [...(data || [])].sort((a, b) => a.email.localeCompare(b.email)))
+    // select('*') and filter here, so this still works before the "remove people" migration is run.
+    const { data, error } = await supabase.from('profiles').select('*')
+    setTeam(error ? [] : [...(data || [])].filter((p) => !p.removed_at).sort((a, b) => a.email.localeCompare(b.email)))
   }, [userId])
 
   // Site diary + compliance checklists (migration 21).

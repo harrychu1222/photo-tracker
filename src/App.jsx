@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useAuth } from './context/AuthContext'
 import Login from './components/Auth/Login'
 import SignUp from './components/Auth/SignUp'
+import { SetNewPassword, RemovedScreen } from './components/Auth/AccountScreens'
 import AppShell from './components/Layout/AppShell'
 import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
@@ -15,7 +16,7 @@ import { useWork } from './context/WorkContext'
 import { useMedia } from './hooks/useMedia'
 
 export default function App() {
-  const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport } = useAuth()
+  const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport, removed, recovering, finishRecovery } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [authView, setAuthView] = useState('login')
@@ -61,6 +62,9 @@ export default function App() {
       <SignUp onSwitchToLogin={() => setAuthView('login')} />
     )
   }
+
+  if (recovering) return <SetNewPassword onDone={finishRecovery} />
+  if (removed) return <RemovedScreen onSignOut={signOut} />
 
   function goTab(next) {
     setTab(next)

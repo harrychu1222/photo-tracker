@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../../supabaseClient'
+import { ForgotPassword } from './AccountScreens'
 
 export default function Login({ onSwitchToSignUp }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [forgot, setForgot] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -15,6 +17,8 @@ export default function Login({ onSwitchToSignUp }) {
     setLoading(false)
     if (error) setError(error.message)
   }
+
+  if (forgot) return <ForgotPassword onBack={() => setForgot(false)} />
 
   return (
     <div className="mx-auto flex min-h-screen max-w-app flex-col justify-center px-6">
@@ -62,11 +66,20 @@ export default function Login({ onSwitchToSignUp }) {
         </button>
       </form>
 
+      <p className="mt-4 text-center text-sm">
+        <button type="button" onClick={() => setForgot(true)} className="font-medium text-signal-600 underline underline-offset-2">
+          Forgot password?
+        </button>
+      </p>
       <p className="mt-6 text-center text-sm text-ink-600">
         Have an invite code?{' '}
         <button onClick={onSwitchToSignUp} className="font-medium text-signal-600 underline underline-offset-2">
           Create an account
         </button>
+      </p>
+      <p className="mt-6 text-center text-xs text-ink-400">
+        <a href="/#privacy" target="_blank" rel="noreferrer" className="underline">Privacy</a> ·{' '}
+        <a href="/#terms" target="_blank" rel="noreferrer" className="underline">Terms</a>
       </p>
     </div>
   )

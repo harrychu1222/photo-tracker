@@ -8,6 +8,7 @@ export default function SignUp({ onSwitchToLogin }) {
   const [error, setError] = useState(null)
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -61,7 +62,7 @@ export default function SignUp({ onSwitchToLogin }) {
             required
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
-            className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base uppercase tracking-wide focus:border-signal-500"
+            className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
           />
         </div>
         <div>
@@ -93,6 +94,15 @@ export default function SignUp({ onSwitchToLogin }) {
             className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base focus:border-signal-500"
           />
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-ink-600">
+          <input type="checkbox" required checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
+          <span>
+            I agree to the{' '}
+            <a href="/#terms" target="_blank" rel="noreferrer" className="font-medium text-signal-600 underline">terms</a> and{' '}
+            <a href="/#privacy" target="_blank" rel="noreferrer" className="font-medium text-signal-600 underline">privacy policy</a>.
+          </span>
+        </label>
 
         {error && <p className="text-sm text-status-blocked">{error}</p>}
 

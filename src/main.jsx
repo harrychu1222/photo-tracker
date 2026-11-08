@@ -13,7 +13,11 @@ registerSW({ immediate: true, onNeedRefresh: () => window.location.reload() })
 const clientToken = parseClientToken(window.location.hash)
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
-if (clientToken) {
+const legal = window.location.hash === '#privacy' ? 'privacy' : window.location.hash === '#terms' ? 'terms' : null
+
+if (legal) {
+  import('./components/Legal/LegalPage.jsx').then(({ default: LegalPage }) => root.render(<LegalPage kind={legal} />))
+} else if (clientToken) {
   import('./components/Client/ClientView.jsx').then(({ default: ClientView }) => root.render(<React.StrictMode><ClientView token={clientToken} /></React.StrictMode>))
 } else {
   Promise.all([import('./App.jsx'), import('./context/AuthContext.jsx'), import('./context/WorkContext.jsx')]).then(([{ default: App }, { AuthProvider }, { WorkProvider }]) =>

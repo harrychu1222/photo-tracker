@@ -8,6 +8,9 @@ export default function PlatformView() {
   const { isOwner, support, startSupport, stopSupport } = useAuth()
   const [companies, setCompanies] = useState([])
   const [log, setLog] = useState([])
+  const [feedback, setFeedback] = useState([])
+  const [addFor, setAddFor] = useState(null) // company id with the extra-code form open
+  const [extra, setExtra] = useState({ code: '', role: 'crew' })
   const [error, setError] = useState(null)
   const [name, setName] = useState('')
   const [adminCode, setAdminCode] = useState('')
@@ -16,13 +19,18 @@ export default function PlatformView() {
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
-    const [c, l] = await Promise.all([supabase.rpc('platform_companies'), supabase.rpc('platform_audit_log', { p_limit: 50 })])
+    const [c, l, f] = await Promise.all([
+      supabase.rpc('platform_companies'),
+      supabase.rpc('platform_audit_log', { p_limit: 50 }),
+      supabase.rpc('platform_feedback', { p_limit: 50 })
+    ])
     if (c.error) setError(c.error.message)
     else {
       setError(null)
       setCompanies(c.data || [])
     }
     if (!l.error) setLog(l.data || [])
+    if (!f.error) setFeedback(f.data || [])
   }, [])
 
   useEffect(() => {
@@ -55,6 +63,24 @@ export default function PlatformView() {
     if (!reason || reason.trim().length < 3) return
     const err = await startSupport(c.company_id, reason.trim())
     if (err) setError(err.message)
+  }
+
+  async function addCode(e, c) {
+    e.preventDefault()
+    const max = extra.role === 'crew' ? 100 : 1
+    const days = extra.role === 'crew' ? 365 : 30
+    const { error } = await supabase.rpc('platform_add_invite', {
+      p_company: c.company_id,
+      p_code: extra.code.trim(),
+      p_role: extra.role,
+      p_max_uses: max,
+      p_days: days
+    })
+    if (error) return setError(error.message)
+    setError(null)
+    setNewCode({ company: c.name, admin: extra.role === 'admin' ? extra.code.trim() : null, crew: extra.role === 'crew' ? extra.code.trim() : '' })
+    setExtra({ code: '', role: 'crew' })
+    setAddFor(null)
   }
 
   async function setStatus(c) {
@@ -97,11 +123,35 @@ export default function PlatformView() {
                 <button onClick={() => look(c)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
                   View inside
                 </button>
+                <button onClick={() => setAddFor(addFor === c.company_id ? null : c.company_id)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
+                  Add code
+                </button>
                 <button onClick={() => setStatus(c)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
                   {c.status === 'active' ? 'Suspend' : 'Reactivate'}
                 </button>
               </div>
             </div>
+            {addFor === c.company_id && (
+              <form onSubmit={(e) => addCode(e, c)} className="mt-3 flex flex-wrap gap-2">
+                <input
+                  aria-label="New code"
+                  value={extra.code}
+                  onChange={(e) => setExtra({ ...extra, code: e.target.value })}
+                  placeholder="New code (6+ characters)"
+                  className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-base"
+                />
+                <select
+                  aria-label="Code role"
+                  value={extra.role}
+                  onChange={(e) => setExtra({ ...extra, role: e.target.value })}
+                  className="rounded-lg border border-ink-200 px-3 py-2 text-base"
+                >
+                  <option value="crew">Crew (many people)</option>
+                  <option value="admin">Manager (one person)</option>
+                </select>
+                <button className="rounded-lg bg-signal-500 px-4 py-2 text-sm font-medium text-white">Save code</button>
+              </form>
+            )}
           </li>
         ))}
       </ul>
@@ -136,10 +186,12 @@ export default function PlatformView() {
         </button>
         {newCode && (
           <div className="mt-3 text-sm text-ink-900">
-            <p>
-              {newCode.company} created. Manager signs up with <span className="select-all font-mono font-semibold">{newCode.admin}</span>{' '}
-              (one use, 30 days).
-            </p>
+            {newCode.admin && (
+              <p>
+                {newCode.company}: manager signs up with <span className="select-all font-mono font-semibold">{newCode.admin}</span>{' '}
+                (one use, 30 days).
+              </p>
+            )}
             {newCode.crew && (
               <p className="mt-1">
                 Their crew sign up with <span className="select-all font-mono font-semibold">{newCode.crew}</span> (up to 100 people, 1 year).
@@ -148,6 +200,23 @@ export default function PlatformView() {
           </div>
         )}
       </form>
+
+      <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Feedback</h3>
+      {feedback.length === 0 ? (
+        <p className="text-sm text-ink-400">Nothing yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {feedback.map((f, i) => (
+            <li key={i} className="rounded-lg border border-ink-100 bg-white p-2 text-sm text-ink-900">
+              {f.message}
+              <p className="mt-1 text-xs text-ink-400">
+                {f.who} · {f.company_name} · {new Date(f.at).toLocaleDateString()}
+                {f.page ? ` · ${f.page}` : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Access log</h3>
       {log.length === 0 ? (

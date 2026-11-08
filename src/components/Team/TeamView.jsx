@@ -54,7 +54,7 @@ export default function TeamView() {
   }
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from('profiles').select('id, email, role, created_at').order('email')
+    const { data, error } = await supabase.from('profiles').select('*').order('email')
     if (error) setError(error.message)
     else {
       setError(null)
@@ -86,6 +86,28 @@ export default function TeamView() {
     setBusyId(null)
   }
 
+  async function removePerson(person) {
+    if (!confirm(`Remove ${person.email}? They lose all access. Their name stays on past tasks and photos, and you can restore them later.`)) return
+    setBusyId(person.id)
+    setError(null)
+    const { error } = await supabase.rpc('remove_company_member', { p_user: person.id })
+    if (error) setError(error.code === 'PGRST202' ? 'Removing people is not set up yet. Run migration 27 in Supabase, then reload.' : error.message)
+    else await load()
+    setBusyId(null)
+  }
+
+  async function restorePerson(person) {
+    setBusyId(person.id)
+    setError(null)
+    const { error } = await supabase.rpc('restore_company_member', { p_user: person.id })
+    if (error) setError(error.message)
+    else await load()
+    setBusyId(null)
+  }
+
+  const active = people.filter((p) => !p.removed_at)
+  const gone = people.filter((p) => p.removed_at)
+
   if (!isAdmin) {
     return <p className="px-4 py-10 text-center text-sm text-ink-600">Only admins can see the team.</p>
   }
@@ -102,7 +124,7 @@ export default function TeamView() {
       {loading && <p className="py-8 text-center text-sm text-ink-400">Loading…</p>}
 
       <ul className="space-y-2">
-        {people.map((p) => (
+        {active.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 bg-white p-3">
             <div className="min-w-0">
               <p className="truncate text-base text-ink-900">
@@ -117,16 +139,48 @@ export default function TeamView() {
                 {p.role === 'admin' ? 'Admin' : 'Crew'}
               </span>
             </div>
-            <button
-              onClick={() => setRole(p, p.role === 'admin' ? 'crew' : 'admin')}
-              disabled={busyId === p.id}
-              className="flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600 disabled:opacity-60"
-            >
-              {p.role === 'admin' ? 'Make crew' : 'Make admin'}
-            </button>
+            <div className="flex flex-shrink-0 gap-2">
+              <button
+                onClick={() => setRole(p, p.role === 'admin' ? 'crew' : 'admin')}
+                disabled={busyId === p.id}
+                className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600 disabled:opacity-60"
+              >
+                {p.role === 'admin' ? 'Make crew' : 'Make admin'}
+              </button>
+              {p.id !== user?.id && !support && (
+                <button
+                  onClick={() => removePerson(p)}
+                  disabled={busyId === p.id}
+                  aria-label={`Remove ${p.email}`}
+                  className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-status-blocked disabled:opacity-60"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
+      {gone.length > 0 && !support && (
+        <>
+          <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Removed people</h3>
+          <ul className="space-y-1">
+            {gone.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-2 text-xs text-ink-600">
+                <span className="min-w-0 truncate">{p.email}</span>
+                <button
+                  onClick={() => restorePerson(p)}
+                  disabled={busyId === p.id}
+                  aria-label={`Restore ${p.email}`}
+                  className="flex-shrink-0 rounded-lg border border-ink-200 px-2 py-1 font-medium"
+                >
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {!support && (
         <>
           <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-900">Invite someone</h3>
