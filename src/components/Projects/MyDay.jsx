@@ -4,6 +4,7 @@ import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
 import { fmtDate, fmtDateRange } from '../../lib/format'
 import WorkersPanel from './WorkersPanel'
+import { useUndo } from '../../context/UndoContext'
 import { assigneeLabel, isAssigned, matchWho, nameKey, personName } from '../../lib/people'
 import { fmtHours, statusPatch, todayLocal } from '../../lib/tasks'
 
@@ -15,12 +16,15 @@ const addDays = (iso, n) => {
 }
 
 // The signed-in person's jobs: what is overdue, what is on today, and what is coming this week.
-export default function MyDay({ projects, onOpenProject }) {
+export default function MyDay({ projects, onOpenProject, onAddPhoto }) {
   const { user, isAdmin } = useAuth()
   const { tasksByProject, roomsById, updateTask, team, loading, workerNames: names } = useWork()
   const [managing, setManaging] = useState(false)
   const [who, setWho] = useState('me') // admins: 'me' | 'all' | a user id | 'name:<typed name>'
   const [busyId, setBusyId] = useState(null)
+  const { offer } = useUndo()
+  const [noting, setNoting] = useState(null) // task id with the note box open
+  const [noteText, setNoteText] = useState('')
   const [error, setError] = useState(null)
   const today = todayLocal()
   const weekEnd = addDays(today, 7)
@@ -42,13 +46,33 @@ export default function MyDay({ projects, onOpenProject }) {
     setBusyId(task.id)
     setError(null)
     try {
+      const before = { status: task.status, percent_complete: task.percent_complete, actual_start: task.actual_start, actual_end: task.actual_end }
       await updateTask(task.id, statusPatch(task, status))
+      offer(status === 'done' ? `"${task.name}" marked done` : `"${task.name}" started`, () => updateTask(task.id, before))
     } catch (err) {
       setError(err.message)
     }
     setBusyId(null)
   }
 
+
+  async function saveNote(task) {
+    const text = noteText.trim()
+    if (!text) return
+    setBusyId(task.id)
+    setError(null)
+    try {
+      const line = `${fmtDate(today)} ${personName(user?.email)}: ${text}`
+      await updateTask(task.id, { notes: task.notes ? `${task.notes}\n${line}` : line })
+      const before = task.notes || null
+      offer('Note added', () => updateTask(task.id, { notes: before }))
+      setNoting(null)
+      setNoteText('')
+    } catch (err) {
+      setError(err.message)
+    }
+    setBusyId(null)
+  }
 
   const card = ({ t, p }, tone) => {
     const st = taskStatusMeta(t.status)
@@ -71,8 +95,16 @@ export default function MyDay({ projects, onOpenProject }) {
         <div className="mt-2 flex flex-wrap gap-2">
           {t.status !== 'in_progress' && <button disabled={busyId === t.id} onClick={() => act(t, 'in_progress')} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 disabled:opacity-60" aria-label={`Start ${t.name}`}>Start</button>}
           <button disabled={busyId === t.id} onClick={() => act(t, 'done')} className="min-h-[44px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white disabled:opacity-60" aria-label={`Mark ${t.name} done`}>Done</button>
+          {onAddPhoto && <button onClick={() => onAddPhoto({ projectId: p.id, roomId: t.room_id || '', taskId: t.id })} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900" aria-label={`Add photo to ${t.name}`}>Photo</button>}
+          <button onClick={() => { setNoting(noting === t.id ? null : t.id); setNoteText('') }} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900" aria-label={`Add note to ${t.name}`}>Note</button>
           <button onClick={() => onOpenProject(p.id)} className="min-h-[44px] px-2 text-sm font-medium text-ink-600 underline" aria-label={`Open project ${p.name}`}>Open project</button>
         </div>
+        {noting === t.id && (
+          <div className="mt-2 flex gap-2">
+            <input aria-label={`Note for ${t.name}`} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="What happened?" className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-base" />
+            <button disabled={busyId === t.id || !noteText.trim()} onClick={() => saveNote(t)} className="min-h-[44px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white disabled:opacity-60">Save</button>
+          </div>
+        )}
       </li>
     )
   }

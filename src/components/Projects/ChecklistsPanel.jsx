@@ -99,7 +99,7 @@ function Item({ item, onError }) {
       </label>
       <div className="flex gap-3 pl-8">
         <button onClick={() => setOpen((o) => !o)} className="min-h-[36px] text-xs font-medium text-ink-600 underline" aria-label={`Note for ${item.text}`}>{item.note ? 'Edit note' : 'Add note'}</button>
-        <button onClick={() => confirm(`Remove "${item.text}"?`) && run(() => deleteCheck(item.id))} className="min-h-[36px] text-xs font-medium text-ink-400 underline" aria-label={`Remove ${item.text}`}>Remove</button>
+        <button onClick={() => run(() => deleteCheck(item.id))} className="min-h-[36px] text-xs font-medium text-ink-400 underline" aria-label={`Remove ${item.text}`}>Remove</button>
       </div>
       {open && (
         <div className="mt-1 flex gap-2 pl-8">

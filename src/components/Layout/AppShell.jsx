@@ -35,9 +35,11 @@ export default function AppShell({
 }) {
   const [showFeedback, setShowFeedback] = useState(false)
   const feedback = showFeedback ? <FeedbackDialog page={tab} onClose={() => setShowFeedback(false)} /> : null
+  const projectsItem = { id: 'projects', label: 'Projects', icon: 'projects' }
+  const myDayItem = { id: 'myday', label: 'My Day', icon: 'calendar' }
   const navItems = [
-    { id: 'projects', label: 'Projects', icon: 'projects' },
-    { id: 'myday', label: 'My Day', icon: 'calendar' },
+    // Crew see My Day first: it is their home.
+    ...(isAdmin ? [projectsItem, myDayItem] : [myDayItem, projectsItem]),
     { id: 'photos', label: 'Photos', icon: 'photos' },
     ...(isAdmin ? [{ id: 'team', label: 'Team', icon: 'team' }] : []),
     ...(isOwner ? [{ id: 'platform', label: 'Platform', icon: 'logo' }] : [])

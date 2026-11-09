@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [isOwner, setIsOwner] = useState(false)
   const [support, setSupport] = useState(null)
   const [accountVersion, setAccountVersion] = useState(0)
+  const [roleReady, setRoleReady] = useState(false) // the role lookup has finished
   const [removed, setRemoved] = useState(false) // a manager took this person out of the company
   const [recovering, setRecovering] = useState(false) // arrived from a password-reset email
 
@@ -34,6 +35,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!userId) {
       setRole('crew')
+      setRoleReady(false)
       setRemoved(false)
       setCompany(null)
       setIsOwner(false)
@@ -48,6 +50,7 @@ export function AuthProvider({ children }) {
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return
+        setRoleReady(true)
         setRemoved(!error && !!data?.removed_at)
         setRole(!error && data?.role === 'admin' && !data?.removed_at ? 'admin' : 'crew')
       })
@@ -79,6 +82,7 @@ export function AuthProvider({ children }) {
     company,
     isOwner,
     support,
+    roleReady,
     removed,
     recovering,
     finishRecovery: () => setRecovering(false),

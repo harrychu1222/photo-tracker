@@ -194,7 +194,7 @@ export default function DefectsTab({ project }) {
                     </>
                   )}
                   {canDelete && (
-                    <button onClick={() => confirm(`Delete "${d.title}"?`) && act(() => deleteDefect(d.id))} className="min-h-[40px] px-2 text-xs font-medium text-ink-400 underline" aria-label={`Delete ${d.title}`}>Delete</button>
+                    <button onClick={() => act(() => deleteDefect(d.id))} className="min-h-[40px] px-2 text-xs font-medium text-ink-400 underline" aria-label={`Delete ${d.title}`}>Delete</button>
                   )}
                 </div>
               </li>

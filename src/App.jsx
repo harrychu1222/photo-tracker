@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './context/AuthContext'
 import Login from './components/Auth/Login'
 import SignUp from './components/Auth/SignUp'
@@ -16,12 +16,28 @@ import { useWork } from './context/WorkContext'
 import { useMedia } from './hooks/useMedia'
 
 export default function App() {
-  const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport, removed, recovering, finishRecovery } = useAuth()
+  const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport, removed, recovering, finishRecovery, roleReady } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [authView, setAuthView] = useState('login')
   const [showUpload, setShowUpload] = useState(false)
+  const [uploadPreset, setUploadPreset] = useState(null) // { projectId, roomId, taskId } when opened from a task
   const [tab, setTab] = useState('projects') // 'projects' | 'photos' | 'team'
+
+  // Crew start on My Day (their tasks), not the project list. Only the first time, so it never
+  // overrides where they go afterwards. Managers keep Projects.
+  const crewHome = useRef(false)
+  useEffect(() => {
+    if (roleReady && !isAdmin && !crewHome.current) {
+      crewHome.current = true
+      setTab('myday')
+    }
+  }, [roleReady, isAdmin])
+
+  function openUpload(preset = null) {
+    setUploadPreset(preset)
+    setShowUpload(true)
+  }
 
   const { photos, loading: photosLoading, error, uploadPhotos, updatePhoto, deletePhoto } = usePhotos(user?.id)
   const projectsApi = useProjects(user?.id, isAdmin)
@@ -87,7 +103,7 @@ export default function App() {
       isAdmin={isAdmin}
       email={user?.email}
       onSignOut={signOut}
-      onAddPhoto={() => setShowUpload(true)}
+      onAddPhoto={() => openUpload()}
       projects={projects}
       selectedId={tab === 'projects' ? selectedProjectId : null}
       onOpenProject={openProject}
@@ -109,7 +125,7 @@ export default function App() {
           />
         </div>
       ) : tab === 'myday' ? (
-        <MyDay projects={projects} onOpenProject={openProject} />
+        <MyDay projects={projects} onOpenProject={openProject} onAddPhoto={openUpload} />
       ) : tab === 'platform' && isOwner ? (
         <div className="mx-auto max-w-3xl">
           <PlatformView />
@@ -133,6 +149,7 @@ export default function App() {
 
       {showUpload && (
         <UploadModal
+          preset={uploadPreset}
           onClose={() => setShowUpload(false)}
           onUpload={uploadPhotos}
           suggestions={suggestions}

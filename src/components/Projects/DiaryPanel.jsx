@@ -136,7 +136,7 @@ export default function DiaryPanel({ project }) {
             {(isAdmin || e.created_by === user?.id) && (
               <div className="mt-2 flex gap-3">
                 <button onClick={() => setEditing(e)} className="min-h-[40px] text-xs font-medium text-ink-600 underline" aria-label={`Edit entry ${fmtDate(e.entry_date)}`}>Edit</button>
-                <button onClick={() => confirm('Delete this diary entry?') && remove(e)} className="min-h-[40px] text-xs font-medium text-ink-400 underline" aria-label={`Delete entry ${fmtDate(e.entry_date)}`}>Delete</button>
+                <button onClick={() => remove(e)} className="min-h-[40px] text-xs font-medium text-ink-400 underline" aria-label={`Delete entry ${fmtDate(e.entry_date)}`}>Delete</button>
               </div>
             )}
           </li>

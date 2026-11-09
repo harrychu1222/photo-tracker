@@ -44,7 +44,7 @@ export default function ProjectDetail({
   isDesktop
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
-  const [tab, setTab] = useState('overview') // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
+  const [tab, setTab] = useState(isAdmin ? 'overview' : 'plan') // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
   const [taskView, setTaskView] = useState('list') // 'list' | 'board'
   const [who, setWho] = useState('all') // Plan filter: whose tasks
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt
@@ -90,9 +90,9 @@ export default function ProjectDetail({
     if (nextTab === 'money' && sub) setMoneyTab(sub)
   }
 
+  // Crew get a shorter list: tasks first, no overview, Gantt or measurements.
   const topTabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'plan', label: 'Plan' },
+    ...(isAdmin ? [{ id: 'overview', label: 'Overview' }, { id: 'plan', label: 'Plan' }] : [{ id: 'plan', label: `Tasks (${taskCount})` }]),
     { id: 'materials', label: `Materials (${lineCount})` },
     { id: 'money', label: isAdmin ? 'Money' : 'Hours & expenses' },
     { id: 'photos', label: `Photos (${photos.length})` },
@@ -124,9 +124,11 @@ export default function ProjectDetail({
               Share with client
             </button>
           )}
-          <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
-            Export
-          </button>
+          {isAdmin && (
+            <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+              Export
+            </button>
+          )}
           {canEdit && (
             <button onClick={onEdit} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
               Edit
@@ -184,7 +186,7 @@ export default function ProjectDetail({
       </nav>
 
       <div className="mt-5">
-        {(tab === 'plan' || tab === 'money') && (
+        {((tab === 'plan' && isAdmin) || tab === 'money') && (
           <div role="group" aria-label={tab === 'plan' ? 'Plan views' : 'Money views'} className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink-100 p-1 sm:inline-flex">
             {(tab === 'plan' ? planTabs : moneyTabs).map((t) => {
               const on = (tab === 'plan' ? planTab : moneyTab) === t.id
@@ -224,7 +226,7 @@ export default function ProjectDetail({
         )}
         {tab === 'plan' && planTab === 'tasks' && (
           <div>
-            <div role="group" aria-label="Task view" className="mb-4 inline-flex gap-1 rounded-xl bg-ink-100 p-1">
+            {isAdmin && <div role="group" aria-label="Task view" className="mb-4 inline-flex gap-1 rounded-xl bg-ink-100 p-1">
               {[['list', 'List'], ['board', 'Board']].map(([id, label]) => (
                 <button
                   key={id}
@@ -235,8 +237,8 @@ export default function ProjectDetail({
                   {label}
                 </button>
               ))}
-            </div>
-            {taskView === 'board' ? <KanbanBoard project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} /> : <TasksTab project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} />}
+            </div>}
+            {taskView === 'board' && isAdmin ? <KanbanBoard project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} /> : <TasksTab project={project} photos={photos} level={level} onLevel={setLevel} who={who} onWho={setWho} />}
           </div>
         )}
         {tab === 'plan' && planTab === 'gantt' && <GanttTab project={project} level={level} onLevel={setLevel} />}

@@ -8,14 +8,26 @@ import TaskPicker from '../Projects/TaskPicker'
 import { useWork } from '../../context/WorkContext'
 import { STATUSES, QUOTING_STATUSES } from '../../statusConfig'
 
-export default function UploadModal({ onClose, onUpload, suggestions = {}, projects = [], onCreateProject }) {
+// The project used last time is picked again, so a day on one site is: take photo, Save.
+const LAST_KEY = 'sitelog.lastProject'
+function lastProject(projects) {
+  try {
+    const id = localStorage.getItem(LAST_KEY)
+    return id && projects.some((p) => p.id === id) ? id : ''
+  } catch {
+    return ''
+  }
+}
+
+export default function UploadModal({ onClose, onUpload, suggestions = {}, projects = [], onCreateProject, preset = null }) {
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [previews, setPreviews] = useState([])
   const { roomsById } = useWork()
-  const [projectId, setProjectId] = useState('')
-  const [roomId, setRoomId] = useState('')
-  const [taskId, setTaskId] = useState('')
+  const [more, setMore] = useState(false) // category, status, tags and map stay tucked away until asked for
+  const [projectId, setProjectId] = useState(preset?.projectId || lastProject(projects))
+  const [roomId, setRoomId] = useState(preset?.roomId || '')
+  const [taskId, setTaskId] = useState(preset?.taskId || '')
   const [room, setRoom] = useState('') // typed room, only used when no project is chosen
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('progress')
@@ -127,6 +139,11 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
         lng,
         onProgress: (done, total) => setProgress({ done, total })
       })
+      try {
+        if (projectId) localStorage.setItem(LAST_KEY, projectId)
+      } catch {
+        /* private mode: just don't remember */
+      }
       onClose()
     } catch (err) {
       setError(err.message)
@@ -228,6 +245,11 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
             </div>
           )}
 
+          <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} className="text-sm font-medium text-ink-600 underline">
+            {more ? 'Hide extra details' : 'More details (category, status, tags, map)'}
+          </button>
+          {more && (
+            <>
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Category of work</label>
             <SuggestInput
@@ -343,6 +365,9 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
               </div>
             )}
           </div>
+
+            </>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-800">Notes (optional)</label>

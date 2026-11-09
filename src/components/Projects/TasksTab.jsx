@@ -282,6 +282,8 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <>
           <button
             onClick={() => setShowRooms((v) => !v)}
             className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
@@ -308,6 +310,8 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
           >
             Add many
           </button>
+            </>
+          )}
           <button
             onClick={() => setEditing('new')}
             className="rounded-full bg-signal-500 px-4 py-1.5 text-sm font-medium text-ink-950"
@@ -317,7 +321,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
         </div>
       </div>
 
-      {showRooms && <RoomsManager project={project} photos={photos} />}
+      {isAdmin && showRooms && <RoomsManager project={project} photos={photos} />}
 
       {error && <p className="mb-3 text-sm text-status-blocked">{error}</p>}
       {actionError && <p className="mb-3 text-sm text-status-blocked">{actionError}</p>}

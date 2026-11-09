@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient'
 import { useAuth } from './AuthContext'
 import { shrinkImage } from '../lib/image'
 import { knownNames } from '../lib/people'
+import { useUndo } from './UndoContext'
 import { convertOpeningUnit, convertRoomUnit, openingArea } from '../lib/rooms'
 
 // Rooms and tasks for every project, shared by the Projects screens and the photo
@@ -34,6 +35,7 @@ function groupBy(list, key) {
 
 export function WorkProvider({ children }) {
   const { user, isAdmin } = useAuth()
+  const { offer } = useUndo()
   const userId = user?.id
   const [rooms, setRooms] = useState([])
   const [tasks, setTasks] = useState([])
@@ -876,11 +878,21 @@ export function WorkProvider({ children }) {
     await refreshSite()
   }
 
+  // Put back a row that was just deleted (same id). If the database refuses the original author,
+  // retry with the current person as author.
+  async function restoreRow(table, row, reload) {
+    let { error } = await supabase.from(table).insert(row)
+    if (error && row.created_by) ({ error } = await supabase.from(table).insert({ ...row, created_by: userId }))
+    if (error) throw new Error(error.message)
+    await reload()
+  }
+
   async function deleteIssue(id) {
-    const { data, error } = await supabase.from('diary_issues').delete().eq('id', id).select('id')
+    const { data, error } = await supabase.from('diary_issues').delete().eq('id', id).select('*')
     if (error) throw new Error(error.message)
     if (!data?.length) throw new Error('Only a manager or the person who added this issue can delete it.')
     await refreshSite()
+    offer('Issue deleted', () => restoreRow('diary_issues', data[0], refreshSite))
   }
 
   // ---------- Site diary + compliance checklists ----------
@@ -920,10 +932,11 @@ export function WorkProvider({ children }) {
   }
 
   async function deleteDiary(id) {
-    const { data, error } = await supabase.from('diary_entries').delete().eq('id', id).select('id')
+    const { data, error } = await supabase.from('diary_entries').delete().eq('id', id).select('*')
     if (error) throw new Error(error.message)
     if (!data?.length) throw new Error('Only an admin or the person who wrote this entry can delete it.')
     await refreshSite()
+    offer('Diary entry deleted', () => restoreRow('diary_entries', data[0], refreshSite))
   }
 
   // items: array of strings; they are added under one list name.
@@ -952,10 +965,11 @@ export function WorkProvider({ children }) {
   }
 
   async function deleteCheck(id) {
-    const { data, error } = await supabase.from('compliance_items').delete().eq('id', id).select('id')
+    const { data, error } = await supabase.from('compliance_items').delete().eq('id', id).select('*')
     if (error) throw new Error(error.message)
     if (!data?.length) throw new Error('Only an admin or the person who added this item can delete it.')
     await refreshSite()
+    offer('Checklist item removed', () => restoreRow('compliance_items', data[0], refreshSite))
   }
 
   async function deleteChecklist(projectId, listName) {
@@ -997,10 +1011,11 @@ export function WorkProvider({ children }) {
   }
 
   async function deleteDefect(id) {
-    const { data, error } = await supabase.from('defects').delete().eq('id', id).select('id')
+    const { data, error } = await supabase.from('defects').delete().eq('id', id).select('*')
     if (error) throw error
     if (!data?.length) throw new Error('Only an admin or the person who added this defect can delete it.')
     await refreshDefects()
+    offer('Defect deleted', () => restoreRow('defects', data[0], refreshDefects))
   }
 
   // ---------- Measurements ----------
@@ -1081,10 +1096,11 @@ export function WorkProvider({ children }) {
   }
 
   async function deleteMeasurement(id) {
-    const { data, error } = await supabase.from('measurements').delete().eq('id', id).select('id')
+    const { data, error } = await supabase.from('measurements').delete().eq('id', id).select('*')
     if (error) throw error
     if (!data?.length) throw new Error('Only an admin or the person who added this measurement can delete it.')
     await refreshExtras()
+    offer('Measurement deleted', () => restoreRow('measurements', data[0], refreshExtras))
   }
 
   const expenseFields = (f) => ({
