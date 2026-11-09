@@ -41,6 +41,21 @@ export const DEFAULT_TEMPLATES = {
     T('Install cabinets and trough', 8, [3], [['Laundry cabinet', 1, 'each'], ['Trough', 1, 'each']]),
     T('Final clean', 2, [4])
   ],
+  Deck: [
+    T('Remove old deck or clear site', 6, [], [['Skip bin', 1, 'each']], ['Crowbar', 'Wheelbarrow']),
+    T('Set out and install footings', 8, [0], [['Concrete', 6, 'bags'], ['Post stirrups', 8, 'each']], ['Post hole digger', 'Level']),
+    T('Frame bearers and joists', 12, [1], [['Bearers', 24, 'lm'], ['Joists', 60, 'lm'], ['Framing bolts and screws', 1, 'box']], ['Saw', 'Drill', 'Level']),
+    T('Lay decking boards', 14, [2], [['Decking boards', 30, 'm2'], ['Deck screws', 2, 'box']], ['Saw', 'Drill', 'Spacers']),
+    T('Balustrade, stairs and trims', 10, [3], [['Balustrade kit', 1, 'set'], ['Stair stringers', 1, 'set']], ['Drill', 'Level']),
+    T('Seal or stain and clean up', 6, [4], [['Deck oil', 2, 'tins']], ['Brushes'])
+  ],
+  Fencing: [
+    T('Set out line and remove old fence', 6, [], [['Skip bin', 1, 'each']], ['String line', 'Crowbar']),
+    T('Dig and set posts', 8, [0], [['Posts', 10, 'each'], ['Concrete', 10, 'bags']], ['Post hole digger', 'Level']),
+    T('Fix rails', 6, [1], [['Rails', 40, 'lm'], ['Nails or screws', 1, 'box']], ['Nail gun', 'Level']),
+    T('Fix palings or panels', 10, [2], [['Palings or panels', 1, 'set']], ['Nail gun', 'Saw']),
+    T('Gates, capping and clean up', 5, [3], [['Gate kit', 1, 'each'], ['Capping', 20, 'lm']])
+  ],
   Flooring: [
     T('Remove old flooring', 6, [], [['Skip bin', 1, 'each']], ['Floor scraper']),
     T('Prepare and level subfloor', 6, [0], [['Levelling compound', 2, 'bags']], ['Straight edge']),

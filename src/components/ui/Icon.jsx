@@ -1,5 +1,6 @@
 // One consistent set of line icons for the whole app (stroke follows the text colour).
 const PATHS = {
+  search: <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3" />,
   logo: <path d="M3 20h18M5 20V9l7-5 7 5v11" />,
   projects: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
   photos: (

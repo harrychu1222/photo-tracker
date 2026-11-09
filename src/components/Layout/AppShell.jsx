@@ -109,6 +109,13 @@ export default function AppShell({
             </button>
             <p className="truncate px-1 text-xs text-ink-400">{email}</p>
             <button
+              onClick={() => onTab('search')}
+              aria-label="Search"
+              className={`flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-ink-900 ${tab === 'search' ? 'bg-ink-900 text-white' : 'text-ink-200'}`}
+            >
+              <Icon name="search" size={16} /> Search
+            </button>
+            <button
               onClick={() => setShowFeedback(true)}
               className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-ink-200 hover:bg-ink-900"
             >
@@ -153,6 +160,9 @@ export default function AppShell({
         <Brand />
         <div className="flex items-center gap-1">
           <span className="max-w-[6rem] truncate text-xs text-ink-400">{company?.name || email}</span>
+          <button onClick={() => onTab('search')} aria-label="Search" className="rounded-lg px-2 py-2 text-ink-200 active:bg-ink-800">
+            <Icon name="search" size={18} />
+          </button>
           <button onClick={() => setShowFeedback(true)} className="rounded-lg px-2 py-2 text-xs font-medium text-ink-200 active:bg-ink-800">
             Feedback
           </button>

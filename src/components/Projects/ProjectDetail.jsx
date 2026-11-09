@@ -29,6 +29,7 @@ import Icon from '../ui/Icon'
 import OverviewTab from './OverviewTab'
 
 export default function ProjectDetail({
+  initialTab = null,
   project,
   finance,
   isAdmin,
@@ -44,7 +45,7 @@ export default function ProjectDetail({
   isDesktop
 }) {
   const [openPhoto, setOpenPhoto] = useState(null)
-  const [tab, setTab] = useState(isAdmin ? 'overview' : 'plan') // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
+  const [tab, setTab] = useState(initialTab || (isAdmin ? 'overview' : 'plan')) // 'overview' | 'plan' | 'materials' | 'money' | 'photos'
   const [taskView, setTaskView] = useState('list') // 'list' | 'board'
   const [who, setWho] = useState('all') // Plan filter: whose tasks
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt

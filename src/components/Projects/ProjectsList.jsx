@@ -4,6 +4,7 @@ import { fmtDate, fmtDateRange, fmtMoney } from '../../lib/format'
 import { overviewTotals, projectSnapshot } from '../../lib/overview'
 import { todayLocal } from '../../lib/tasks'
 import ExportDialog from './ExportDialog'
+import GettingStarted from './GettingStarted'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 
@@ -30,7 +31,7 @@ function Money({ label, value, tone }) {
 }
 
 // The one Projects screen: totals across the projects shown, then one big status card per project.
-export default function ProjectsList({ projects, photoCounts, finance, loading, error, onOpen, onNew }) {
+export default function ProjectsList({ projects, photoCounts, finance, loading, error, onOpen, onNew, onAddPhoto, onTeam }) {
   const { isAdmin } = useAuth()
   const work = useWork()
   const [statusFilter, setStatusFilter] = useState(null)
@@ -65,6 +66,15 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
           </button>
         </div>
       </div>
+      {isAdmin && !loading && !error && (
+        <GettingStarted
+          projectCount={projects.length}
+          photoCount={Object.values(photoCounts || {}).reduce((a, b) => a + b, 0)}
+          onNew={onNew}
+          onAddPhoto={onAddPhoto}
+          onTeam={onTeam}
+        />
+      )}
       {exporting && <ExportDialog projects={visible} snaps={snaps} onClose={() => setExporting(false)} />}
 
       <input
