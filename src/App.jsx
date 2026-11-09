@@ -8,6 +8,7 @@ import Gallery from './components/Photos/Gallery'
 import UploadModal from './components/Photos/UploadModal'
 import ProjectsView from './components/Projects/ProjectsView'
 import TeamView from './components/Team/TeamView'
+import SearchView from './components/Search/SearchView'
 import PlatformView from './components/Team/PlatformView'
 import MyDay from './components/Projects/MyDay'
 import { usePhotos } from './hooks/usePhotos'
@@ -19,6 +20,7 @@ export default function App() {
   const { user, loading, isAdmin, signOut, company, isOwner, support, stopSupport, removed, recovering, finishRecovery, roleReady } = useAuth()
   const isDesktop = useMedia('(min-width: 768px)')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [projectTab, setProjectTab] = useState(null) // which tab to open inside a project (from search)
   const [authView, setAuthView] = useState('login')
   const [showUpload, setShowUpload] = useState(false)
   const [uploadPreset, setUploadPreset] = useState(null) // { projectId, roomId, taskId } when opened from a task
@@ -87,8 +89,9 @@ export default function App() {
     if (next === 'projects') setSelectedProjectId(null)
   }
 
-  function openProject(id) {
+  function openProject(id, inTab = null) {
     setTab('projects')
+    setProjectTab(inTab)
     setSelectedProjectId(id)
   }
 
@@ -124,6 +127,8 @@ export default function App() {
             onCreateProject={createProject}
           />
         </div>
+      ) : tab === 'search' ? (
+        <SearchView projects={projects} photos={photosWithProject} onOpen={openProject} />
       ) : tab === 'myday' ? (
         <MyDay projects={projects} onOpenProject={openProject} onAddPhoto={openUpload} />
       ) : tab === 'platform' && isOwner ? (
@@ -143,6 +148,9 @@ export default function App() {
           onDeletePhoto={deletePhoto}
           selectedId={selectedProjectId}
           onSelect={setSelectedProjectId}
+          openTab={projectTab}
+          onAddPhoto={() => openUpload()}
+          onTeam={() => goTab('team')}
           isDesktop={isDesktop}
         />
       )}
