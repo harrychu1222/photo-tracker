@@ -10,6 +10,7 @@ import TimeTab from './TimeTab'
 import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
+import VariationsTab from './VariationsTab'
 import SiteTab from './SiteTab'
 import ExportDialog from './ExportDialog'
 import ClientShareDialog from './ClientShareDialog'
@@ -51,7 +52,7 @@ export default function ProjectDetail({
   const [level, setLevel] = useState('all') // Plan filter, shared by Tasks, Board and Gantt
   const [planTab, setPlanTab] = useState('tasks') // 'tasks' | 'gantt' | 'measurements'
   const [moneyTab, setMoneyTab] = useState(isAdmin ? 'cashflow' : 'expenses') // 'expenses' | 'time' | 'cashflow'
-  const { issues, tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, milestonesByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
+  const { issues, tasksByProject, materialsByTask, equipmentByTask, matPrices, eqPrices, measurementsByProject, defectsByProject, variationsByProject, milestonesByProject, expensesByProject, paymentsByProject, timeByProject, rateBook, lumpsByProject } = useWork()
   const projectExpenses = expensesByProject[project.id] || []
   const measurementCount = (measurementsByProject[project.id] || []).length
   const projectTasks = tasksByProject[project.id] || []
@@ -82,6 +83,7 @@ export default function ProjectDetail({
   const everyMaterial = projectTasks.flatMap((t) => materialsByTask[t.id] || [])
   const projectDefects = defectsByProject[project.id] || []
   const openIssues = issues.filter((i) => i.project_id === project.id && !i.resolved).length
+  const pendingVariations = (variationsByProject[project.id] || []).filter((v) => v.status === 'pending').length
   const openDefects = projectDefects.filter((d) => d.status !== 'fixed').length
   const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, milestones: isAdmin ? milestonesByProject[project.id] || [] : [], openIssues, money, progress, isAdmin, today })
 
@@ -106,7 +108,7 @@ export default function ProjectDetail({
     { id: 'measurements', label: `Measurements (${measurementCount})` }
   ]
   const moneyTabs = [
-    ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }, { id: 'quote', label: 'Quote & payments' }] : []),
+    ...(isAdmin ? [{ id: 'cashflow', label: 'Cash flow' }, { id: 'quote', label: 'Quote & payments' }, { id: 'variations', label: `Variations${pendingVariations ? ` (${pendingVariations})` : ''}` }] : []),
     { id: 'expenses', label: `Expenses (${projectExpenses.length})` },
     { id: 'time', label: isAdmin ? `Labour (${projectTime.length})` : `My hours (${projectTime.length})` }
   ]
@@ -247,6 +249,7 @@ export default function ProjectDetail({
         {tab === 'defects' && <DefectsTab project={project} />}
         {tab === 'site' && <SiteTab project={project} />}
         {tab === 'materials' && <MaterialsTab project={project} finance={finance} />}
+        {tab === 'money' && moneyTab === 'variations' && isAdmin && <VariationsTab project={project} />}
         {tab === 'money' && moneyTab === 'expenses' && <ExpensesTab project={project} />}
         {tab === 'money' && moneyTab === 'time' && <TimeTab project={project} />}
         {tab === 'money' && moneyTab === 'quote' && isAdmin && <QuoteTab project={project} quote={money.quote} />}

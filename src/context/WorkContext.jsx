@@ -58,6 +58,8 @@ export function WorkProvider({ children }) {
   const [quoteError, setQuoteError] = useState(null)
   const [defects, setDefects] = useState([])
   const [defectsError, setDefectsError] = useState(null)
+  const [variations, setVariations] = useState([])
+  const [variationsError, setVariationsError] = useState(null)
   const [diary, setDiary] = useState([])
   const [checks, setChecks] = useState([])
   const [siteError, setSiteError] = useState(null)
@@ -227,6 +229,19 @@ export function WorkProvider({ children }) {
     }
   }, [userId])
 
+  // Variations (migration 28), managers only.
+  const refreshVariations = useCallback(async () => {
+    if (!userId || !isAdmin) return setVariations([])
+    const { data, error } = await supabase.from('variations').select('*')
+    if (error) {
+      setVariations([])
+      setVariationsError(error.code === 'PGRST205' || error.code === '42P01' ? 'Variations are not set up yet. Run supabase/migration_28_variations.sql in Supabase, then reload.' : error.message)
+    } else {
+      setVariationsError(null)
+      setVariations([...data].sort((a, b) => a.number - b.number))
+    }
+  }, [userId, isAdmin])
+
   // Expenses (migration 9). Until it is run the rest of the app keeps working.
   const refreshExpenses = useCallback(async () => {
     if (!userId) {
@@ -324,6 +339,7 @@ export function WorkProvider({ children }) {
     refreshCosts()
     refreshExtras()
     refreshDefects()
+    refreshVariations()
     refreshSite()
     refreshQuote()
     refreshTeam()
@@ -351,7 +367,7 @@ export function WorkProvider({ children }) {
     setRooms([...r.data].sort(byName))
     setTasks(sortTasks(t.data))
     setLoading(false)
-  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshSite, refreshQuote, refreshTeam, refreshExpenses, refreshPayments, refreshTime])
+  }, [userId, refreshCosts, refreshExtras, refreshDefects, refreshVariations, refreshSite, refreshQuote, refreshTeam, refreshExpenses, refreshPayments, refreshTime])
 
   useEffect(() => {
     refresh()
@@ -393,6 +409,7 @@ export function WorkProvider({ children }) {
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
   const milestonesByProject = useMemo(() => groupBy(milestones, 'project_id'), [milestones])
   const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
+  const variationsByProject = useMemo(() => groupBy(variations, 'project_id'), [variations])
   // Things saved on the phone but not sent yet are shown as if they were already there
   // (marked "waiting"), so nothing seems to vanish while offline.
   const myOutbox = useMemo(() => outbox.filter((i) => i.userId === userId), [outbox, userId])
@@ -1003,6 +1020,46 @@ export function WorkProvider({ children }) {
     for (const id of ids) await deleteCheck(id)
   }
 
+  // ---------- Variations ----------
+
+  function variationFields({ title, description, amount, status, approvedBy, approvedHow }) {
+    if (!(title || '').trim()) throw new Error('Describe the change, e.g. Extra power point in the study.')
+    const n = Number(String(amount ?? '').replace(/[$,\s]/g, ''))
+    if (!Number.isFinite(n)) throw new Error('Enter the price as a number. Use a minus sign for a credit.')
+    const st = status || 'pending'
+    return {
+      title: title.trim(),
+      description: (description || '').trim() || null,
+      amount: n,
+      status: st,
+      decided_on: st === 'pending' ? null : todayLocal(),
+      approved_by: st === 'approved' ? (approvedBy || '').trim() || null : null,
+      approved_how: st === 'approved' ? (approvedHow || '').trim() || null : null
+    }
+  }
+
+  async function addVariation(projectId, input) {
+    const { error } = await supabase.from('variations').insert({ ...variationFields(input), project_id: projectId, raised_on: todayLocal(), created_by: userId })
+    if (error) throw error
+    await refreshVariations()
+  }
+
+  async function updateVariation(id, input, keepDecidedOn) {
+    const fields = variationFields(input)
+    if (keepDecidedOn && fields.decided_on) fields.decided_on = keepDecidedOn
+    const { error } = await supabase.from('variations').update(fields).eq('id', id)
+    if (error) throw error
+    await refreshVariations()
+  }
+
+  async function deleteVariation(id) {
+    const { data, error } = await supabase.from('variations').delete().eq('id', id).select('*')
+    if (error) throw error
+    if (!data?.length) throw new Error('Only a manager can delete a variation.')
+    await refreshVariations()
+    offer('Variation deleted', () => restoreRow('variations', data[0], refreshVariations))
+  }
+
   // ---------- Defects ----------
 
   function defectFields({ title, notes, roomId, taskId, priority, status }) {
@@ -1420,6 +1477,12 @@ export function WorkProvider({ children }) {
     defects,
     defectsError,
     defectsByProject,
+    variations,
+    variationsError,
+    variationsByProject,
+    addVariation,
+    updateVariation,
+    deleteVariation,
     addDefect,
     updateDefect,
     setDefectStatus,
