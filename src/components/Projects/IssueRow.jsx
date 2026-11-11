@@ -29,8 +29,8 @@ export default function IssueRow({ issue, onError }) {
       </p>
       {issue.comment && <p className="text-xs">Comment: {issue.comment}</p>}
       <div className="flex gap-3">
-        {isAdmin && <button onClick={() => setOpen((o) => !o)} className="min-h-[40px] text-xs font-medium underline" aria-label={`Update issue ${issue.text}`}>Update</button>}
-        {(isAdmin || issue.created_by === user?.id) && (
+        {isAdmin && !issue.pending && <button onClick={() => setOpen((o) => !o)} className="min-h-[40px] text-xs font-medium underline" aria-label={`Update issue ${issue.text}`}>Update</button>}
+        {!issue.pending && (isAdmin || issue.created_by === user?.id) && (
           <button onClick={() => run(() => deleteIssue(issue.id))} className="min-h-[40px] text-xs font-medium underline opacity-70" aria-label={`Delete issue ${issue.text}`}>Delete</button>
         )}
       </div>

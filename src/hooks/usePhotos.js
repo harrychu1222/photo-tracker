@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, PHOTOS_BUCKET } from '../supabaseClient'
 import { getTakenAt } from '../lib/exif'
+import { useOffline } from '../context/OfflineContext'
+import { useUndo } from '../context/UndoContext'
+import { isRetryLater } from '../lib/offline'
 
 const SIGNED_URL_TTL = 60 * 60 // 1 hour, refreshed on every fetch
 
-// A column the app expects isn't in the database yet (a migration hasn't been run).
-// Postgres reports 42703; the Supabase API reports PGRST204 when inserting.
-const isMissingColumn = (err) => err?.code === '42703' || err?.code === 'PGRST204'
-
 export function usePhotos(userId) {
+  const { submit, syncedAt } = useOffline()
+  const { notify } = useUndo()
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -31,8 +32,8 @@ export function usePhotos(userId) {
       }
     }
 
-    if (error && data === undefined) {
-      setError(error.message)
+    if (error) {
+      setError(isRetryLater(error) ? 'You are offline, so the gallery cannot load. Photos you take are saved on this phone and upload when you are back online.' : error.message)
       setLoading(false)
       return
     }
@@ -50,6 +51,11 @@ export function usePhotos(userId) {
     setPhotos(withUrls)
     setLoading(false)
   }, [])
+
+  // Photos that were waiting have just been sent: show them in the gallery.
+  useEffect(() => {
+    if (syncedAt) fetchPhotos()
+  }, [syncedAt, fetchPhotos])
 
   useEffect(() => {
     fetchPhotos()
@@ -70,20 +76,14 @@ export function usePhotos(userId) {
     let done = 0
     const failures = []
 
+    let queued = 0
     for (const file of files) {
       try {
         const ext = file.name.split('.').pop()
         const path = `${userId}/${crypto.randomUUID()}.${ext}`
-
-        const { error: uploadError } = await supabase.storage.from(PHOTOS_BUCKET).upload(path, file, {
-          cacheControl: '3600',
-          upsert: false
-        })
-        if (uploadError) throw uploadError
-
         const takenAt = await getTakenAt(file)
 
-        const payload = {
+        const row = {
           user_id: userId,
           storage_path: path,
           project_id: projectId || null,
@@ -100,22 +100,9 @@ export function usePhotos(userId) {
           lng: lng ?? null,
           taken_at: takenAt.toISOString()
         }
-
-        let { error: insertError } = await supabase.from('photos').insert(payload)
-
-        // A column isn't migrated yet on this database — retry without the newest
-        // columns first (keeping the project link), then without the older ones too,
-        // rather than failing the whole upload.
-        if (isMissingColumn(insertError)) {
-          const { room_id, task_id, ...withoutStage2 } = payload
-          ;({ error: insertError } = await supabase.from('photos').insert(withoutStage2))
-          if (isMissingColumn(insertError)) {
-            const { taken_at, project_id, ...legacy } = withoutStage2
-            ;({ error: insertError } = await supabase.from('photos').insert(legacy))
-          }
-        }
-
-        if (insertError) throw insertError
+        // Sent now if there is signal, otherwise saved on the phone and sent later.
+        const res = await submit('photo', { name: file.name, path, blob: file, photoId: crypto.randomUUID(), row }, { quiet: true })
+        if (res.queued) queued += 1
       } catch (err) {
         failures.push({ file: file.name, message: err.message })
       } finally {
@@ -124,7 +111,9 @@ export function usePhotos(userId) {
       }
     }
 
-    await fetchPhotos()
+    if (queued) notify?.(queued === 1 ? 'Photo saved on this phone. It will upload when you are back online.' : `${queued} photos saved on this phone. They will upload when you are back online.`)
+
+    if (queued < total) await fetchPhotos()
 
     if (failures.length) {
       throw new Error(

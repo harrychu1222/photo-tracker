@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 import FeedbackDialog from './FeedbackDialog'
+import OfflineBanner from './OfflineBanner'
 import { projectStatusMeta } from '../../statusConfig'
 
 function Brand() {
@@ -45,7 +46,7 @@ export default function AppShell({
     ...(isOwner ? [{ id: 'platform', label: 'Platform', icon: 'logo' }] : [])
   ]
 
-  const banner = support ? (
+  const supportBar = support ? (
     <div
       role="status"
       className="sticky top-0 z-20 flex min-h-9 items-center justify-between gap-3 bg-amber-400 px-3 py-1 text-xs font-semibold text-ink-950"
@@ -56,6 +57,12 @@ export default function AppShell({
       </button>
     </div>
   ) : null
+  const banner = (
+    <>
+      <OfflineBanner />
+      {supportBar}
+    </>
+  )
 
   if (isDesktop) {
     const active = projects.filter((p) => p.status === 'active' || p.status === 'quoting').slice(0, 8)

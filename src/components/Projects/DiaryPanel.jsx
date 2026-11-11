@@ -116,7 +116,7 @@ export default function DiaryPanel({ project }) {
       <ul className="space-y-2" aria-label="Diary entries">
         {rows.map((e) => (
           <li key={e.id} className="rounded-xl border border-ink-100 bg-white p-3" data-testid={`diary-${e.id}`}>
-            <p className="text-sm font-semibold text-ink-900">{fmtDate(e.entry_date)}{e.weather ? ` · ${e.weather}` : ''}</p>
+            <p className="text-sm font-semibold text-ink-900">{fmtDate(e.entry_date)}{e.weather ? ` · ${e.weather}` : ''}{e.pending && <span className="ml-2 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{e.failed ? 'Could not send' : 'Waiting to send'}</span>}</p>
             {e.on_site && <p className="mt-0.5 text-xs text-ink-600">On site: {e.on_site}</p>}
             {e.work_done && <p className="mt-2 whitespace-pre-line text-sm text-ink-800">{e.work_done}</p>}
             {e.issues && <p className="mt-2 whitespace-pre-line rounded-lg bg-[#FBEAD2] px-2.5 py-1.5 text-sm text-[#7A4B05]">Issue: {e.issues}</p>}
@@ -125,7 +125,7 @@ export default function DiaryPanel({ project }) {
                 {issuesByEntry[e.id].map((i) => <IssueRow key={i.id} issue={i} onError={setError} />)}
               </ul>
             )}
-            {adding === e.id ? (
+            {e.pending ? null : adding === e.id ? (
               <form className="mt-2 flex gap-2" onSubmit={(ev) => { ev.preventDefault(); setError(null); addIssue(e.id, project.id, issueText).then(() => { setIssueText(''); setAdding(null) }).catch((err) => setError(err.message)) }}>
                 <input value={issueText} onChange={(ev) => setIssueText(ev.target.value)} aria-label="New issue" placeholder="Describe the issue" className={inputClass} />
                 <button type="submit" className="min-h-[44px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white">Add</button>
@@ -133,7 +133,7 @@ export default function DiaryPanel({ project }) {
             ) : (
               <button onClick={() => { setAdding(e.id); setIssueText('') }} className="mt-1 min-h-[40px] text-xs font-medium text-ink-600 underline" aria-label={`Add issue to ${fmtDate(e.entry_date)}`}>+ Add issue</button>
             )}
-            {(isAdmin || e.created_by === user?.id) && (
+            {!e.pending && (isAdmin || e.created_by === user?.id) && (
               <div className="mt-2 flex gap-3">
                 <button onClick={() => setEditing(e)} className="min-h-[40px] text-xs font-medium text-ink-600 underline" aria-label={`Edit entry ${fmtDate(e.entry_date)}`}>Edit</button>
                 <button onClick={() => remove(e)} className="min-h-[40px] text-xs font-medium text-ink-400 underline" aria-label={`Delete entry ${fmtDate(e.entry_date)}`}>Delete</button>

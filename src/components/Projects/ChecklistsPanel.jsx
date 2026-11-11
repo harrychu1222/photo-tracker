@@ -94,6 +94,7 @@ function Item({ item, onError }) {
         <span className="min-w-0 flex-1">
           <span className={`block text-sm ${item.done ? 'text-ink-600 line-through' : 'text-ink-900'}`}>{item.text}</span>
           {item.done && item.done_on && <span className="block text-xs text-ink-600">Done {fmtDate(item.done_on)}</span>}
+          {item.pending && <span className="block text-xs text-ink-400">Waiting to send</span>}
           {item.note && !open && <span className="block text-xs text-ink-600">Note: {item.note}</span>}
         </span>
       </label>

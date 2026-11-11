@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { cachedSelect } from '../lib/offline'
 
 export function useProjects(userId, isAdmin) {
   const [projects, setProjects] = useState([])
@@ -11,7 +12,7 @@ export function useProjects(userId, isAdmin) {
     if (!userId) return
     setError(null)
 
-    const { data, error } = await supabase.from('projects').select('*')
+    const { data, error } = await cachedSelect(`${userId}:projects`, supabase.from('projects').select('*'))
     if (error) {
       // Most likely cause: migration_4_projects_roles.sql hasn't been run yet.
       setProjects([])
@@ -26,7 +27,7 @@ export function useProjects(userId, isAdmin) {
     setProjects([...data].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })))
 
     if (isAdmin) {
-      const { data: fin } = await supabase.from('project_finance').select('*')
+      const { data: fin } = await cachedSelect(`${userId}:project_finance`, supabase.from('project_finance').select('*'))
       setFinance(Object.fromEntries((fin || []).map((f) => [f.project_id, f])))
     } else {
       setFinance({})
