@@ -6,6 +6,8 @@ import { useAuth } from './AuthContext'
 import { shrinkImage } from '../lib/image'
 import { knownNames } from '../lib/people'
 import { useUndo } from './UndoContext'
+import { useOffline } from './OfflineContext'
+import { cachedSelect } from '../lib/offline'
 import { convertOpeningUnit, convertRoomUnit, openingArea } from '../lib/rooms'
 
 // Rooms and tasks for every project, shared by the Projects screens and the photo
@@ -36,6 +38,7 @@ function groupBy(list, key) {
 export function WorkProvider({ children }) {
   const { user, isAdmin } = useAuth()
   const { offer } = useUndo()
+  const { submit, items: outbox, syncedAt } = useOffline()
   const userId = user?.id
   const [rooms, setRooms] = useState([])
   const [tasks, setTasks] = useState([])
@@ -175,7 +178,7 @@ export function WorkProvider({ children }) {
   const refreshTeam = useCallback(async () => {
     if (!userId) return setTeam([])
     // select('*') and filter here, so this still works before the "remove people" migration is run.
-    const { data, error } = await supabase.from('profiles').select('*')
+    const { data, error } = await cachedSelect(`${userId}:profiles`, supabase.from('profiles').select('*'))
     setTeam(error ? [] : [...(data || [])].filter((p) => !p.removed_at).sort((a, b) => a.email.localeCompare(b.email)))
   }, [userId])
 
@@ -187,11 +190,11 @@ export function WorkProvider({ children }) {
       return
     }
     const [d, c, tw, ct, di] = await Promise.all([
-      supabase.from('diary_entries').select('*'),
-      supabase.from('compliance_items').select('*'),
-      supabase.from('task_workers').select('*'),
-      supabase.from('checklist_templates').select('*'),
-      supabase.from('diary_issues').select('*')
+      cachedSelect(`${userId}:diary_entries`, supabase.from('diary_entries').select('*')),
+      cachedSelect(`${userId}:compliance_items`, supabase.from('compliance_items').select('*')),
+      cachedSelect(`${userId}:task_workers`, supabase.from('task_workers').select('*')),
+      cachedSelect(`${userId}:checklist_templates`, supabase.from('checklist_templates').select('*')),
+      cachedSelect(`${userId}:diary_issues`, supabase.from('diary_issues').select('*'))
     ])
     // Migration 22 tables are optional: the rest keeps working until it is run.
     setTaskWorkersReady(!tw.error)
@@ -328,8 +331,8 @@ export function WorkProvider({ children }) {
     refreshPayments()
     refreshTime()
     const [r, t] = await Promise.all([
-      supabase.from('project_rooms').select('*'),
-      supabase.from('tasks').select('*')
+      cachedSelect(`${userId}:project_rooms`, supabase.from('project_rooms').select('*')),
+      cachedSelect(`${userId}:tasks`, supabase.from('tasks').select('*'))
     ])
     const err = r.error || t.error
     if (err) {
@@ -353,6 +356,11 @@ export function WorkProvider({ children }) {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  // Saved-on-the-phone items have just been sent: reload so the real rows replace the waiting ones.
+  useEffect(() => {
+    if (syncedAt) refresh()
+  }, [syncedAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pick up teammates' changes when the app comes back to the front.
   useEffect(() => {
@@ -385,13 +393,36 @@ export function WorkProvider({ children }) {
   const equipmentByTask = useMemo(() => groupBy(equipment, 'task_id'), [equipment])
   const milestonesByProject = useMemo(() => groupBy(milestones, 'project_id'), [milestones])
   const defectsByProject = useMemo(() => groupBy(defects, 'project_id'), [defects])
-  const issuesByEntry = useMemo(() => groupBy(issues, 'entry_id'), [issues])
+  // Things saved on the phone but not sent yet are shown as if they were already there
+  // (marked "waiting"), so nothing seems to vanish while offline.
+  const myOutbox = useMemo(() => outbox.filter((i) => i.userId === userId), [outbox, userId])
+  const diaryView = useMemo(() => {
+    const have = new Set(diary.map((d) => d.id))
+    const waiting = myOutbox
+      .filter((i) => i.kind === 'diary_add' && !have.has(i.payload.entryId))
+      .map((i) => ({ id: i.payload.entryId, project_id: i.payload.projectId, created_by: userId, created_at: new Date(i.createdAt).toISOString(), pending: true, failed: i.status === 'failed', error: i.error, ...i.payload.fields }))
+    return [...waiting, ...diary].sort((a, b) => (a.entry_date < b.entry_date ? 1 : a.entry_date > b.entry_date ? -1 : a.created_at < b.created_at ? 1 : -1))
+  }, [diary, myOutbox, userId])
+  const issuesView = useMemo(() => {
+    const have = new Set(issues.map((i) => i.id))
+    const waiting = myOutbox
+      .filter((i) => i.kind === 'diary_add')
+      .flatMap((i) => (i.payload.issues || []).filter((x) => !have.has(x.id)).map((x) => ({ id: x.id, entry_id: i.payload.entryId, project_id: i.payload.projectId, text: x.text, created_by: userId, created_at: new Date(i.createdAt).toISOString(), resolved: false, pending: true })))
+    return [...issues, ...waiting]
+  }, [issues, myOutbox, userId])
+  const checksView = useMemo(() => {
+    const patches = {}
+    myOutbox.filter((i) => i.kind === 'check_done').forEach((i) => (patches[i.payload.id] = { ...patches[i.payload.id], ...i.payload.patch }))
+    return checks.map((c) => (patches[c.id] ? { ...c, ...patches[c.id], pending: true } : c))
+  }, [checks, myOutbox])
+
+  const issuesByEntry = useMemo(() => groupBy(issuesView, 'entry_id'), [issuesView])
   const workerNames = useMemo(
     () => (taskWorkersReady ? taskWorkers.map((w) => w.name) : knownNames(tasks)),
     [taskWorkersReady, taskWorkers, tasks]
   )
-  const diaryByProject = useMemo(() => groupBy(diary, 'project_id'), [diary])
-  const checksByProject = useMemo(() => groupBy(checks, 'project_id'), [checks])
+  const diaryByProject = useMemo(() => groupBy(diaryView, 'project_id'), [diaryView])
+  const checksByProject = useMemo(() => groupBy(checksView, 'project_id'), [checksView])
   const expensesByProject = useMemo(() => groupBy(expenses, 'project_id'), [expenses])
 
   // Creates a room, or returns the existing one if that name is already used in the
@@ -914,13 +945,10 @@ export function WorkProvider({ children }) {
     const fields = diaryFields(input)
     // Before migration 22 the issue text is kept on the entry itself.
     if (lines.length && !issuesReady) fields.issues = lines.join('\n')
-    const { data, error } = await supabase.from('diary_entries').insert({ ...fields, project_id: projectId, created_by: userId }).select().single()
-    if (error) throw new Error(error.message)
-    if (lines.length && issuesReady) {
-      const { error: e2 } = await supabase.from('diary_issues').insert(lines.map((text) => ({ entry_id: data.id, project_id: projectId, text, created_by: userId })))
-      if (e2) throw new Error(e2.message)
-    }
-    await refreshSite()
+    // Sent now with signal; otherwise saved on the phone and sent later (same ids, so no duplicates).
+    const issueRows = lines.length && issuesReady ? lines.map((text) => ({ id: crypto.randomUUID(), text })) : []
+    const res = await submit('diary_add', { userId, projectId, entryId: crypto.randomUUID(), fields, issues: issueRows })
+    if (!res.queued) await refreshSite()
   }
 
   async function updateDiary(id, input) {
@@ -953,15 +981,13 @@ export function WorkProvider({ children }) {
   async function setCheckDone(id, done, note) {
     const patch = { done, done_on: done ? todayLocal() : null, done_by: done ? userId : null }
     if (note !== undefined) patch.note = (note || '').trim() || null
-    const { error } = await supabase.from('compliance_items').update(patch).eq('id', id)
-    if (error) throw new Error(error.message)
-    await refreshSite()
+    const res = await submit('check_done', { id, patch })
+    if (!res.queued) await refreshSite()
   }
 
   async function saveCheckNote(id, note) {
-    const { error } = await supabase.from('compliance_items').update({ note: (note || '').trim() || null }).eq('id', id)
-    if (error) throw new Error(error.message)
-    await refreshSite()
+    const res = await submit('check_done', { id, patch: { note: (note || '').trim() || null } })
+    if (!res.queued) await refreshSite()
   }
 
   async function deleteCheck(id) {
@@ -1374,7 +1400,7 @@ export function WorkProvider({ children }) {
     checkTemplates,
     saveChecklistTemplate,
     deleteChecklistTemplate,
-    issues,
+    issues: issuesView,
     issuesReady,
     issuesByEntry,
     addIssue,

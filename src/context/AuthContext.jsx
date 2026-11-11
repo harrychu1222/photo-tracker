@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { cacheClear, cachedSelect } from '../lib/offline'
 
 const AuthContext = createContext(null)
 
@@ -43,16 +44,14 @@ export function AuthProvider({ children }) {
       return
     }
     let cancelled = false
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    // Remembered, so a manager opening the app with no signal still gets the manager screens.
+    cachedSelect(`${userId}:me`, supabase.from('profiles').select('*').eq('id', userId))
       .then(({ data, error }) => {
+        const me = Array.isArray(data) ? data[0] : data
         if (cancelled) return
         setRoleReady(true)
-        setRemoved(!error && !!data?.removed_at)
-        setRole(!error && data?.role === 'admin' && !data?.removed_at ? 'admin' : 'crew')
+        setRemoved(!error && !!me?.removed_at)
+        setRole(!error && me?.role === 'admin' && !me?.removed_at ? 'admin' : 'crew')
       })
     // Company details. Each lookup is tolerant: before the companies migration is run these
     // simply come back empty and the app behaves as before.
@@ -98,7 +97,10 @@ export function AuthProvider({ children }) {
       return error
     },
     refreshAccount: () => setAccountVersion((v) => v + 1),
-    signOut: () => supabase.auth.signOut()
+    signOut: async () => {
+      await cacheClear() // a shared phone keeps no copy of the company's data
+      return supabase.auth.signOut()
+    }
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

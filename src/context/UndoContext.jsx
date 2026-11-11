@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 
 // A small "Done. Undo" bar. A screen calls offer('Task marked done', undoFn); the bar stays for a
 // few seconds and, if tapped, runs undoFn. Only the latest action can be undone.
-const UndoContext = createContext({ offer: () => {} })
+const UndoContext = createContext({ offer: () => {}, notify: () => {} })
 
 export function UndoProvider({ children }) {
   const [toast, setToast] = useState(null) // { label, undo }
@@ -23,6 +23,14 @@ export function UndoProvider({ children }) {
     timer.current = setTimeout(() => setToast(null), 8000)
   }, [])
 
+  // A plain message with no Undo button.
+  const notify = useCallback((label) => {
+    clearTimeout(timer.current)
+    setFailed(null)
+    setToast({ label, undo: null })
+    timer.current = setTimeout(() => setToast(null), 6000)
+  }, [])
+
   useEffect(() => () => clearTimeout(timer.current), [])
 
   async function run() {
@@ -39,7 +47,7 @@ export function UndoProvider({ children }) {
   }
 
   return (
-    <UndoContext.Provider value={{ offer }}>
+    <UndoContext.Provider value={{ offer, notify }}>
       {children}
       {toast && (
         <div
@@ -47,7 +55,7 @@ export function UndoProvider({ children }) {
           className="fixed inset-x-3 bottom-24 z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink-900 px-4 py-3 text-sm text-white shadow-lg md:bottom-6"
         >
           <span className="min-w-0 truncate">{failed || toast.label}</span>
-          {!failed && (
+          {!failed && toast.undo && (
             <button onClick={run} disabled={busy} className="flex-none rounded-lg px-3 py-1.5 text-sm font-semibold text-signal-400 disabled:opacity-60">
               Undo
             </button>
