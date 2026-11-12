@@ -40,6 +40,7 @@ export default defineConfig({
         // A new service worker takes control immediately instead of waiting
         // for every open tab/app instance to close first — this is what was
         // causing "I deployed but nothing changed" on iOS.
+        importScripts: ['push-sw.js'],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
