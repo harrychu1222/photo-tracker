@@ -20,15 +20,17 @@ if (legal) {
 } else if (clientToken) {
   import('./components/Client/ClientView.jsx').then(({ default: ClientView }) => root.render(<React.StrictMode><ClientView token={clientToken} /></React.StrictMode>))
 } else {
-  Promise.all([import('./App.jsx'), import('./context/AuthContext.jsx'), import('./context/WorkContext.jsx'), import('./context/UndoContext.jsx'), import('./context/OfflineContext.jsx')]).then(([{ default: App }, { AuthProvider }, { WorkProvider }, { UndoProvider }, { OfflineProvider }]) =>
+  Promise.all([import('./App.jsx'), import('./context/AuthContext.jsx'), import('./context/WorkContext.jsx'), import('./context/UndoContext.jsx'), import('./context/OfflineContext.jsx'), import('./context/NotificationsContext.jsx')]).then(([{ default: App }, { AuthProvider }, { WorkProvider }, { UndoProvider }, { OfflineProvider }, { NotificationsProvider }]) =>
     root.render(
       <React.StrictMode>
         <AuthProvider>
           <UndoProvider>
             <OfflineProvider>
-              <WorkProvider>
-                <App />
-              </WorkProvider>
+              <NotificationsProvider>
+                <WorkProvider>
+                  <App />
+                </WorkProvider>
+              </NotificationsProvider>
             </OfflineProvider>
           </UndoProvider>
         </AuthProvider>

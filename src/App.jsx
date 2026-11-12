@@ -36,6 +36,26 @@ export default function App() {
     }
   }, [roleReady, isAdmin])
 
+  // Opening a job from a phone alert: a tap while the app is open sends a message, and a tap while
+  // it is closed opens /?project=...&tab=...
+  const [deepLink, setDeepLink] = useState(() => {
+    const q = new URLSearchParams(window.location.search)
+    return q.get('project') ? { id: q.get('project'), tab: q.get('tab') } : null
+  })
+  useEffect(() => {
+    const onMessage = (e) => e.data?.type === 'open-project' && e.data.project && setDeepLink({ id: e.data.project, tab: e.data.tab })
+    navigator.serviceWorker?.addEventListener?.('message', onMessage)
+    return () => navigator.serviceWorker?.removeEventListener?.('message', onMessage)
+  }, [])
+  useEffect(() => {
+    if (!deepLink || !user) return
+    setTab('projects')
+    setProjectTab(deepLink.tab || null)
+    setSelectedProjectId(deepLink.id)
+    setDeepLink(null)
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash)
+  }, [deepLink, user])
+
   function openUpload(preset = null) {
     setUploadPreset(preset)
     setShowUpload(true)
