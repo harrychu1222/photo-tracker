@@ -508,3 +508,79 @@ Run `supabase/migration_19_quote_payments.sql`. `npm install` is needed once (ad
 **What it guarantees (tested on a real Postgres with two companies, 84 checks):** people only see and change their own company's rows in every table; money stays manager-only; a row cannot point at another company's project/task; photos and receipts files are company-scoped (this also fixes an old gap where any signed-in user could open any photo file); the app owner sees nothing inside a company unless they start a read-only, logged support session with a reason; a suspended company is locked out; client links still work.
 
 **New tables you add later must have a `company_id` column** (see the end of the migration). The screens for creating companies, inviting people and the owner's Platform view come in the next stage; until then new people join with the existing invite codes (they join your company).
+
+## Companies (M2) - screens
+
+- **Team** (managers): "Invite someone" makes a one-use code (crew or admin, valid 14 days) to send to the person; unused codes are listed with Remove. "Company name" renames your company; the name shows in the header/side menu.
+- **Platform** (app owner only, after the owner statement from M1): list of companies with people/project counts, "Add a company" (you type the company name, a manager code and an optional crew code; needs `migration_26_company_codes.sql`), Suspend/Reactivate, "View inside" (asks for a reason, then a read-only banner shows until you stop; every look is in the Access log).
+- Run `migration_26_company_codes.sql` after migration 25 (replaces the company-creation function so you choose the codes). Manager code: one use, 30 days. Crew code: up to 100 people, 1 year. Codes are case-sensitive, 6-40 characters, no spaces.
+
+## Stage 1 - housekeeping and trust
+
+Run `supabase/migration_27_remove_people_feedback.sql` (after 25 and 26), then push the app.
+
+- **Remove a person** (Team page): they lose all access and see "You no longer have access". Their name stays on old tasks, photos and entries. A "Removed people" list lets you Restore them. You can't remove yourself or the last manager.
+- **Send feedback**: "Feedback" in the top bar (phone) or "Send feedback" in the side menu (computer). Only the app owner reads it, on the Platform page.
+- **Platform**: "Add code" per company (extra manager or crew code), plus the feedback list.
+- **Forgot password**: link on the sign-in screen. **In Supabase > Authentication > URL Configuration, set Site URL to your live app address and add it under Redirect URLs**, otherwise the reset email link will not return to the app. Also check Authentication > Providers > Email has "Confirm email" turned on.
+- **Privacy and Terms**: public pages at `/#privacy` and `/#terms`, linked from sign-in and sign-up (sign-up has an "I agree" tick). They are plain-English drafts in `src/components/Legal/LegalPage.jsx`; have a lawyer review and edit before selling. Add your support email there.
+- Invite codes are no longer shown in capitals on the sign-up screen (they are case-sensitive).
+
+## Stage 2 - simpler for crew, easier entry, Undo
+
+No database change. Push the app.
+
+- **Crew home is My Day** (first tab, and the app opens on it). Crew nav: My Day, Projects, Photos.
+- **Crew project view is shorter:** Tasks, Materials, Hours & expenses, Photos, Defects, Site diary. No Overview, Gantt, Measurements, Board, rooms/template/bulk tools or Export (managers keep all of these).
+- **My Day cards:** Start, Done, **Photo** (opens the upload form with the project, room and task already filled in), **Note** (adds a dated line to the task's notes).
+- **Photo upload is shorter:** project (remembered from last time), room, task and notes. Category, status, tags and map sit behind "More details".
+- **Undo:** a bar appears for 8 seconds after marking a task Started/Done, adding a note, or deleting a diary entry, issue, checklist item, defect or measurement. Those deletes no longer ask "are you sure?". Deletes that remove files or several linked records (photos, tasks, expenses with receipts, projects) still ask first, because they can't be fully undone.
+
+## Stage 3 - first-run help and search
+
+No database change. Push the app.
+
+- **Get started checklist** (managers, top of Projects): three steps that tick themselves: create your first job, take your first photo, invite your crew. "Start" opens the guided job setup (levels, rooms, template tasks, dates). It disappears when all three are done, or with "Hide".
+- **More templates:** Deck and Fencing join Kitchen, Bathroom, Toilet, Laundry and Flooring. They are picked up automatically when you choose a Deck or Fencing room (Exterior level) in the job setup.
+- **Search** (magnifier in the phone header, "Search" in the computer side menu): one box over projects, tasks (and their notes), photos (notes, tags, room, category, location), site diary, issues, defects and materials. Every word you type must match, in any order. Tapping a result opens that project on the right tab. Crew can search too, but only see what they already can. Money (expenses, payments, quotes) is not searched.
+
+## Stage 4: works without signal
+
+No migration needed.
+
+- **Photos, new diary entries and checklist ticks/notes** made with no signal are saved on the phone and sent automatically when signal returns (on reconnect, when the app opens, and every 30 seconds). A bar at the top shows what is waiting; **Details** lists items with **Try again** / **Discard** for any the server refused.
+- **My Day, projects, tasks, diary and checklists** can be read offline from the last copy the phone loaded. Your role is remembered, so manager screens still show.
+- Each queued item has its own id, so a retry never creates duplicates.
+- **Not offline:** other edits (task status, notes, editing existing entries), the photo gallery, and anything else needs signal.
+- Signing out clears the cached copy but keeps unsent items. iOS can clear saved data if the phone is very low on space, so send soon after getting signal.
+
+## Stage 5: variations
+
+**Run `supabase/migration_28_variations.sql`** in the Supabase SQL editor (safe to run twice), then reload.
+
+- Managers only: **Money → Variations** on each job. Crew never see it.
+- Each variation gets a number per job (V1, V2…), what changed, a price (use a minus for a credit), details, and a status: Pending, Approved or Declined.
+- Approving records who agreed and how (email, verbal, signed…) and the date.
+- Totals show approved and still-waiting amounts. Delete has Undo.
+- This stage only records. The status, approver and date fields are there so client approval through the client link can be added later.
+
+## Stage 6: notifications
+
+**Run `supabase/migration_29_notifications.sql`** (after 28), then reload. That alone gives you the in-app bell, mutes, settings and the 7am summary in the bell.
+
+**What people are told about**
+- Managers: task finished, task blocked, defect raised (urgent ones flagged), site issue, expense added, and a 7am summary (overdue tasks, deliveries due, materials not ordered for tasks starting soon, variations waiting too long, defects open too long).
+- Crew: a task given to them, their task blocked or rescheduled, and a 7am summary of today's tasks.
+- The person who did the thing is never told about it. Each person can switch any kind off, choose which ones also go to their phone, and mute a whole job (**Mute alerts** at the top of the job). Managers set the "too long" days (default 3 for variations, 7 for defects) in the bell's Settings tab.
+- The summary goes out at 7am company time (`companies.timezone`, default `Australia/Melbourne`), once a day. It is scheduled with pg_cron. If the migration printed a notice that it could not schedule, enable **pg_cron** under Database > Extensions and run the migration again.
+
+**Phone alerts and email (one-time setup, optional)**
+1. Make push keys on your computer: `npx web-push generate-vapid-keys`.
+2. Vercel: add `VITE_VAPID_PUBLIC_KEY` = the public key, then redeploy.
+3. Supabase > Edge Functions: deploy `notify-deliver` (folder `supabase/functions/notify-deliver`), turn **off** "Verify JWT". Secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (e.g. `mailto:you@yourdomain.com`), `WEBHOOK_SECRET` (any long random text). For the email, also `RESEND_API_KEY` and `MAIL_FROM` (from resend.com, free tier is fine to start).
+4. Supabase > Database > Webhooks > Create: table `notifications`, event **Insert**, type Supabase Edge Function > `notify-deliver`, add header `x-webhook-secret` with the same `WEBHOOK_SECRET`.
+5. On each phone: iPhone needs the app added to the Home Screen first (iOS 16.4 or newer). Then bell > Settings > Send alerts to this phone.
+
+Without steps 1 to 4 everything still works in the bell; the phone and email options just stay hidden.
+
+Not included: payments overdue (there is no due date on payments yet) and client approvals (they come with the client link).
