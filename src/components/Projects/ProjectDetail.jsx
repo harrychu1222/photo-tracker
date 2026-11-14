@@ -11,6 +11,7 @@ import GanttTab from './GanttTab'
 import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
 import VariationsTab from './VariationsTab'
+import { useNotifications } from '../../context/NotificationsContext'
 import SiteTab from './SiteTab'
 import ExportDialog from './ExportDialog'
 import ClientShareDialog from './ClientShareDialog'
@@ -83,6 +84,8 @@ export default function ProjectDetail({
   const everyMaterial = projectTasks.flatMap((t) => materialsByTask[t.id] || [])
   const projectDefects = defectsByProject[project.id] || []
   const openIssues = issues.filter((i) => i.project_id === project.id && !i.resolved).length
+  const notif = useNotifications()
+  const isMuted = notif.muted.has(project.id)
   const pendingVariations = (variationsByProject[project.id] || []).filter((v) => v.status === 'pending').length
   const openDefects = projectDefects.filter((d) => d.status !== 'fixed').length
   const attention = attentionItems({ tasks: projectTasks, materials: everyMaterial, defects: projectDefects, milestones: isAdmin ? milestonesByProject[project.id] || [] : [], openIssues, money, progress, isAdmin, today })
@@ -156,6 +159,15 @@ export default function ProjectDetail({
         )}
         {openDefects > 0 && (
           <span className={`${chip} bg-[#FBEAD2] text-[#7A4B05]`}>{openDefects} open defect{openDefects === 1 ? '' : 's'}</span>
+        )}
+        {notif.ready && (
+          <button
+            onClick={() => notif.setMute(project.id, !isMuted).catch(() => {})}
+            aria-pressed={isMuted}
+            className={`${chip} ${isMuted ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-800'}`}
+          >
+            {isMuted ? 'Alerts muted' : 'Mute alerts'}
+          </button>
         )}
         {isAdmin && money.target != null && money.actual > 0 && (
           <span className={`${chip} ${money.vsTarget?.over ? 'bg-[#F6DAD4] text-[#7A2A1D]' : 'bg-ink-100 text-ink-800'}`}>

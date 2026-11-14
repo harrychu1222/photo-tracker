@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '../ui/Icon'
 import FeedbackDialog from './FeedbackDialog'
 import OfflineBanner from './OfflineBanner'
+import NotificationBell from './NotificationBell'
 import { projectStatusMeta } from '../../statusConfig'
 
 function Brand() {
@@ -115,6 +116,7 @@ export default function AppShell({
               <Icon name="camera" /> Add photo
             </button>
             <p className="truncate px-1 text-xs text-ink-400">{email}</p>
+            <NotificationBell onOpenProject={onOpenProject} label className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-sm text-ink-200 hover:bg-ink-900" />
             <button
               onClick={() => onTab('search')}
               aria-label="Search"
@@ -167,6 +169,7 @@ export default function AppShell({
         <Brand />
         <div className="flex items-center gap-1">
           <span className="max-w-[6rem] truncate text-xs text-ink-400">{company?.name || email}</span>
+          <NotificationBell onOpenProject={onOpenProject} className="rounded-lg px-2 py-2 text-ink-200 active:bg-ink-800" />
           <button onClick={() => onTab('search')} aria-label="Search" className="rounded-lg px-2 py-2 text-ink-200 active:bg-ink-800">
             <Icon name="search" size={18} />
           </button>
