@@ -1,6 +1,6 @@
 import { NO_LEVEL, levelsOf } from '../../lib/levels'
 
-const chip = (on) => `whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const chip = (on) => `whitespace-nowrap min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
 
 // Level chips (All levels, Ground, Level 1 ...). Shows nothing until a room has a level.
 export default function LevelFilter({ rooms, level, onLevel }) {

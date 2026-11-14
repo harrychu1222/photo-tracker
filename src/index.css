@@ -25,6 +25,15 @@
   }
 }
 
+/* iPhone zooms the page when a field under 16px is tapped; keep fields at 16px on phones. */
+@media (pointer: coarse) and (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   .status-dot {
     @apply inline-block h-2.5 w-2.5 rounded-full;

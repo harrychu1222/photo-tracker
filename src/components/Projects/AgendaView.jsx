@@ -21,11 +21,11 @@ export default function AgendaView({ tasks, materials, today, roomsById, onOpenT
           <li key={day.key} className="flex gap-3" data-testid={`agenda-${day.key}`}>
             <div className="w-12 flex-none pt-3 text-center">
               {day.overdue ? (
-                <span className="inline-block rounded-md bg-[#F6DAD4] px-1.5 py-0.5 text-[10px] font-bold text-[#7A2A1D]">Overdue</span>
+                <span className="inline-block rounded-md bg-[#F6DAD4] px-1.5 py-0.5 text-xs font-bold text-[#7A2A1D]">Overdue</span>
               ) : (
                 <>
                   <p className={`text-xl font-bold leading-none ${day.isToday ? 'rounded-lg bg-status-blocked py-1.5 text-white' : 'text-ink-900'}`}>{p.num}</p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-600">{day.isToday ? 'Today' : p.word}</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-ink-600">{day.isToday ? 'Today' : p.word}</p>
                 </>
               )}
             </div>

@@ -131,7 +131,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
       <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl md:max-h-none md:rounded-none md:rounded-l-2xl md:p-6" data-testid="task-panel">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">{task ? 'Edit task' : 'New task'}</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">
             ×
           </button>
         </div>
@@ -161,7 +161,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
                   type="button"
                   key={s.value}
                   onClick={() => applyStatus(s.value)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                     status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                   }`}
                 >
@@ -343,7 +343,7 @@ export default function TaskForm({ project, task, projectTasks, photos = [], onC
             <button
               type="button"
               onClick={handleDelete}
-              className="w-full rounded-lg border border-status-blocked py-2.5 text-sm font-medium text-status-blocked"
+              className="w-full min-h-[44px] rounded-lg border border-status-blocked text-sm font-medium text-status-blocked"
             >
               Delete task
             </button>

@@ -82,7 +82,7 @@ export default function MyDay({ projects, onOpenProject, onAddPhoto }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-ink-900">{t.name}</p>
-            <button onClick={() => onOpenProject(p.id)} className="min-h-[32px] text-left text-sm text-ink-600 underline decoration-ink-200 underline-offset-2" aria-label={`Open project ${p.name}`}>{[p.name, room].filter(Boolean).join(' · ')}</button>
+            <button onClick={() => onOpenProject(p.id)} className="min-h-[44px] text-left text-sm text-ink-600 underline decoration-ink-200 underline-offset-2" aria-label={`Open project ${p.name}`}>{[p.name, room].filter(Boolean).join(' · ')}</button>
             <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-semibold text-status-blocked' : 'text-ink-600'}`}>
               {[tone === 'bad' && t.planned_end ? `Was due ${fmtShort(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' && who !== 'all' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
             </p>

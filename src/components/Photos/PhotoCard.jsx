@@ -32,7 +32,7 @@ export default function PhotoCard({ photo, onOpen, selectMode = false, selected 
 
       {selectMode && (
         <span
-          className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 text-[11px] font-bold ${
+          className={`absolute left-2 top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 text-xs font-bold ${
             selected ? 'border-signal-500 bg-signal-500 text-ink-950' : 'border-white bg-black/30 text-transparent'
           }`}
         >
@@ -50,7 +50,7 @@ export default function PhotoCard({ photo, onOpen, selectMode = false, selected 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-4">
         <p className="truncate text-xs font-medium text-white">{photo.location || 'Untitled location'}</p>
         {(photo.room || photo.category) && (
-          <p className="truncate text-[11px] text-white/80">{[photo.room, photo.category].filter(Boolean).join(' · ')}</p>
+          <p className="truncate text-xs text-white/80">{[photo.room, photo.category].filter(Boolean).join(' · ')}</p>
         )}
       </div>
     </button>

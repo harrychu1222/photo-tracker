@@ -4,7 +4,7 @@ import { useWork } from '../../context/WorkContext'
 import { fmtArea, roomCalc } from '../../lib/rooms'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500'
-const smallBtn = 'rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600'
+const smallBtn = 'min-h-[44px] rounded-lg border border-ink-200 px-3.5 text-sm font-medium text-ink-600'
 const UNITS = ['mm', 'cm', 'm', 'm²', 'each']
 
 // ---------- Special measurements and door / window openings ----------
@@ -103,7 +103,7 @@ function MeasurementEditor({ kind, roomId, roomUnit, initial, onSave, onCancel, 
       )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">
           {saveLabel}
         </button>
         <button type="button" onClick={onCancel} className={smallBtn}>
@@ -218,7 +218,7 @@ function GroupEditor({ roomId, fixedName, onSave, onCancel }) {
       <button type="button" onClick={() => setLines((ls) => [...ls, { label: '', value: '', unit: ls[ls.length - 1]?.unit || 'mm' }])} className={smallBtn}>+ Another value</button>
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">{fixedName ? 'Add values' : 'Add'}</button>
+        <button type="button" onClick={submit} disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">{fixedName ? 'Add values' : 'Add'}</button>
         <button type="button" onClick={onCancel} className={smallBtn}>Cancel</button>
       </div>
     </div>
@@ -345,7 +345,7 @@ function RoomTitle({ room }) {
     return (
       <div className="flex items-center gap-2">
         <h4 className="text-base font-semibold text-ink-900">{room.name}</h4>
-        <button onClick={() => { setName(room.name); setEditing(true) }} className="min-h-[44px] px-1 text-xs font-medium text-signal-600" aria-label={`Rename ${room.name}`}>
+        <button onClick={() => { setName(room.name); setEditing(true) }} className="min-h-[44px] px-1 text-sm font-medium text-signal-600" aria-label={`Rename ${room.name}`}>
           Rename
         </button>
       </div>
@@ -451,7 +451,7 @@ function RoomCard({ project, room, measurements }) {
               type="button"
               onClick={() => switchUnit(u)}
               aria-pressed={unit === u}
-              className={`px-3 py-1 font-medium ${unit === u ? 'bg-ink-900 text-white' : 'text-ink-600'}`}
+              className={`min-h-[36px] px-4 text-sm font-medium ${unit === u ? 'bg-ink-900 text-white' : 'text-ink-600'}`}
             >
               {u}
             </button>
@@ -507,7 +507,7 @@ function RoomCard({ project, room, measurements }) {
           type="button"
           onClick={save}
           disabled={busy}
-          className="mt-2 rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+          className="min-h-[44px] mt-2 rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60"
         >
           {busy ? 'Saving…' : 'Save sizes'}
         </button>
@@ -578,7 +578,7 @@ export default function MeasurementsTab({ project }) {
           className={inputClass}
           aria-label="New room name"
         />
-        <button type="button" onClick={addRoom} className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950">
+        <button type="button" onClick={addRoom} className="min-h-[44px] flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950">
           Add room
         </button>
       </div>

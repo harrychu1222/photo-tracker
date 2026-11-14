@@ -173,7 +173,7 @@ export default function ProjectForm({
                 type="button"
                 key={s.value}
                 onClick={() => pickStatus(s.value)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                   status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >
@@ -208,7 +208,7 @@ export default function ProjectForm({
             Actual dates fill in on their own when the first task starts and when you mark the project Complete. You can change them here.
           </p>
           {project && (
-            <button type="button" onClick={useTaskDates} className="mt-2 rounded-full border border-ink-200 px-3 py-1 text-xs font-medium text-ink-600">
+            <button type="button" onClick={useTaskDates} className="min-h-[36px] mt-2 rounded-full border border-ink-200 px-3.5 text-sm font-medium text-ink-600">
               Use task dates for the planned dates
             </button>
           )}
@@ -233,7 +233,7 @@ export default function ProjectForm({
                   key={m.v}
                   onClick={() => setMode(m.v)}
                   aria-pressed={mode === m.v}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${mode === m.v ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`}
+                  className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${mode === m.v ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`}
                 >
                   {m.l}
                 </button>
@@ -261,7 +261,7 @@ export default function ProjectForm({
                   ))}
                 </div>
                 {project && (
-                  <button type="button" onClick={fillFromPlan} className="rounded-full border border-ink-200 px-3 py-1 text-xs font-medium text-ink-600">
+                  <button type="button" onClick={fillFromPlan} className="min-h-[36px] rounded-full border border-ink-200 px-3.5 text-sm font-medium text-ink-600">
                     Fill from task plan
                   </button>
                 )}
@@ -322,7 +322,7 @@ export default function ProjectForm({
           <button
             type="button"
             onClick={handleDelete}
-            className="w-full rounded-lg border border-status-blocked py-2.5 text-sm font-medium text-status-blocked"
+            className="w-full min-h-[44px] rounded-lg border border-status-blocked text-sm font-medium text-status-blocked"
           >
             Delete project
           </button>

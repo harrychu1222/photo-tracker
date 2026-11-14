@@ -54,7 +54,7 @@ export default function AppShell({
       className="sticky top-0 z-20 flex min-h-9 items-center justify-between gap-3 bg-amber-400 px-3 py-1 text-xs font-semibold text-ink-950"
     >
       <span className="min-w-0 truncate">Viewing {support.companyName} (read-only)</span>
-      <button onClick={onStopSupport} className="flex-none rounded-md bg-ink-950 px-2.5 py-1 text-xs font-semibold text-white">
+      <button onClick={onStopSupport} className="min-h-[44px] flex-none rounded-md bg-ink-950 px-2.5 text-sm font-semibold text-white">
         Stop viewing
       </button>
     </div>
@@ -76,7 +76,7 @@ export default function AppShell({
             {company?.name && <p className="mt-1.5 truncate pl-[38px] text-xs text-ink-400">{company.name}</p>}
           </div>
           <nav aria-label="Main" className="flex flex-col gap-1">
-            <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Workspace</p>
+            <p className="mb-1 px-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">Workspace</p>
             {[...navItems, { id: 'search', label: 'Search', icon: 'search' }].map((n) => (
               <button
                 key={n.id}
@@ -93,7 +93,7 @@ export default function AppShell({
           </nav>
           {active.length > 0 && (
             <div className="flex flex-col gap-1">
-              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Active projects</p>
+              <p className="mb-1 px-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">Active projects</p>
               {active.map((p) => (
                 <button
                   key={p.id}

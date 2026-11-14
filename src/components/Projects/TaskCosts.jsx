@@ -8,7 +8,7 @@ import { fmtArea, roomPickList } from '../../lib/rooms'
 import { materialStatusMeta, materialStatusPatch, measurementQty, nextMaterialStatus } from '../../lib/materials'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500'
-const smallBtn = 'rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600'
+const smallBtn = 'min-h-[44px] rounded-lg border border-ink-200 px-3.5 text-sm font-medium text-ink-600'
 
 const UNITS = ['each', 'm', 'm²', 'sheet', 'box', 'bag', 'litre', 'kg', 'pack', 'roll', 'set', 'hr']
 
@@ -124,7 +124,7 @@ function MaterialEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel, 
       )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">
           {saveLabel}
         </button>
         <button type="button" onClick={onCancel} className={smallBtn}>
@@ -183,7 +183,7 @@ function MaterialRow({ material, isAdmin, canDelete, choices }) {
               setError(err.message)
             }
           }}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2 py-1 text-xs font-medium text-ink-800"
+          className="min-h-[36px] flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-3.5 text-sm font-medium text-ink-800"
         >
           <span className="status-dot" style={{ backgroundColor: status.color }} />
           {status.label}
@@ -267,7 +267,7 @@ function EquipmentEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel 
             type="button"
             key={k.value}
             onClick={() => setKind(k.value)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
               kind === k.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -290,7 +290,7 @@ function EquipmentEditor({ initial, isAdmin, price, onSave, onCancel, saveLabel 
       )}
       {error && <p className="text-xs text-status-blocked">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={submit} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">
           {saveLabel}
         </button>
         <button type="button" onClick={onCancel} className={smallBtn}>

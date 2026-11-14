@@ -602,3 +602,10 @@ No migration. Visual changes only:
 - **Tasks:** one clear **+ Add task** button; Rooms, Copy to rooms, From template and Add many are in the "..." menu next to it. Room filters are a single scrolling row.
 - **Scrolling rows** (project sections, Plan/Money views, status and room filters) fade at the right edge while there is more to scroll to, and the current one is scrolled into view.
 - **Colours:** project status Active is now green and Complete is slate, so orange only means "an action".
+
+## Stage 8c: consistency pass
+
+No migration. One set of rules across the app:
+- **Tap targets:** every button, link and field is at least 44px tall on a phone. The only exception is filter chips and small segmented switches, which are 36px with generous gaps. The task "done" circle looks the same but has a 44px tap area.
+- **Text:** nothing smaller than 12px. Helper grey text is darker for outdoor reading. Fields are 16px on phones so iPhone no longer zooms the page when you tap one.
+- **Close (x) buttons** in dialogs are a proper 44px target.

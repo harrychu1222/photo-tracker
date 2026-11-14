@@ -92,7 +92,7 @@ export default function OfflineBanner() {
       <div role="status" className={`sticky top-0 z-20 flex min-h-9 items-center justify-between gap-3 px-3 py-1 text-xs font-semibold ${tone}`}>
         <span className="min-w-0">{text}</span>
         {items.length > 0 && (
-          <button onClick={() => setOpen(true)} className="flex-none rounded-md bg-white/20 px-2.5 py-1 text-xs font-semibold">
+          <button onClick={() => setOpen(true)} className="min-h-[44px] flex-none rounded-md bg-white/20 px-2.5 text-sm font-semibold">
             Details
           </button>
         )}

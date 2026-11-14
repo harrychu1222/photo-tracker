@@ -9,7 +9,7 @@ import { todayLocal } from '../../lib/tasks'
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-base focus:border-signal-500'
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 const WEATHER = ['Sunny', 'Cloudy', 'Rain', 'Hot', 'Windy', 'Cold']
-const chip = (on) => `whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const chip = (on) => `whitespace-nowrap min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
 
 function DiaryForm({ project, entry, hasIssues, onDone }) {
   const { addDiary, updateDiary, tasksByProject, team } = useWork()
@@ -131,12 +131,12 @@ export default function DiaryPanel({ project }) {
                 <button type="submit" className="min-h-[44px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white">Add</button>
               </form>
             ) : (
-              <button onClick={() => { setAdding(e.id); setIssueText('') }} className="mt-1 min-h-[40px] text-xs font-medium text-ink-600 underline" aria-label={`Add issue to ${fmtDate(e.entry_date)}`}>+ Add issue</button>
+              <button onClick={() => { setAdding(e.id); setIssueText('') }} className="min-h-[44px] mt-1 min-h-[44px] text-sm font-medium text-ink-600 underline" aria-label={`Add issue to ${fmtDate(e.entry_date)}`}>+ Add issue</button>
             )}
             {!e.pending && (isAdmin || e.created_by === user?.id) && (
               <div className="mt-2 flex gap-3">
-                <button onClick={() => setEditing(e)} className="min-h-[40px] text-xs font-medium text-ink-600 underline" aria-label={`Edit entry ${fmtDate(e.entry_date)}`}>Edit</button>
-                <button onClick={() => remove(e)} className="min-h-[40px] text-xs font-medium text-ink-400 underline" aria-label={`Delete entry ${fmtDate(e.entry_date)}`}>Delete</button>
+                <button onClick={() => setEditing(e)} className="min-h-[44px] min-h-[44px] text-sm font-medium text-ink-600 underline" aria-label={`Edit entry ${fmtDate(e.entry_date)}`}>Edit</button>
+                <button onClick={() => remove(e)} className="min-h-[44px] min-h-[44px] text-sm font-medium text-ink-400 underline" aria-label={`Delete entry ${fmtDate(e.entry_date)}`}>Delete</button>
               </div>
             )}
           </li>

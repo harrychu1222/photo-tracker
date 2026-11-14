@@ -68,10 +68,10 @@ export default function MaterialDates({ material }) {
         <p className="text-xs text-ink-400">The status follows the dates: a delivered date marks it Delivered, an ordered date marks it Ordered.</p>
         {error && <p className="text-xs text-status-blocked">{error}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+          <button type="button" onClick={save} disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">
             Save dates
           </button>
-          <button type="button" onClick={() => setEditing(false)} className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600">
+          <button type="button" onClick={() => setEditing(false)} className="min-h-[44px] rounded-lg border border-ink-200 px-3 .5 text-sm font-medium text-ink-600">
             Cancel
           </button>
         </div>

@@ -64,12 +64,12 @@ export default function FilterBar({ filters, onChange, options }) {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <span className="self-center pr-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">
+        <span className="self-center pr-1 text-xs font-medium uppercase tracking-wide text-ink-400">
           Progress
         </span>
         <button
           onClick={() => update({ status: null })}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+          className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
             filters.status === null ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
           }`}
         >
@@ -79,7 +79,7 @@ export default function FilterBar({ filters, onChange, options }) {
           <button
             key={s.value}
             onClick={() => update({ status: filters.status === s.value ? null : s.value })}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
               filters.status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -90,12 +90,12 @@ export default function FilterBar({ filters, onChange, options }) {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <span className="self-center pr-1 text-[11px] font-medium uppercase tracking-wide text-ink-400">
+        <span className="self-center pr-1 text-xs font-medium uppercase tracking-wide text-ink-400">
           Quoting
         </span>
         <button
           onClick={() => update({ quotingStatus: null })}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+          className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
             filters.quotingStatus === null ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
           }`}
         >
@@ -105,7 +105,7 @@ export default function FilterBar({ filters, onChange, options }) {
           <button
             key={s.value}
             onClick={() => update({ quotingStatus: filters.quotingStatus === s.value ? null : s.value })}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
               filters.quotingStatus === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >

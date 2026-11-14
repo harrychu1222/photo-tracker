@@ -70,9 +70,9 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
       >
         <button onClick={() => setEditing(task.id)} className="block w-full text-left" aria-label={`Open task ${task.name}`}>
           <span className="block text-sm font-semibold text-ink-900">{task.name}</span>
-          {room && <span className="mt-1 inline-block rounded-md bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-800">{room}</span>}
+          {room && <span className="mt-1 inline-block rounded-md bg-ink-100 px-2 py-0.5 text-xs font-semibold text-ink-800">{room}</span>}
           {assigneeLabel(task, team) && (
-            <span className="ml-1 mt-1 inline-block rounded-md bg-[#D5E6FF] px-2 py-0.5 text-[11px] font-semibold text-[#1F3A5F]" title={assigneeLabel(task, team)}>
+            <span className="ml-1 mt-1 inline-block rounded-md bg-[#D5E6FF] px-2 py-0.5 text-xs font-semibold text-[#1F3A5F]" title={assigneeLabel(task, team)}>
               {assigneeLabel(task, team).slice(0, 2).toUpperCase()}
             </span>
           )}
@@ -161,7 +161,7 @@ export default function KanbanBoard({ project, photos, level = 'all', onLevel = 
                     <h3 className="mb-2 flex items-center gap-2 px-1 text-xs font-bold uppercase tracking-[0.08em] text-ink-800">
                       <span className="status-dot" style={{ backgroundColor: s.color }} />
                       {s.label}
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-ink-600">{list.length}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs text-ink-600">{list.length}</span>
                     </h3>
                   )}
                   <div className="space-y-2">

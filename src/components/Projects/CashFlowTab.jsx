@@ -9,7 +9,7 @@ import { todayLocal } from '../../lib/tasks'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-base focus:border-signal-500'
 const chip = (on) =>
-  `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
+  `min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
 
 function PaymentForm({ project, payment, onDone }) {
   const { addPayment, updatePayment } = useWork()
@@ -150,7 +150,7 @@ export default function CashFlowTab({ project, finance }) {
             showLabour={showLabour}
             label={`Cumulative spent ${fmtMoney(spentNow)} and received ${fmtMoney(receivedNow)}`}
           />
-          <button onClick={() => setShowTable((v) => !v)} className="mt-3 text-xs font-medium text-signal-600" aria-expanded={showTable}>
+          <button onClick={() => setShowTable((v) => !v)} className="mt-3 min-h-[44px] text-sm font-medium text-signal-600" aria-expanded={showTable}>
             {showTable ? 'Hide figures' : 'Show figures'}
           </button>
           {showTable && (

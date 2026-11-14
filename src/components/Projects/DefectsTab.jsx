@@ -8,7 +8,7 @@ import { dayDiff, todayLocal } from '../../lib/tasks'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-base focus:border-signal-500'
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
-const chip = (on) => `whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const chip = (on) => `whitespace-nowrap min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
 const PRIORITIES = [
   { value: 'urgent', label: 'Urgent', cls: 'bg-[#F6DAD4] text-[#7A2A1D]' },
   { value: 'normal', label: 'Normal', cls: 'bg-ink-100 text-ink-800' },
@@ -186,15 +186,15 @@ export default function DefectsTab({ project }) {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {d.status === 'fixed' ? (
-                    <button onClick={() => act(() => setDefectStatus(d.id, 'open'))} className="min-h-[40px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900">Reopen</button>
+                    <button onClick={() => act(() => setDefectStatus(d.id, 'open'))} className="min-h-[44px] min-h-[44px] rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900">Reopen</button>
                   ) : (
                     <>
-                      {d.status === 'open' && <button onClick={() => act(() => setDefectStatus(d.id, 'in_progress'))} className="min-h-[40px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900">Start work</button>}
-                      <button onClick={() => act(() => setDefectStatus(d.id, 'fixed'))} className="min-h-[40px] rounded-lg bg-ink-900 px-3 text-xs font-semibold text-white" aria-label={`Mark ${d.title} fixed`}>Mark fixed</button>
+                      {d.status === 'open' && <button onClick={() => act(() => setDefectStatus(d.id, 'in_progress'))} className="min-h-[44px] min-h-[44px] rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900">Start work</button>}
+                      <button onClick={() => act(() => setDefectStatus(d.id, 'fixed'))} className="min-h-[44px] min-h-[44px] rounded-lg bg-ink-900 px-3 text-sm font-semibold text-white" aria-label={`Mark ${d.title} fixed`}>Mark fixed</button>
                     </>
                   )}
                   {canDelete && (
-                    <button onClick={() => act(() => deleteDefect(d.id))} className="min-h-[40px] px-2 text-xs font-medium text-ink-400 underline" aria-label={`Delete ${d.title}`}>Delete</button>
+                    <button onClick={() => act(() => deleteDefect(d.id))} className="min-h-[44px] min-h-[44px] px-2 text-sm font-medium text-ink-400 underline" aria-label={`Delete ${d.title}`}>Delete</button>
                   )}
                 </div>
               </li>

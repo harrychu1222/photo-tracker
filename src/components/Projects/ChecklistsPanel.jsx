@@ -55,7 +55,7 @@ function AddList({ project, existing, onDone }) {
           </optgroup>
         </select>
         {isAdmin && pick.startsWith('my:') && (
-          <button type="button" onClick={() => confirm('Delete this template? Checklists already on projects are kept.') && deleteChecklistTemplate(pick.slice(3)).then(() => choose('')).catch((err) => setError(err.message))} className="mt-1 min-h-[40px] text-xs font-medium text-ink-400 underline">Delete this template</button>
+          <button type="button" onClick={() => confirm('Delete this template? Checklists already on projects are kept.') && deleteChecklistTemplate(pick.slice(3)).then(() => choose('')).catch((err) => setError(err.message))} className="min-h-[44px] mt-1 min-h-[44px] text-sm font-medium text-ink-400 underline">Delete this template</button>
         )}
       </div>
       <div>
@@ -99,8 +99,8 @@ function Item({ item, onError }) {
         </span>
       </label>
       <div className="flex gap-3 pl-8">
-        <button onClick={() => setOpen((o) => !o)} className="min-h-[36px] text-xs font-medium text-ink-600 underline" aria-label={`Note for ${item.text}`}>{item.note ? 'Edit note' : 'Add note'}</button>
-        <button onClick={() => run(() => deleteCheck(item.id))} className="min-h-[36px] text-xs font-medium text-ink-400 underline" aria-label={`Remove ${item.text}`}>Remove</button>
+        <button onClick={() => setOpen((o) => !o)} className="min-h-[44px] text-sm font-medium text-ink-600 underline" aria-label={`Note for ${item.text}`}>{item.note ? 'Edit note' : 'Add note'}</button>
+        <button onClick={() => run(() => deleteCheck(item.id))} className="min-h-[44px] text-sm font-medium text-ink-400 underline" aria-label={`Remove ${item.text}`}>Remove</button>
       </div>
       {open && (
         <div className="mt-1 flex gap-2 pl-8">
@@ -161,12 +161,12 @@ export default function ChecklistsPanel({ project }) {
             {isAdmin && (
               <button
                 onClick={() => run(async () => { await saveChecklistTemplate(l.name, l.items.map((i) => i.text)); setSaved(l.name) })}
-                className="mr-4 mt-2 min-h-[36px] text-xs font-medium text-ink-600 underline"
+                className="mr-4 mt-2 min-h-[44px] text-sm font-medium text-ink-600 underline"
                 aria-label={`Save ${l.name} as my template`}
               >{checkTemplates.some((t) => t.name === l.name) ? 'Update my template' : 'Save as my template'}</button>
             )}
             {saved === l.name && <span className="text-xs text-ink-600" role="status">Template saved.</span>}
-            <button onClick={() => confirm(`Delete the whole "${l.name}" checklist?`) && run(() => deleteChecklist(project.id, l.name))} className="mt-2 min-h-[36px] text-xs font-medium text-ink-400 underline" aria-label={`Delete checklist ${l.name}`}>Delete checklist</button>
+            <button onClick={() => confirm(`Delete the whole "${l.name}" checklist?`) && run(() => deleteChecklist(project.id, l.name))} className="mt-2 min-h-[44px] text-sm font-medium text-ink-400 underline" aria-label={`Delete checklist ${l.name}`}>Delete checklist</button>
           </section>
         )
       })}

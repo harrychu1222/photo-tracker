@@ -157,7 +157,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
       <div className="max-h-[92vh] w-full max-w-app overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">Add photos</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">
             ×
           </button>
         </div>
@@ -172,7 +172,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
                     <button
                       type="button"
                       onClick={() => removeFile(i)}
-                      className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white"
+                      className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-base text-white"
                       aria-label="Remove"
                     >
                       ×
@@ -245,7 +245,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
             </div>
           )}
 
-          <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} className="text-sm font-medium text-ink-600 underline">
+          <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} className="min-h-[44px] text-sm font-medium text-ink-600 underline">
             {more ? 'Hide extra details' : 'More details (category, status, tags, map)'}
           </button>
           {more && (
@@ -268,7 +268,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
                   type="button"
                   key={s.value}
                   onClick={() => setStatus(s.value)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                     status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                   }`}
                 >
@@ -285,7 +285,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
               <button
                 type="button"
                 onClick={() => setQuotingStatus('')}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                   quotingStatus === '' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >
@@ -296,7 +296,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
                   type="button"
                   key={s.value}
                   onClick={() => setQuotingStatus(s.value)}
-                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                     quotingStatus === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                   }`}
                 >
@@ -318,7 +318,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
               <button
                 type="button"
                 onClick={() => handleLocationMode('none')}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                   locationMode === 'none' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >
@@ -327,7 +327,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
               <button
                 type="button"
                 onClick={() => handleLocationMode('gps')}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                   locationMode === 'gps' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >
@@ -336,7 +336,7 @@ export default function UploadModal({ onClose, onUpload, suggestions = {}, proje
               <button
                 type="button"
                 onClick={() => handleLocationMode('address')}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                   locationMode === 'address' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >

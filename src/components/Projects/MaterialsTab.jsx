@@ -16,7 +16,7 @@ import {
 } from '../../lib/materials'
 
 const chip = (on) =>
-  `rounded-full border px-3 py-1 text-xs font-medium ${
+  `min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
     on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
   }`
 
@@ -193,7 +193,7 @@ export default function MaterialsTab({ project, finance }) {
         <div className="mb-4">
           <button
             onClick={() => setShowList((v) => !v)}
-            className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
+            className="min-h-[36px] rounded-full border border-ink-200 px-3.5 text-sm font-medium text-ink-600"
           >
             {showList ? 'Hide combined list' : `Combined list of what is shown (${shown.length})`}
           </button>
@@ -275,7 +275,7 @@ export default function MaterialsTab({ project, finance }) {
                                     type="button"
                                     onClick={() => advance(m)}
                                     aria-label={`${m.name} is ${st.label}. Tap to change`}
-                                    className="flex items-center gap-1.5 rounded-full bg-ink-50 px-2 py-0.5 text-xs font-medium text-ink-800"
+                                    className="min-h-[36px] flex items-center gap-1.5 rounded-full bg-ink-50 px-3.5 text-sm font-medium text-ink-800"
                                   >
                                     <span className="status-dot" style={{ backgroundColor: st.color }} />
                                     {st.label}

@@ -10,8 +10,8 @@ const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
 const primary = 'min-h-[44px] rounded-lg bg-signal-500 px-5 text-sm font-semibold text-ink-950 active:bg-signal-600 disabled:opacity-60'
 const secondary = 'min-h-[44px] rounded-lg border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-900'
-const small = 'min-h-[40px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900'
-const seg = (on) => `min-h-[40px] rounded-lg px-3 text-xs font-semibold ${on ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`
+const small = 'min-h-[44px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900'
+const seg = (on) => `min-h-[44px] rounded-lg px-3 text-xs font-semibold ${on ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`
 
 // ---------- Quote PDF ----------
 
@@ -70,7 +70,7 @@ function QuoteDialog({ project, quote, milestones, draft, onEditWording, onClose
       <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl" role="dialog" aria-label="Create quote PDF">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">Create quote PDF</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">×</button>
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">×</button>
         </div>
         <p className="mb-1 text-sm text-ink-600">Quote price: <b className="text-ink-900">{fmtMoney(quote)}</b> (GST included).</p>
         <p className="mb-3 text-sm text-ink-600">
@@ -350,14 +350,14 @@ export default function QuoteTab({ project, quote }) {
                         <button onClick={() => confirm(`Undo "${m.name}"? The payment it recorded is removed from Cash flow.`) && act(() => undoReceive(m))} className={small}>Undo received</button>
                       ) : receiving?.id === m.id ? (
                         <>
-                          <input type="date" value={receiving.date} onChange={(e) => setReceiving({ id: m.id, date: e.target.value })} aria-label={`Received on for ${m.name}`} className="min-h-[40px] rounded-lg border border-ink-200 px-2 text-sm" />
-                          <button onClick={() => act(async () => { await receiveMilestone(m, receiving.date); setReceiving(null) })} className="min-h-[40px] rounded-lg bg-ink-900 px-3 text-xs font-semibold text-white">Confirm</button>
+                          <input type="date" value={receiving.date} onChange={(e) => setReceiving({ id: m.id, date: e.target.value })} aria-label={`Received on for ${m.name}`} className="min-h-[44px] rounded-lg border border-ink-200 px-2 text-sm" />
+                          <button onClick={() => act(async () => { await receiveMilestone(m, receiving.date); setReceiving(null) })} className="min-h-[44px] min-h-[44px] rounded-lg bg-ink-900 px-3 text-sm font-semibold text-white">Confirm</button>
                           <button onClick={() => setReceiving(null)} className={small}>Cancel</button>
                         </>
                       ) : (
-                        <button onClick={() => setReceiving({ id: m.id, date: today })} className="min-h-[40px] rounded-lg bg-ink-900 px-3 text-xs font-semibold text-white" aria-label={`Mark ${m.name} received`}>Mark received</button>
+                        <button onClick={() => setReceiving({ id: m.id, date: today })} className="min-h-[44px] min-h-[44px] rounded-lg bg-ink-900 px-3 text-sm font-semibold text-white" aria-label={`Mark ${m.name} received`}>Mark received</button>
                       )}
-                      {!m.payment_id && <button onClick={() => confirm(`Delete "${m.name}"?`) && act(() => deleteMilestone(m.id))} className="min-h-[40px] px-2 text-xs font-medium text-ink-400 underline" aria-label={`Delete ${m.name}`}>Delete</button>}
+                      {!m.payment_id && <button onClick={() => confirm(`Delete "${m.name}"?`) && act(() => deleteMilestone(m.id))} className="min-h-[44px] min-h-[44px] px-2 text-sm font-medium text-ink-400 underline" aria-label={`Delete ${m.name}`}>Delete</button>}
                     </div>
                   </li>
                 )

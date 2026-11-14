@@ -65,7 +65,7 @@ export default function ExportDialog({ projects, snaps, onClose }) {
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 sm:max-w-md sm:rounded-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-bold text-ink-900">{many ? 'Export all projects' : `Export ${projects[0].name}`}</h3>
-          <button onClick={onClose} aria-label="Close" className="text-2xl leading-none text-ink-400">×</button>
+          <button onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400">×</button>
         </div>
         <p className="mb-3 text-sm text-ink-600">Spreadsheet (CSV) files that open in Excel or Numbers. Dates are dd/mm/yyyy; amounts are GST-included cash.</p>
         <fieldset className="mb-3">

@@ -47,7 +47,7 @@ export default function MaterialTimeline({ project }) {
       <h3 className="px-3 pt-3 text-xs font-bold uppercase tracking-[0.08em] text-ink-600">Delivery timeline</h3>
       <div ref={scroller} className="mt-2 overflow-x-auto">
         <div style={{ width: NAME_W + timeW }} className="relative">
-          <div className="flex h-7 border-y border-ink-200 bg-ink-50 text-[10px] text-ink-600">
+          <div className="flex h-7 border-y border-ink-200 bg-ink-50 text-xs text-ink-600">
             <div className="sticky left-0 z-20 border-r border-ink-200 bg-ink-50" style={{ width: NAME_W, minWidth: NAME_W }} />
             <div className="relative" style={{ width: timeW }}>
               {mondays.map((i) => (

@@ -102,7 +102,7 @@ export default function PlatformView() {
       {support && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-ink-100 bg-white p-3">
           <p className="text-sm text-ink-900">Viewing {support.companyName}</p>
-          <button onClick={stopSupport} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
+          <button onClick={stopSupport} className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-600">
             Stop viewing
           </button>
         </div>
@@ -120,13 +120,13 @@ export default function PlatformView() {
                 </p>
               </div>
               <div className="flex flex-shrink-0 gap-2">
-                <button onClick={() => look(c)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
+                <button onClick={() => look(c)} className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-600">
                   View inside
                 </button>
-                <button onClick={() => setAddFor(addFor === c.company_id ? null : c.company_id)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
+                <button onClick={() => setAddFor(addFor === c.company_id ? null : c.company_id)} className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-600">
                   Add code
                 </button>
-                <button onClick={() => setStatus(c)} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600">
+                <button onClick={() => setStatus(c)} className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-600">
                   {c.status === 'active' ? 'Suspend' : 'Reactivate'}
                 </button>
               </div>

@@ -143,7 +143,7 @@ export default function TeamView() {
               <button
                 onClick={() => setRole(p, p.role === 'admin' ? 'crew' : 'admin')}
                 disabled={busyId === p.id}
-                className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-ink-600 disabled:opacity-60"
+                className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-ink-600 disabled:opacity-60"
               >
                 {p.role === 'admin' ? 'Make crew' : 'Make admin'}
               </button>
@@ -152,7 +152,7 @@ export default function TeamView() {
                   onClick={() => removePerson(p)}
                   disabled={busyId === p.id}
                   aria-label={`Remove ${p.email}`}
-                  className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-status-blocked disabled:opacity-60"
+                  className="min-h-[44px] rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-status-blocked disabled:opacity-60"
                 >
                   Remove
                 </button>
@@ -172,7 +172,7 @@ export default function TeamView() {
                   onClick={() => restorePerson(p)}
                   disabled={busyId === p.id}
                   aria-label={`Restore ${p.email}`}
-                  className="flex-shrink-0 rounded-lg border border-ink-200 px-2 py-1 font-medium"
+                  className="min-h-[44px] flex-shrink-0 rounded-lg border border-ink-200 px-2 font-medium"
                 >
                   Restore
                 </button>
@@ -218,7 +218,7 @@ export default function TeamView() {
                     <span className="font-mono">{i.code}</span> · {i.role === 'admin' ? 'Admin' : 'Crew'}
                     {i.label ? ` · ${i.label}` : ''}
                   </span>
-                  <button onClick={() => removeInvite(i.code)} className="flex-shrink-0 rounded-lg border border-ink-200 px-2 py-1 font-medium">
+                  <button onClick={() => removeInvite(i.code)} className="min-h-[44px] flex-shrink-0 rounded-lg border border-ink-200 px-2 font-medium">
                     Remove
                   </button>
                 </li>

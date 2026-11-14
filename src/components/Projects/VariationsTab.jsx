@@ -4,7 +4,7 @@ import { fmtDate, fmtMoney } from '../../lib/format'
 
 const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-base focus:border-signal-500'
 const labelClass = 'mb-1 block text-sm font-medium text-ink-800'
-const chip = (on) => `whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const chip = (on) => `whitespace-nowrap min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
 const STATUSES = [
   { value: 'pending', label: 'Pending', cls: 'bg-[#FBEAD2] text-[#7A4B05]' },
   { value: 'approved', label: 'Approved', cls: 'bg-[#DDEBDD] text-[#1F5A2B]' },
@@ -163,13 +163,13 @@ export default function VariationsTab({ project }) {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {v.status === 'pending' ? (
                     <>
-                      <button onClick={() => setEditing({ ...v, status: 'approved' })} className="min-h-[40px] rounded-lg bg-ink-900 px-3 text-xs font-semibold text-white" aria-label={`Approve variation ${v.number}`}>Approve</button>
-                      <button onClick={() => decide(v, 'declined')} className="min-h-[40px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900" aria-label={`Decline variation ${v.number}`}>Declined</button>
+                      <button onClick={() => setEditing({ ...v, status: 'approved' })} className="min-h-[44px] min-h-[44px] rounded-lg bg-ink-900 px-3 text-sm font-semibold text-white" aria-label={`Approve variation ${v.number}`}>Approve</button>
+                      <button onClick={() => decide(v, 'declined')} className="min-h-[44px] min-h-[44px] rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900" aria-label={`Decline variation ${v.number}`}>Declined</button>
                     </>
                   ) : (
-                    <button onClick={() => decide(v, 'pending')} className="min-h-[40px] rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-900" aria-label={`Reopen variation ${v.number}`}>Back to pending</button>
+                    <button onClick={() => decide(v, 'pending')} className="min-h-[44px] min-h-[44px] rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900" aria-label={`Reopen variation ${v.number}`}>Back to pending</button>
                   )}
-                  <button onClick={() => act(() => deleteVariation(v.id))} className="min-h-[40px] px-2 text-xs font-medium text-ink-400 underline" aria-label={`Delete variation ${v.number}`}>Delete</button>
+                  <button onClick={() => act(() => deleteVariation(v.id))} className="min-h-[44px] min-h-[44px] px-2 text-sm font-medium text-ink-400 underline" aria-label={`Delete variation ${v.number}`}>Delete</button>
                 </div>
               </li>
             )

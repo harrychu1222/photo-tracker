@@ -137,7 +137,7 @@ export default function ClientShareDialog({ project, photos, tasks, onClose }) {
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 sm:max-w-lg sm:rounded-2xl">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-lg font-bold text-ink-900">Share progress with {project.name}'s client</h3>
-          <button onClick={onClose} aria-label="Close" className="text-2xl leading-none text-ink-400">×</button>
+          <button onClick={onClose} aria-label="Close" className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400">×</button>
         </div>
         <p className="mb-3 text-sm text-ink-600">The client sees your schedule (tasks, rooms, dates, progress) and photos. Never money, notes, hours, defects or worker names. Anyone with the link can view it, so only send it to your client.</p>
         {error && <p className="mb-2 text-sm text-status-blocked" role="alert">{error}</p>}
@@ -181,9 +181,9 @@ export default function ClientShareDialog({ project, photos, tasks, onClose }) {
               ) : (
                 <>
                   <div className="mb-2 flex gap-3 text-sm">
-                    <button onClick={() => setPicked(new Set(photos.map((p) => p.id)))} className="min-h-[40px] font-medium text-ink-600 underline">Select all</button>
-                    <button onClick={() => setPicked(new Set())} className="min-h-[40px] font-medium text-ink-600 underline">Select none</button>
-                    <button onClick={() => setPicked(new Set(photos.filter(isDefault).map((p) => p.id)))} className="min-h-[40px] font-medium text-ink-600 underline">Completed tasks only</button>
+                    <button onClick={() => setPicked(new Set(photos.map((p) => p.id)))} className="min-h-[44px] font-medium text-ink-600 underline">Select all</button>
+                    <button onClick={() => setPicked(new Set())} className="min-h-[44px] font-medium text-ink-600 underline">Select none</button>
+                    <button onClick={() => setPicked(new Set(photos.filter(isDefault).map((p) => p.id)))} className="min-h-[44px] font-medium text-ink-600 underline">Completed tasks only</button>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {photos.map((p, i) => {
@@ -192,7 +192,7 @@ export default function ClientShareDialog({ project, photos, tasks, onClose }) {
                         <label key={p.id} className={`relative block overflow-hidden rounded-lg border-2 ${picked.has(p.id) ? 'border-signal-500' : 'border-ink-100'}`}>
                           {p.url ? <img src={p.url} alt="" className="aspect-square w-full object-cover" /> : <span className="block aspect-square bg-ink-100" />}
                           <input type="checkbox" checked={picked.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Share photo ${i + 1}`} className="absolute left-1.5 top-1.5 h-5 w-5" />
-                          <span className="block truncate px-1.5 py-1 text-[11px] text-ink-600">{t ? `${t.name}${t.status === 'done' ? ' ✓' : ''}` : 'No task'}</span>
+                          <span className="block truncate px-1.5 py-1 text-xs text-ink-600">{t ? `${t.name}${t.status === 'done' ? ' ✓' : ''}` : 'No task'}</span>
                         </label>
                       )
                     })}

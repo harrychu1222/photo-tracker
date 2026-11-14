@@ -25,7 +25,7 @@ const SCALES = [
 const fmtShort = (d) => fmtDate(d)
 
 const chip = (on) =>
-  `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
+  `min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
 
 // View-only timeline of the project's tasks: planned bars, progress, actual dates, dependency arrows.
 export default function GanttTab({ project, level = 'all', onLevel = () => {} }) {
@@ -115,7 +115,7 @@ export default function GanttTab({ project, level = 'all', onLevel = () => {} })
       {!isDesktop && (
         <div role="group" aria-label="Schedule view" className="mb-3 flex gap-1 rounded-xl bg-ink-100 p-1">
           {[['agenda', 'Agenda'], ['timeline', 'Timeline']].map(([id, label]) => (
-            <button key={id} onClick={() => setView(id)} aria-pressed={activeView === id} className={`min-h-[40px] flex-1 rounded-lg text-sm font-semibold ${activeView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}>
+            <button key={id} onClick={() => setView(id)} aria-pressed={activeView === id} className={`min-h-[44px] flex-1 rounded-lg text-sm font-semibold ${activeView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}>
               {label}
             </button>
           ))}
@@ -176,7 +176,7 @@ export default function GanttTab({ project, level = 'all', onLevel = () => {} })
           <div style={{ width: NAME_W + timeW, position: 'relative' }}>
             {/* header */}
             <div className="flex" style={{ height: HEAD_H }}>
-              <div className="sticky left-0 z-20 flex items-end border-b border-r border-ink-200 bg-ink-50 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-600" style={{ width: NAME_W, minWidth: NAME_W }}>
+              <div className="sticky left-0 z-20 flex items-end border-b border-r border-ink-200 bg-ink-50 pb-1 text-xs font-semibold uppercase tracking-wide text-ink-600" style={{ width: NAME_W, minWidth: NAME_W }}>
                 <span className="flex-1 px-2">Task</span>
                 {isDesktop && (
                   <>
@@ -189,7 +189,7 @@ export default function GanttTab({ project, level = 'all', onLevel = () => {} })
                 {g.months.map((m) => (
                   <div
                     key={m.label}
-                    className="absolute top-0 truncate border-r border-ink-200 px-1 text-[10px] font-semibold text-ink-800"
+                    className="absolute top-0 truncate border-r border-ink-200 px-1 text-xs font-semibold text-ink-800"
                     style={{ left: m.startOff * dw, width: m.len * dw, height: 18 }}
                   >
                     {m.label}
@@ -211,7 +211,7 @@ export default function GanttTab({ project, level = 'all', onLevel = () => {} })
               <div className="sticky left-0 z-20 float-left bg-white" style={{ width: NAME_W }}>
                 {placed.map((r) =>
                   r.type === 'group' ? (
-                    <div key={`g-${r.title}`} className="truncate border-b border-r border-ink-200 bg-ink-50 px-2 text-[10px] font-semibold uppercase tracking-wide text-ink-600" style={{ height: r.h, lineHeight: `${r.h}px` }}>
+                    <div key={`g-${r.title}`} className="truncate border-b border-r border-ink-200 bg-ink-50 px-2 text-xs font-semibold uppercase tracking-wide text-ink-600" style={{ height: r.h, lineHeight: `${r.h}px` }}>
                       {r.title}
                     </div>
                   ) : (
@@ -270,7 +270,7 @@ export default function GanttTab({ project, level = 'all', onLevel = () => {} })
                         >
                           <span className="absolute inset-y-0 left-0" style={{ width: `${b.progress}%`, backgroundColor: color }} />
                           {b.len * dw > 52 && (
-                            <span className="relative px-1 text-[10px] font-medium leading-4 text-ink-900">{b.progress > 0 ? `${b.progress}%` : ''}</span>
+                            <span className="relative px-1 text-xs font-medium leading-4 text-ink-900">{b.progress > 0 ? `${b.progress}%` : ''}</span>
                           )}
                         </button>
                         {b.actual && (

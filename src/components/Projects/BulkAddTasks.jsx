@@ -57,7 +57,7 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
       <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">Add many tasks</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">
             ×
           </button>
         </div>
@@ -76,7 +76,7 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
           placeholder={EXAMPLE}
           autoFocus
         />
-        <button type="button" onClick={() => setText(EXAMPLE)} className="mt-1 text-xs font-medium text-signal-600">
+        <button type="button" onClick={() => setText(EXAMPLE)} className="mt-1 min-h-[44px] text-sm font-medium text-signal-600">
           Fill in an example
         </button>
 
@@ -112,7 +112,7 @@ export default function BulkAddTasks({ project, defaultRoomId, onClose }) {
                 type="button"
                 key={r.id}
                 onClick={() => toggle(r.id)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                   picked.includes(r.id) ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                 }`}
               >

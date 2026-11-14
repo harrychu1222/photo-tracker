@@ -56,7 +56,7 @@ export function UndoProvider({ children }) {
         >
           <span className="min-w-0 truncate">{failed || toast.label}</span>
           {!failed && toast.undo && (
-            <button onClick={run} disabled={busy} className="flex-none rounded-lg px-3 py-1.5 text-sm font-semibold text-signal-400 disabled:opacity-60">
+            <button onClick={run} disabled={busy} className="min-h-[44px] flex-none rounded-lg px-3 .5 text-sm font-semibold text-signal-400 disabled:opacity-60">
               Undo
             </button>
           )}

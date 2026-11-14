@@ -49,7 +49,7 @@ export default function TemplateTasks({ project, defaultRoomId, onClose }) {
       <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl" role="dialog" aria-label="Add tasks from a template">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">Add tasks from a template</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">×</button>
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">×</button>
         </div>
         {rooms.length === 0 ? (
           <p className="text-sm text-ink-600">Add a room first (Plan &gt; Measurements), then its tasks can come from a template.</p>

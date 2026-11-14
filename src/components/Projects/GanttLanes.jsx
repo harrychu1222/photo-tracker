@@ -53,14 +53,14 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
         <div className="flex border-t-[6px] border-ink-200" style={{ height: 66 }} data-testid="lane-deliveries">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Deliveries</span>
-            <span className="text-[10px] text-ink-600">Expected and arrived</span>
+            <span className="text-xs text-ink-600">Expected and arrived</span>
           </div>
           <div className="relative border-b border-ink-200" style={{ width: timeW }}>
-            {marks.length === 0 && <span className="absolute left-2 top-4 text-[11px] text-ink-400">No expected delivery dates yet</span>}
+            {marks.length === 0 && <span className="absolute left-2 top-4 text-xs text-ink-400">No expected delivery dates yet</span>}
             {marks.map((m, i) => (
               <div key={m.id} data-testid={`delivery-${m.id}`} className="absolute" style={{ left: (off(m.day) + 0.5) * dw, top: i % 2 ? 32 : 6 }}>
                 <span className="block h-3 w-3 -translate-x-1/2 rotate-45 rounded-[3px]" style={{ backgroundColor: m.color }} />
-                <span className="absolute left-2 top-0 whitespace-nowrap text-[10px] font-semibold" style={{ color: m.late ? '#7A2A1D' : '#2B3947' }}>
+                <span className="absolute left-2 top-0 whitespace-nowrap text-xs font-semibold" style={{ color: m.late ? '#7A2A1D' : '#2B3947' }}>
                   {m.name}{m.late ? ' (late)' : ''}
                 </span>
               </div>
@@ -73,10 +73,10 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
         <div className="flex border-t-[6px] border-ink-200" style={{ height: 70 }} data-testid="lane-hours">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Hours logged</span>
-            <span className="text-[10px] text-ink-600">Per week</span>
+            <span className="text-xs text-ink-600">Per week</span>
           </div>
           <div className="relative border-b border-ink-200" style={{ width: timeW }}>
-            {weekList.length === 0 && <span className="absolute left-2 top-5 text-[11px] text-ink-400">No hours logged yet</span>}
+            {weekList.length === 0 && <span className="absolute left-2 top-5 text-xs text-ink-400">No hours logged yet</span>}
             {weekList.map(([w, h]) => (
               <div
                 key={w}
@@ -85,7 +85,7 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
                 style={{ left: Math.max(0, off(w)) * dw + 1, width: Math.max(7 * dw - 2, 14), height: Math.max(4, (h / maxHours) * 44) }}
                 title={`Week of ${fmtDate(w)}: ${Number(h.toFixed(2))} h`}
               >
-                <span className="absolute -top-4 left-0 whitespace-nowrap text-[10px] font-semibold text-ink-800">{Number(h.toFixed(1))} h</span>
+                <span className="absolute -top-4 left-0 whitespace-nowrap text-xs font-semibold text-ink-800">{Number(h.toFixed(1))} h</span>
               </div>
             ))}
           </div>
@@ -96,10 +96,10 @@ export default function GanttLanes({ range, dw, nameW, timeW, today, materials, 
         <div className="flex border-t-[6px] border-ink-200" style={{ height: CH + 30 }} data-testid="lane-cash">
           <div className={label} style={{ width: nameW, minWidth: nameW }}>
             <span className="text-xs font-semibold text-ink-900">Cash flow</span>
-            <span className="mt-1 text-[10px] font-semibold text-[#7A4B05]">Spent {short(lastPoint.spent)}</span>
-            <span className="text-[10px] font-semibold text-ink-900">Received {short(lastPoint.received)}</span>
+            <span className="mt-1 text-xs font-semibold text-[#7A4B05]">Spent {short(lastPoint.spent)}</span>
+            <span className="text-xs font-semibold text-ink-900">Received {short(lastPoint.received)}</span>
             {ticks.map((v) => (
-              <span key={v} className="absolute right-1.5 text-[10px] tabular-nums text-ink-600" style={{ top: cy(v) - 6 }} data-testid={`axis-${Math.round(v)}`}>
+              <span key={v} className="absolute right-1.5 text-xs tabular-nums text-ink-600" style={{ top: cy(v) - 6 }} data-testid={`axis-${Math.round(v)}`}>
                 {short(v)}
               </span>
             ))}

@@ -84,7 +84,7 @@ export default function TemplateChecklist({ label, type, value, onChange, mine, 
                           <button type="button" onClick={() => edit(i, { materials: it.materials.filter((_, x) => x !== k) })} aria-label={`Remove material ${m[0] || k + 1} from ${it.name} in ${label}`} className="min-h-[36px] px-1.5 text-lg leading-none text-ink-400">×</button>
                         </div>
                       ))}
-                      <button type="button" onClick={() => edit(i, { materials: [...(it.materials || []), ['', 1, '']] })} aria-label={`Add material to ${it.name} in ${label}`} className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600">+ Material</button>
+                      <button type="button" onClick={() => edit(i, { materials: [...(it.materials || []), ['', 1, '']] })} aria-label={`Add material to ${it.name} in ${label}`} className="min-h-[44px] rounded-lg border border-ink-200 px-3 .5 text-sm font-medium text-ink-600">+ Material</button>
                     </div>
                     <div className="space-y-1.5">
                       {(it.equipment || []).map((e, k) => (
@@ -93,7 +93,7 @@ export default function TemplateChecklist({ label, type, value, onChange, mine, 
                           <button type="button" onClick={() => edit(i, { equipment: it.equipment.filter((_, x) => x !== k) })} aria-label={`Remove tool ${e || k + 1} from ${it.name} in ${label}`} className="min-h-[36px] px-1.5 text-lg leading-none text-ink-400">×</button>
                         </div>
                       ))}
-                      <button type="button" onClick={() => edit(i, { equipment: [...(it.equipment || []), ''] })} aria-label={`Add tool to ${it.name} in ${label}`} className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600">+ Tool</button>
+                      <button type="button" onClick={() => edit(i, { equipment: [...(it.equipment || []), ''] })} aria-label={`Add tool to ${it.name} in ${label}`} className="min-h-[44px] rounded-lg border border-ink-200 px-3 .5 text-sm font-medium text-ink-600">+ Tool</button>
                     </div>
                   </div>
                 )}

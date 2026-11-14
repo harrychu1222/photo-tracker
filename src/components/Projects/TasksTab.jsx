@@ -185,11 +185,15 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
             onClick={() => toggleDone(task)}
             disabled={busyId === task.id}
             aria-label={task.status === 'done' ? 'Mark as not done' : 'Mark as done'}
-            className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold disabled:opacity-50 ${
-              task.status === 'done' ? 'border-status-done bg-status-done text-white' : 'border-ink-200 text-transparent'
-            }`}
+            className="-my-2 -ml-2.5 -mr-2 flex h-11 w-11 flex-shrink-0 items-center justify-center disabled:opacity-50"
           >
-            ✓
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs font-bold ${
+                task.status === 'done' ? 'border-status-done bg-status-done text-white' : 'border-ink-200 text-transparent'
+              }`}
+            >
+              ✓
+            </span>
           </button>
 
           <button onClick={() => setEditing(task)} className="min-w-0 flex-1 text-left">

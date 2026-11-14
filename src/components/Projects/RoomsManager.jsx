@@ -27,7 +27,7 @@ function RoomRow({ room, taskCount, photoCount, canDelete, onRename, onDelete })
               setBusy(false)
             }
           }}
-          className="flex-shrink-0 rounded-lg bg-ink-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+          className="min-h-[44px] flex-shrink-0 rounded-lg bg-ink-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           Save
         </button>
@@ -36,7 +36,7 @@ function RoomRow({ room, taskCount, photoCount, canDelete, onRename, onDelete })
           <button
             type="button"
             onClick={() => onDelete(room, taskCount, photoCount)}
-            className="flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-xs font-medium text-status-blocked"
+            className="min-h-[44px] flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-sm font-medium text-status-blocked"
           >
             Delete
           </button>
@@ -122,7 +122,7 @@ export default function RoomsManager({ project, photos }) {
           type="button"
           onClick={handleAdd}
           disabled={busy}
-          className="flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950 disabled:opacity-60"
+          className="min-h-[44px] flex-shrink-0 rounded-lg bg-signal-500 px-4 text-sm font-medium text-ink-950 disabled:opacity-60"
         >
           Add
         </button>

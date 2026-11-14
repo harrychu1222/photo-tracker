@@ -6,7 +6,7 @@ import { fmtDate, fmtMoney } from '../../lib/format'
 import { EXPENSE_CATEGORIES, categoryLabel, sortExpenses, totalsByCategory } from '../../lib/expenses'
 
 const chip = (on) =>
-  `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
+  `min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
 
 // Money actually spent. Admins see every expense and the totals; crew see and manage only the
 // ones they entered themselves, with no totals.
@@ -54,7 +54,7 @@ export default function ExpensesTab({ project }) {
           onDone={() => setEditing(null)}
         />
       ) : (
-        <button onClick={() => setEditing('new')} className="mb-4 rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white">
+        <button onClick={() => setEditing('new')} className="mb-4 min-h-[44px] rounded-full bg-ink-900 px-5 text-sm font-semibold text-white">
           + Add expense
         </button>
       )}
@@ -125,7 +125,7 @@ export default function ExpensesTab({ project }) {
               </p>
               <div className="mt-2 flex gap-3 text-xs font-medium">
                 {e.receipt_path && (
-                  <button onClick={() => showReceipt(e)} className="text-signal-600">
+                  <button onClick={() => showReceipt(e)} className="min-h-[44px] text-signal-600">
                     View receipt
                   </button>
                 )}

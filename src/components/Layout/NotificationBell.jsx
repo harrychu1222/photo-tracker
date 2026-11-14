@@ -15,7 +15,7 @@ export default function NotificationBell({ onOpenProject, className = '', label 
         <Icon name="bell" size={label ? 16 : 20} />
         {label && 'Notifications'}
         {unread > 0 && (
-          <span className={`absolute flex h-4 min-w-[16px] items-center justify-center rounded-full bg-signal-500 px-1 text-[10px] font-bold text-ink-950 ${label ? 'right-2 top-2' : 'right-0.5 top-0.5'}`}>{unread > 9 ? '9+' : unread}</span>
+          <span className={`absolute flex h-5 min-w-[20px] items-center justify-center rounded-full bg-signal-500 px-1 text-xs font-bold text-ink-950 ${label ? 'right-2 top-2' : 'right-0.5 top-0.5'}`}>{unread > 9 ? '9+' : unread}</span>
         )}
       </button>
       {open && createPortal(<NotificationsPanel onClose={() => setOpen(false)} onOpen={onOpenProject} />, document.body)}

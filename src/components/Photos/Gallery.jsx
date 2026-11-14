@@ -68,7 +68,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete, pr
         <div className="flex gap-1.5">
           <button
             onClick={() => setView('gallery')}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
               view === 'gallery' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -76,7 +76,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete, pr
           </button>
           <button
             onClick={() => setView('map')}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
               view === 'map' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -84,7 +84,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete, pr
           </button>
           <button
             onClick={() => setView('timeline')}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
               view === 'timeline' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -95,7 +95,7 @@ export default function Gallery({ photos, loading, error, onUpdate, onDelete, pr
         {view === 'gallery' && (
           <button
             onClick={toggleCompareMode}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
               compareMode ? 'border-signal-500 bg-signal-100 text-signal-600' : 'border-ink-200 text-ink-600'
             }`}
           >

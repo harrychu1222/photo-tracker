@@ -184,7 +184,7 @@ function RateRow({ name, rate, onSave }) {
         onClick={save}
         disabled={!changed}
         aria-label={`Save rate for ${name}`}
-        className="rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-800 disabled:opacity-40"
+        className="min-h-[44px] rounded-lg border border-ink-200 px-2.5 .5 text-sm font-medium text-ink-800 disabled:opacity-40"
       >
         Save
       </button>
@@ -248,10 +248,10 @@ function LumpForm({ project, lump, onDone }) {
       )}
       {error && <p className="text-sm text-status-blocked">{error}</p>}
       <div className="flex gap-2">
-        <button type="submit" disabled={busy} className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+        <button type="submit" disabled={busy} className="min-h-[44px] rounded-lg bg-ink-900 px-3 .5 text-sm font-medium text-white disabled:opacity-60">
           {lump ? 'Save changes' : 'Save lump sum'}
         </button>
-        <button type="button" onClick={onDone} className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600">
+        <button type="button" onClick={onDone} className="min-h-[44px] rounded-lg border border-ink-200 px-3 .5 text-sm font-medium text-ink-600">
           Cancel
         </button>
       </div>
@@ -306,7 +306,7 @@ export default function TimeTab({ project }) {
       {editing ? (
         <TimeForm key={editing === 'new' ? 'new' : editing.id} project={project} entry={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
       ) : (
-        <button onClick={() => setEditing('new')} className="mb-4 rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white">
+        <button onClick={() => setEditing('new')} className="mb-4 min-h-[44px] rounded-full bg-ink-900 px-5 text-sm font-semibold text-white">
           + Log hours
         </button>
       )}
@@ -365,7 +365,7 @@ export default function TimeTab({ project }) {
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-ink-800">Lump sums (subcontracted or fixed-price work)</p>
               {!lumpEditing && (
-                <button onClick={() => setLumpEditing('new')} className="text-xs font-medium text-signal-600">
+                <button onClick={() => setLumpEditing('new')} className="min-h-[44px] text-sm font-medium text-signal-600">
                   + Add lump sum
                 </button>
               )}
@@ -399,7 +399,7 @@ export default function TimeTab({ project }) {
             </ul>
           </div>
 
-          <button onClick={() => setShowRates((v) => !v)} className="mt-3 text-xs font-medium text-signal-600">
+          <button onClick={() => setShowRates((v) => !v)} className="mt-3 min-h-[44px] text-sm font-medium text-signal-600">
             {showRates ? 'Hide usual hourly rates' : 'Usual hourly rates'}
           </button>
           {showRates && (

@@ -12,7 +12,7 @@ export default function SiteTab({ project }) {
   const open = lists.filter((l) => !listProgress(l.items).complete).length
   if (siteError) return <p className="text-sm text-status-blocked">{siteError}</p>
   const btn = (id, label) => (
-    <button key={id} onClick={() => setView(id)} aria-pressed={view === id} className={`min-h-[40px] rounded-full border px-4 text-sm font-medium ${view === id ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-800'}`}>{label}</button>
+    <button key={id} onClick={() => setView(id)} aria-pressed={view === id} className={`min-h-[44px] rounded-full border px-4 text-sm font-medium ${view === id ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-800'}`}>{label}</button>
   )
   return (
     <div>

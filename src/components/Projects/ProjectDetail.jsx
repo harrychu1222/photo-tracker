@@ -207,7 +207,7 @@ export default function ProjectDetail({
                   key={t.id}
                   onClick={() => (tab === 'plan' ? setPlanTab(t.id) : setMoneyTab(t.id))}
                   aria-pressed={on}
-                  className={`min-h-[40px] flex-1 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${
+                  className={`min-h-[44px] flex-1 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${
                     on ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'
                   }`}
                 >
@@ -244,7 +244,7 @@ export default function ProjectDetail({
                   key={id}
                   onClick={() => setTaskView(id)}
                   aria-pressed={taskView === id}
-                  className={`min-h-[40px] rounded-lg px-4 text-sm font-semibold ${taskView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}
+                  className={`min-h-[44px] rounded-lg px-4 text-sm font-semibold ${taskView === id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-600'}`}
                 >
                   {label}
                 </button>

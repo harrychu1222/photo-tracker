@@ -98,7 +98,7 @@ export default function PhotoDetail({
       <div className="max-h-[92vh] w-full max-w-app overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">Photo details</h2>
-          <button onClick={onClose} className="text-2xl leading-none text-ink-400" aria-label="Close">
+          <button onClick={onClose} className="-mr-2 flex h-11 w-11 items-center justify-center text-2xl leading-none text-ink-400" aria-label="Close">
             ×
           </button>
         </div>
@@ -159,7 +159,7 @@ export default function PhotoDetail({
                   <button
                     key={s.value}
                     onClick={() => setStatus(s.value)}
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                       status === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                     }`}
                   >
@@ -174,7 +174,7 @@ export default function PhotoDetail({
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setQuotingStatus('')}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  className={`min-h-[36px] rounded-full border px-3.5 text-sm font-medium ${
                     quotingStatus === '' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                   }`}
                 >
@@ -184,7 +184,7 @@ export default function PhotoDetail({
                   <button
                     key={s.value}
                     onClick={() => setQuotingStatus(s.value)}
-                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    className={`min-h-[36px] flex items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium ${
                       quotingStatus === s.value ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
                     }`}
                   >
@@ -284,7 +284,7 @@ export default function PhotoDetail({
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 rounded-lg border border-status-blocked py-2.5 text-sm font-medium text-status-blocked"
+                  className="flex-1 min-h-[44px] rounded-lg border border-status-blocked text-sm font-medium text-status-blocked"
                 >
                   Delete
                 </button>
