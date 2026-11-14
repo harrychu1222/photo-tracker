@@ -6,6 +6,8 @@ import CopyTasks from './CopyTasks'
 import TemplateTasks from './TemplateTasks'
 import LevelFilter from './LevelFilter'
 import WhoFilter from './WhoFilter'
+import MoreMenu from '../ui/MoreMenu'
+import ScrollFade from '../ui/ScrollFade'
 import { assigneeLabel, matchWho } from '../../lib/people'
 import { roomsInLevel } from '../../lib/levels'
 import { roomTypeOf, templateKeyFor } from '../../lib/templates'
@@ -271,8 +273,8 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-ink-800">Tasks ({tasks.length})</h3>
           {tasks.length > 0 && (
             <p className="text-xs text-ink-400">
@@ -281,43 +283,24 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
             </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {isAdmin && (
-            <>
-          <button
-            onClick={() => setShowRooms((v) => !v)}
-            className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
-          >
-            {showRooms ? 'Hide rooms' : `Rooms (${rooms.length})`}
-          </button>
-          {tasks.length > 0 && rooms.length > 0 && (
-            <button
-              onClick={() => setShowCopy(true)}
-              className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
-            >
-              Copy to rooms
-            </button>
-          )}
-          <button
-            onClick={() => { setTplRoom(null); setShowTpl(true) }}
-            className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
-          >
-            From template
-          </button>
-          <button
-            onClick={() => setShowBulk(true)}
-            className="rounded-full border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600"
-          >
-            Add many
-          </button>
-            </>
-          )}
+        <div className="flex flex-none items-center gap-2">
           <button
             onClick={() => setEditing('new')}
-            className="rounded-full bg-signal-500 px-4 py-1.5 text-sm font-medium text-ink-950"
+            className="min-h-[44px] rounded-lg bg-signal-500 px-5 text-sm font-semibold text-ink-950 active:bg-signal-600"
           >
             + Add task
           </button>
+          {isAdmin && (
+            <MoreMenu
+              label="Task options"
+              items={[
+                { label: showRooms ? 'Hide rooms' : `Rooms (${rooms.length})`, icon: 'projects', onClick: () => setShowRooms((v) => !v) },
+                tasks.length > 0 && rooms.length > 0 && { label: 'Copy to rooms', icon: 'plus', onClick: () => setShowCopy(true) },
+                { label: 'From template', icon: 'plus', onClick: () => { setTplRoom(null); setShowTpl(true) } },
+                { label: 'Add many', icon: 'plus', onClick: () => setShowBulk(true) }
+              ]}
+            />
+          )}
         </div>
       </div>
 
@@ -341,10 +324,10 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
       <WhoFilter who={who} onWho={onWho} />
       <LevelFilter rooms={allRooms} level={level} onLevel={onLevel} />
       {tasks.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <ScrollFade watch={roomFilter} wrapperClassName="mb-3" className="flex items-center gap-2 overflow-x-auto md:flex-wrap">
           <button
             onClick={() => setRoomFilter('all')}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            className={`min-h-[36px] flex-none whitespace-nowrap rounded-full border px-3.5 text-sm font-medium ${
               roomFilter === 'all' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
             }`}
           >
@@ -354,7 +337,7 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
             <button
               key={r.id}
               onClick={() => setRoomFilter(roomFilter === r.id ? 'all' : r.id)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              className={`min-h-[36px] flex-none whitespace-nowrap rounded-full border px-3.5 text-sm font-medium ${
                 roomFilter === r.id ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
               }`}
             >
@@ -364,18 +347,18 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
           {tasks.some((t) => !t.room_id) && rooms.length > 0 && (
             <button
               onClick={() => setRoomFilter(roomFilter === 'none' ? 'all' : 'none')}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              className={`min-h-[36px] flex-none whitespace-nowrap rounded-full border px-3.5 text-sm font-medium ${
                 roomFilter === 'none' ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'
               }`}
             >
               No room
             </button>
           )}
-        </div>
+        </ScrollFade>
       )}
 
       {tasks.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-600">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-ink-600">
           <div className="flex overflow-hidden rounded-full border border-ink-200">
             {[
               { id: 'chains', label: 'By dependency' },
@@ -385,14 +368,14 @@ export default function TasksTab({ project, photos, level = 'all', onLevel = () 
                 key={l.id}
                 onClick={() => setLayout(l.id)}
                 aria-pressed={layout === l.id}
-                className={`px-3 py-1 font-medium ${layout === l.id ? 'bg-ink-900 text-white' : 'text-ink-600'}`}
+                className={`min-h-[36px] px-3.5 text-sm font-medium ${layout === l.id ? 'bg-ink-900 text-white' : 'text-ink-600'}`}
               >
                 {l.label}
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
+          <label className="flex min-h-[36px] items-center gap-2">
+            <input type="checkbox" className="h-4 w-4" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
             Hide done
           </label>
         </div>

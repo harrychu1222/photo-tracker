@@ -11,9 +11,9 @@ export function statusMeta(value) {
 
 export const PROJECT_STATUSES = [
   { value: 'quoting', label: 'Quoting', color: '#3E6FD9' },
-  { value: 'active', label: 'Active', color: '#D98E1F' },
+  { value: 'active', label: 'Active', color: '#3E8E5D' },
   { value: 'on_hold', label: 'On hold', color: '#8598A6' },
-  { value: 'complete', label: 'Complete', color: '#3E8E5D' }
+  { value: 'complete', label: 'Complete', color: '#4B5C6B' }
 ]
 
 export function projectStatusMeta(value) {

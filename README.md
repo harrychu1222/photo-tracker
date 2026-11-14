@@ -584,3 +584,21 @@ No migration needed.
 Without steps 1 to 4 everything still works in the bell; the phone and email options just stay hidden.
 
 Not included: payments overdue (there is no due date on payments yet) and client approvals (they come with the client link).
+
+## Stage 8a: layout clean-up (phone and desktop)
+
+No migration. Visual changes only:
+- **Bottom bar** (phone): taller, every item in an equal-width slot, one icon and label size, Add (photo) in the same row instead of floating, and room for the iPhone Home bar.
+- **Top bar** (phone): logo on one line, bell, search, and an account menu (company, email, Send feedback, Sign out).
+- **Projects list**: two compact summary strips instead of seven big cards, one-row scrolling status filters, and Export all moved into the "..." menu next to New project.
+- **My Day**: Start/Done and Photo/Note as equal two-column buttons; the project name opens the project.
+- **Dates**: shorter in lists ("14 Nov – 15 Nov", year shown only when it is not this year).
+- **Desktop**: Search is in the main menu and Send feedback has its own icon.
+
+## Stage 8b: project screen clean-up
+
+No migration. Visual changes only:
+- **Project top bar:** back link on one line, **Edit** beside a "..." menu holding Share with client, Export and Mute/Unmute alerts. A small "Alerts muted" tag shows when a job is muted.
+- **Tasks:** one clear **+ Add task** button; Rooms, Copy to rooms, From template and Add many are in the "..." menu next to it. Room filters are a single scrolling row.
+- **Scrolling rows** (project sections, Plan/Money views, status and room filters) fade at the right edge while there is more to scroll to, and the current one is scrolled into view.
+- **Colours:** project status Active is now green and Complete is slate, so orange only means "an action".

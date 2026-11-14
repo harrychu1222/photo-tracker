@@ -5,6 +5,7 @@ import { overviewTotals, projectSnapshot } from '../../lib/overview'
 import { todayLocal } from '../../lib/tasks'
 import ExportDialog from './ExportDialog'
 import MoreMenu from '../ui/MoreMenu'
+import ScrollFade from '../ui/ScrollFade'
 import GettingStarted from './GettingStarted'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
@@ -83,7 +84,7 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
         className="mb-3 min-h-[44px] w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500 md:max-w-md"
       />
 
-      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
+      <ScrollFade watch={statusFilter} wrapperClassName="mb-4" className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap">
         <button onClick={() => setStatusFilter(null)} className={chip(statusFilter === null)} aria-pressed={statusFilter === null}>All</button>
         {PROJECT_STATUSES.map((s) => (
           <button key={s.value} onClick={() => setStatusFilter(statusFilter === s.value ? null : s.value)} className={chip(statusFilter === s.value)} aria-pressed={statusFilter === s.value}>
@@ -91,7 +92,7 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
             {s.label}
           </button>
         ))}
-      </div>
+      </ScrollFade>
 
       {loading && <p className="py-10 text-center text-sm text-ink-400">Loading projects…</p>}
       {error && <p className="py-4 text-center text-sm text-status-blocked">{error}</p>}

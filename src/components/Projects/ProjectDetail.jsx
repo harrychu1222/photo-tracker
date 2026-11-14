@@ -12,6 +12,8 @@ import KanbanBoard from './KanbanBoard'
 import DefectsTab from './DefectsTab'
 import VariationsTab from './VariationsTab'
 import { useNotifications } from '../../context/NotificationsContext'
+import MoreMenu from '../ui/MoreMenu'
+import ScrollFade from '../ui/ScrollFade'
 import SiteTab from './SiteTab'
 import ExportDialog from './ExportDialog'
 import ClientShareDialog from './ClientShareDialog'
@@ -120,25 +122,25 @@ export default function ProjectDetail({
 
   return (
     <div className="px-4 py-4 md:px-10 md:py-6">
-      <div className="mb-3 flex items-center justify-between">
-        <button onClick={onBack} className="flex min-h-[44px] items-center gap-1 text-sm font-medium text-ink-600">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <button onClick={onBack} className="flex min-h-[44px] items-center gap-1 whitespace-nowrap text-sm font-medium text-ink-600">
           <Icon name="back" size={16} /> All projects
         </button>
-        <div className="flex flex-wrap justify-end gap-2">
-          {isAdmin && (
-            <button onClick={() => setSharing(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
-              Share with client
-            </button>
-          )}
-          {isAdmin && (
-            <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
-              Export
-            </button>
-          )}
+        <div className="flex items-center gap-2">
           {canEdit && (
-            <button onClick={onEdit} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
+            <button onClick={onEdit} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-900">
               Edit
             </button>
+          )}
+          {(isAdmin || notif.ready) && (
+            <MoreMenu
+              label="Project actions"
+              items={[
+                isAdmin && { label: 'Share with client', icon: 'share', onClick: () => setSharing(true) },
+                isAdmin && { label: 'Export', icon: 'download', onClick: () => setExporting(true) },
+                notif.ready && { label: isMuted ? 'Unmute alerts' : 'Mute alerts', icon: 'bell', onClick: () => notif.setMute(project.id, !isMuted).catch(() => {}) }
+              ]}
+            />
           )}
         </div>
       </div>
@@ -160,15 +162,7 @@ export default function ProjectDetail({
         {openDefects > 0 && (
           <span className={`${chip} bg-[#FBEAD2] text-[#7A4B05]`}>{openDefects} open defect{openDefects === 1 ? '' : 's'}</span>
         )}
-        {notif.ready && (
-          <button
-            onClick={() => notif.setMute(project.id, !isMuted).catch(() => {})}
-            aria-pressed={isMuted}
-            className={`${chip} ${isMuted ? 'bg-ink-900 text-white' : 'bg-ink-100 text-ink-800'}`}
-          >
-            {isMuted ? 'Alerts muted' : 'Mute alerts'}
-          </button>
-        )}
+        {isMuted && <span className={`${chip} bg-ink-100 text-ink-800`}>Alerts muted</span>}
         {isAdmin && money.target != null && money.actual > 0 && (
           <span className={`${chip} ${money.vsTarget?.over ? 'bg-[#F6DAD4] text-[#7A2A1D]' : 'bg-ink-100 text-ink-800'}`}>
             {fmtMoney(money.actual)} of {fmtMoney(money.target)} spent
@@ -176,9 +170,12 @@ export default function ProjectDetail({
         )}
       </div>
 
-      <nav
+      <ScrollFade
+        as="nav"
+        watch={tab}
+        wrapperClassName="mt-4"
         aria-label="Project sections"
-        className={`mt-4 flex gap-1 overflow-x-auto ${isDesktop ? 'border-b border-ink-200' : 'pb-1'}`}
+        className={`flex gap-1 overflow-x-auto ${isDesktop ? 'border-b border-ink-200' : 'pb-1'}`}
       >
         {topTabs.map((t) => (
           <button
@@ -198,11 +195,11 @@ export default function ProjectDetail({
             {t.label}
           </button>
         ))}
-      </nav>
+      </ScrollFade>
 
       <div className="mt-5">
         {((tab === 'plan' && isAdmin) || tab === 'money') && (
-          <div role="group" aria-label={tab === 'plan' ? 'Plan views' : 'Money views'} className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink-100 p-1 sm:inline-flex">
+          <ScrollFade role="group" aria-label={tab === 'plan' ? 'Plan views' : 'Money views'} watch={tab === 'plan' ? planTab : moneyTab} wrapperClassName="mb-4 max-w-full sm:inline-block" fadeClassName="from-ink-100" className="flex gap-1 overflow-x-auto rounded-xl bg-ink-100 p-1 sm:inline-flex">
             {(tab === 'plan' ? planTabs : moneyTabs).map((t) => {
               const on = (tab === 'plan' ? planTab : moneyTab) === t.id
               return (
@@ -218,7 +215,7 @@ export default function ProjectDetail({
                 </button>
               )
             })}
-          </div>
+          </ScrollFade>
         )}
 
         {tab === 'overview' && (
