@@ -1,0 +1,191 @@
+import { useState } from 'react'
+import CashFlowChart, { FiguresTable } from './CashFlowChart'
+import { useWork } from '../../context/WorkContext'
+import { buildCashFlow, receivedSummary } from '../../lib/cashflow'
+import { labourCost, labourEvents } from '../../lib/labour'
+import { parseAmount, projectMoney } from '../../lib/expenses'
+import { fmtDate, fmtMoney } from '../../lib/format'
+import { todayLocal } from '../../lib/tasks'
+
+const inputClass = 'w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-base focus:border-signal-500'
+const chip = (on) =>
+  `rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 text-ink-600'}`
+
+function PaymentForm({ project, payment, onDone }) {
+  const { addPayment, updatePayment } = useWork()
+  const [date, setDate] = useState(payment?.received_on || todayLocal())
+  const [description, setDescription] = useState(payment?.description || '')
+  const [amount, setAmount] = useState(payment ? String(payment.amount_ex_gst) : '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const typed = parseAmount(amount)
+
+  async function save(e) {
+    e.preventDefault()
+    if (typed == null) return setError('Enter the amount.')
+    setBusy(true)
+    setError(null)
+    const fields = { received_on: date || todayLocal(), description, amount_ex_gst: typed }
+    try {
+      if (payment) await updatePayment(payment.id, fields)
+      else await addPayment(project.id, fields)
+      onDone()
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="mb-4 space-y-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
+      <p className="text-sm font-semibold text-ink-900">{payment ? 'Edit payment' : 'Payment received'}</p>
+      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} aria-label="Received on" />
+      <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Deposit, Progress claim 2" className={inputClass} aria-label="Payment description" />
+      <div>
+        <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount received ($)" className={inputClass} aria-label="Payment amount" />
+        <p className="mt-1 text-xs text-ink-600">The amount actually received, GST included.</p>
+      </div>
+      {error && <p className="text-sm text-status-blocked">{error}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={busy} className="rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+          {payment ? 'Save changes' : 'Save payment'}
+        </button>
+        <button type="button" onClick={onDone} className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600">
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// Admin only: payments received and the spent-vs-received line graph.
+export default function CashFlowTab({ project, finance }) {
+  const { paymentsByProject, paymentsError, expensesByProject, deletePayment, timeByProject, rateBook, lumpsByProject } = useWork()
+  const [editing, setEditing] = useState(null)
+  const [showGoods, setShowGoods] = useState(false)
+  const [showLabour, setShowLabour] = useState(false)
+  const [showTable, setShowTable] = useState(false)
+  const [error, setError] = useState(null)
+
+  const payments = paymentsByProject[project.id] || []
+  const expenses = expensesByProject[project.id] || []
+  const time = timeByProject[project.id] || []
+  const lumps = lumpsByProject[project.id] || []
+  const money = projectMoney(finance, expenses, null, labourCost(time, rateBook, lumps).hourly, labourCost(time, rateBook, lumps).lumpTotal)
+  const sum = receivedSummary(payments, money.quote)
+  const data = buildCashFlow(expenses, payments, { today: todayLocal(), quote: money.quote, labour: labourEvents(time, rateBook, lumps, todayLocal()) })
+  const sorted = [...payments].sort((a, b) => String(b.received_on).localeCompare(String(a.received_on)))
+  const spentNow = data?.points.at(-1).spent ?? 0
+  const goodsNow = data?.points.at(-1).goods ?? 0
+  const labourNow = data?.points.at(-1).labour ?? 0
+  const receivedNow = data?.points.at(-1).received ?? 0
+
+  async function remove(p) {
+    if (!confirm(`Delete "${p.description}"?`)) return
+    setError(null)
+    try {
+      await deletePayment(p.id)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  if (paymentsError) return <p className="text-sm text-status-blocked">{paymentsError}</p>
+
+  return (
+    <div>
+      {editing ? (
+        <PaymentForm key={editing === 'new' ? 'new' : editing.id} project={project} payment={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
+      ) : (
+        <button onClick={() => setEditing('new')} className="mb-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-signal-500 px-4 text-sm font-semibold text-ink-950 active:bg-signal-600 sm:w-auto">
+          + Add payment received
+        </button>
+      )}
+      <div className="mb-4 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm">
+        <p className="mb-2 text-xs font-semibold text-ink-800">Cash flow (admins only)</p>
+        <dl className="space-y-1">
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Received so far</dt>
+            <dd className="text-ink-900">{fmtMoney(receivedNow)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Materials &amp; equipment</dt>
+            <dd className="text-ink-900">{fmtMoney(goodsNow)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Labour</dt>
+            <dd className="text-ink-900">{fmtMoney(labourNow)}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-ink-600">Total spent so far</dt>
+            <dd className="text-ink-900">{fmtMoney(spentNow)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-ink-100 pt-1 font-semibold">
+            <dt className="text-ink-800">Net (received − spent)</dt>
+            <dd className={receivedNow - spentNow < 0 ? 'text-status-blocked' : 'text-ink-900'}>{fmtMoney(Math.round((receivedNow - spentNow) * 100) / 100)}</dd>
+          </div>
+          {sum.toReceive != null && (
+            <div className="flex justify-between">
+              <dt className="text-ink-600">Still to receive of the quote</dt>
+              <dd className="text-ink-900">{fmtMoney(sum.toReceive)}</dd>
+            </div>
+          )}
+        </dl>
+        {sum.toReceive == null && <p className="mt-1 text-xs text-ink-400">Set a quote price on the project to see the quote line and what is left to receive.</p>}
+      </div>
+
+      {data ? (
+        <div className="mb-4 rounded-xl border border-ink-100 bg-white p-3">
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            <button onClick={() => setShowGoods((v) => !v)} className={chip(showGoods)} aria-pressed={showGoods}>
+              Materials &amp; equipment
+            </button>
+            <button onClick={() => setShowLabour((v) => !v)} className={chip(showLabour)} aria-pressed={showLabour}>
+              Labour
+            </button>
+          </div>
+          <CashFlowChart
+            data={data}
+            showGoods={showGoods}
+            showLabour={showLabour}
+            label={`Cumulative spent ${fmtMoney(spentNow)} and received ${fmtMoney(receivedNow)}`}
+          />
+          <button onClick={() => setShowTable((v) => !v)} className="mt-3 text-xs font-medium text-signal-600" aria-expanded={showTable}>
+            {showTable ? 'Hide figures' : 'Show figures'}
+          </button>
+          {showTable && (
+            <div className="mt-2">
+              <FiguresTable points={data.points} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mb-4 rounded-xl border border-dashed border-ink-200 py-8 text-center text-sm text-ink-600">
+          The graph appears once there is an expense or a payment.
+        </p>
+      )}
+
+      {error && <p className="mb-3 text-sm text-status-blocked">{error}</p>}
+
+      <ul className="space-y-2">
+        {sorted.map((p) => (
+          <li key={p.id} className="rounded-xl border border-ink-100 bg-white p-3 text-sm">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="font-semibold text-ink-900">{p.description}</p>
+              <span className="font-semibold text-status-done">{fmtMoney(p.amount_ex_gst)}</span>
+            </div>
+            <p className="mt-0.5 text-xs text-ink-600">{fmtDate(p.received_on)}</p>
+            <div className="mt-2 flex gap-3 text-xs font-medium">
+              <button onClick={() => setEditing(p)} className="text-ink-600">
+                Edit
+              </button>
+              <button onClick={() => remove(p)} className="text-status-blocked">
+                Delete
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
