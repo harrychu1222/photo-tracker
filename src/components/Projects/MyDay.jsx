@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 import { taskStatusMeta } from '../../statusConfig'
-import { fmtDate, fmtDateRange } from '../../lib/format'
+import { fmtDate, fmtDateRange, fmtShort } from '../../lib/format'
 import WorkersPanel from './WorkersPanel'
 import { useUndo } from '../../context/UndoContext'
 import { assigneeLabel, isAssigned, matchWho, nameKey, personName } from '../../lib/people'
@@ -82,9 +82,9 @@ export default function MyDay({ projects, onOpenProject, onAddPhoto }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-ink-900">{t.name}</p>
-            <p className="text-xs text-ink-600">{[p.name, room].filter(Boolean).join(' · ')}</p>
+            <button onClick={() => onOpenProject(p.id)} className="min-h-[32px] text-left text-sm text-ink-600 underline decoration-ink-200 underline-offset-2" aria-label={`Open project ${p.name}`}>{[p.name, room].filter(Boolean).join(' · ')}</button>
             <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-semibold text-status-blocked' : 'text-ink-600'}`}>
-              {[tone === 'bad' && t.planned_end ? `Was due ${fmtDate(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' && who !== 'all' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
+              {[tone === 'bad' && t.planned_end ? `Was due ${fmtShort(t.planned_end)}` : fmtDateRange(t.planned_start, t.planned_end), t.planned_hours != null ? fmtHours(t.planned_hours) : null, who !== 'me' && who !== 'all' ? assigneeLabel(t, team) : null].filter(Boolean).join(' · ') || 'No dates yet'}
             </p>
           </div>
           <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-800">
@@ -92,12 +92,11 @@ export default function MyDay({ projects, onOpenProject, onAddPhoto }) {
             {st.label}
           </span>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {t.status !== 'in_progress' && <button disabled={busyId === t.id} onClick={() => act(t, 'in_progress')} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 disabled:opacity-60" aria-label={`Start ${t.name}`}>Start</button>}
-          <button disabled={busyId === t.id} onClick={() => act(t, 'done')} className="min-h-[44px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white disabled:opacity-60" aria-label={`Mark ${t.name} done`}>Done</button>
-          {onAddPhoto && <button onClick={() => onAddPhoto({ projectId: p.id, roomId: t.room_id || '', taskId: t.id })} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900" aria-label={`Add photo to ${t.name}`}>Photo</button>}
-          <button onClick={() => { setNoting(noting === t.id ? null : t.id); setNoteText('') }} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900" aria-label={`Add note to ${t.name}`}>Note</button>
-          <button onClick={() => onOpenProject(p.id)} className="min-h-[44px] px-2 text-sm font-medium text-ink-600 underline" aria-label={`Open project ${p.name}`}>Open project</button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {t.status !== 'in_progress' && <button disabled={busyId === t.id} onClick={() => act(t, 'in_progress')} className="min-h-[48px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 disabled:opacity-60" aria-label={`Start ${t.name}`}>Start</button>}
+          <button disabled={busyId === t.id} onClick={() => act(t, 'done')} className={`min-h-[48px] rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white disabled:opacity-60 ${t.status === 'in_progress' ? 'col-span-2' : ''}`} aria-label={`Mark ${t.name} done`}>Done</button>
+          {onAddPhoto && <button onClick={() => onAddPhoto({ projectId: p.id, roomId: t.room_id || '', taskId: t.id })} className="min-h-[48px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900" aria-label={`Add photo to ${t.name}`}>Photo</button>}
+          <button onClick={() => { setNoting(noting === t.id ? null : t.id); setNoteText('') }} className={`min-h-[48px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 ${onAddPhoto ? '' : 'col-span-2'}`} aria-label={`Add note to ${t.name}`}>Note</button>
         </div>
         {noting === t.id && (
           <div className="mt-2 flex gap-2">
@@ -142,7 +141,7 @@ export default function MyDay({ projects, onOpenProject, onAddPhoto }) {
     <div className="mx-auto max-w-3xl px-4 py-4 md:px-10 md:py-6" data-testid="my-day">
       <h2 className="text-2xl font-bold tracking-tight text-ink-900">My Day</h2>
       <p className="mb-4 mt-1 text-sm text-ink-600">
-        {WEEKDAYS[day]} {fmtDate(today)} · {now.length} on today{overdue.length ? ` · ${overdue.length} overdue` : ''}
+        {WEEKDAYS[day]} {fmtShort(today)} · {now.length} on today{overdue.length ? ` · ${overdue.length} overdue` : ''}
       </p>
       {isAdmin && (team.length > 1 || names.length > 0) && (
         <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Show tasks for" className="mb-4 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm md:max-w-xs">

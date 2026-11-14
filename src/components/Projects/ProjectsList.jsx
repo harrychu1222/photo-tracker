@@ -4,19 +4,22 @@ import { fmtDate, fmtDateRange, fmtMoney } from '../../lib/format'
 import { overviewTotals, projectSnapshot } from '../../lib/overview'
 import { todayLocal } from '../../lib/tasks'
 import ExportDialog from './ExportDialog'
+import MoreMenu from '../ui/MoreMenu'
 import GettingStarted from './GettingStarted'
 import { useAuth } from '../../context/AuthContext'
 import { useWork } from '../../context/WorkContext'
 
-const chip = (on) => `flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
+const chip = (on) => `flex min-h-[36px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium ${on ? 'border-ink-900 bg-ink-900 text-white' : 'border-ink-200 bg-white text-ink-600'}`
 const bad = 'font-semibold text-status-blocked'
 
-function Tile({ label, value, sub, tone, testId }) {
+// One cell of a summary strip: the number first, then what it is. The extra line is read by
+// screen readers and shown on wide screens.
+function Tile({ label, value, sub, tone, testId, small }) {
   return (
-    <div className="rounded-xl border border-ink-100 bg-white p-3" data-testid={testId}>
-      <p className="text-xs font-semibold text-ink-600">{label}</p>
-      <p className={`mt-1 text-xl font-bold tracking-tight ${tone === 'bad' ? 'text-status-blocked' : 'text-ink-900'}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-ink-600">{sub}</p>}
+    <div className="min-w-0 px-3 py-2.5" data-testid={testId}>
+      <p className={`truncate font-bold tracking-tight ${small ? 'text-base' : 'text-xl'} ${tone === 'bad' ? 'text-status-blocked' : 'text-ink-900'}`}>{value}</p>
+      <p className="truncate text-xs font-medium text-ink-600">{label}</p>
+      {sub && <p className="sr-only md:not-sr-only md:truncate md:text-xs md:text-ink-600">{sub}</p>}
     </div>
   )
 }
@@ -56,14 +59,10 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-2xl font-bold tracking-tight text-ink-900">Projects</h2>
         <div className="flex items-center gap-2">
-          {projects.length > 0 && (
-            <button onClick={() => setExporting(true)} className="min-h-[44px] rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900">
-              Export all
-            </button>
-          )}
           <button onClick={onNew} className="min-h-[44px] rounded-lg bg-signal-500 px-4 text-sm font-semibold text-ink-950 active:bg-signal-600">
             + New project
           </button>
+          {projects.length > 0 && <MoreMenu items={[{ label: 'Export all projects', icon: 'download', onClick: () => setExporting(true) }]} />}
         </div>
       </div>
       {isAdmin && !loading && !error && (
@@ -84,7 +83,7 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
         className="mb-3 min-h-[44px] w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm focus:border-signal-500 md:max-w-md"
       />
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
         <button onClick={() => setStatusFilter(null)} className={chip(statusFilter === null)} aria-pressed={statusFilter === null}>All</button>
         {PROJECT_STATUSES.map((s) => (
           <button key={s.value} onClick={() => setStatusFilter(statusFilter === s.value ? null : s.value)} className={chip(statusFilter === s.value)} aria-pressed={statusFilter === s.value}>
@@ -103,17 +102,17 @@ export default function ProjectsList({ projects, photoCounts, finance, loading, 
 
       {visible.length > 0 && (
         <div data-testid="all-overview">
-          <div className="mb-3 grid grid-cols-3 gap-2">
+          <div className="mb-3 grid grid-cols-3 divide-x divide-ink-100 rounded-xl border border-ink-100 bg-white">
             <Tile testId="tile-behind" label="Behind plan" value={totals.behind} sub={totals.overdueTasks ? `${totals.overdueTasks} overdue task${totals.overdueTasks === 1 ? '' : 's'}` : 'No overdue tasks'} tone={totals.behind ? 'bad' : undefined} />
             <Tile testId="tile-late" label="Late deliveries" value={totals.lateDeliveries} tone={totals.lateDeliveries ? 'bad' : undefined} />
             <Tile testId="tile-defects" label="Open defects" value={totals.openDefects} sub={totals.urgentDefects ? `${totals.urgentDefects} urgent` : undefined} tone={totals.urgentDefects ? 'bad' : undefined} />
           </div>
           {isAdmin && (
-            <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4" data-testid="money-tiles">
-              <Tile testId="tile-received" label="Received" value={fmtMoney(totals.received)} />
-              <Tile testId="tile-spent" label="Spent" value={fmtMoney(totals.spent)} />
-              <Tile testId="tile-net" label="Net (received − spent)" value={fmtMoney(totals.net)} tone={totals.net < 0 ? 'bad' : undefined} />
-              <Tile testId="tile-toreceive" label="Still to receive" value={fmtMoney(totals.toReceive)} sub="Of the quotes shown" />
+            <div className="mb-4 grid grid-cols-2 divide-x divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white sm:grid-cols-4 sm:divide-y-0" data-testid="money-tiles">
+              <Tile small testId="tile-received" label="Received" value={fmtMoney(totals.received)} />
+              <Tile small testId="tile-spent" label="Spent" value={fmtMoney(totals.spent)} />
+              <Tile small testId="tile-net" label="Net (received − spent)" value={fmtMoney(totals.net)} tone={totals.net < 0 ? 'bad' : undefined} />
+              <Tile small testId="tile-toreceive" label="Still to receive" value={fmtMoney(totals.toReceive)} sub="Of the quotes shown" />
             </div>
           )}
 

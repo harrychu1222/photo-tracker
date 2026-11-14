@@ -3,11 +3,12 @@ import Icon from '../ui/Icon'
 import FeedbackDialog from './FeedbackDialog'
 import OfflineBanner from './OfflineBanner'
 import NotificationBell from './NotificationBell'
+import MoreMenu from '../ui/MoreMenu'
 import { projectStatusMeta } from '../../statusConfig'
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 font-bold text-white">
+    <div className="flex items-center gap-2.5 whitespace-nowrap font-bold text-white">
       <span className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-signal-500 text-ink-950">
         <Icon name="logo" size={16} strokeWidth={2.2} />
       </span>
@@ -44,7 +45,7 @@ export default function AppShell({
     ...(isAdmin ? [projectsItem, myDayItem] : [myDayItem, projectsItem]),
     { id: 'photos', label: 'Photos', icon: 'photos' },
     ...(isAdmin ? [{ id: 'team', label: 'Team', icon: 'team' }] : []),
-    ...(isOwner ? [{ id: 'platform', label: 'Platform', icon: 'logo' }] : [])
+    ...(isOwner ? [{ id: 'platform', label: 'Platform', icon: 'platform' }] : [])
   ]
 
   const supportBar = support ? (
@@ -76,7 +77,7 @@ export default function AppShell({
           </div>
           <nav aria-label="Main" className="flex flex-col gap-1">
             <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">Workspace</p>
-            {navItems.map((n) => (
+            {[...navItems, { id: 'search', label: 'Search', icon: 'search' }].map((n) => (
               <button
                 key={n.id}
                 onClick={() => onTab(n.id)}
@@ -118,17 +119,10 @@ export default function AppShell({
             <p className="truncate px-1 text-xs text-ink-400">{email}</p>
             <NotificationBell onOpenProject={onOpenProject} label className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-sm text-ink-200 hover:bg-ink-900" />
             <button
-              onClick={() => onTab('search')}
-              aria-label="Search"
-              className={`flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-ink-900 ${tab === 'search' ? 'bg-ink-900 text-white' : 'text-ink-200'}`}
-            >
-              <Icon name="search" size={16} /> Search
-            </button>
-            <button
               onClick={() => setShowFeedback(true)}
               className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-ink-200 hover:bg-ink-900"
             >
-              <Icon name="logo" size={16} /> Send feedback
+              <Icon name="feedback" size={16} /> Send feedback
             </button>
             <button
               onClick={onSignOut}
@@ -147,60 +141,67 @@ export default function AppShell({
     )
   }
 
-  const left = navItems.slice(0, 2)
-  const right = navItems.slice(left.length)
-  const item = (n) => (
-    <button
-      key={n.id}
-      onClick={() => onTab(n.id)}
-      aria-current={tab === n.id ? 'page' : undefined}
-      className={`flex min-h-[44px] min-w-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
-        tab === n.id ? 'text-ink-900' : 'text-ink-600'
-      }`}
-    >
-      <Icon name={n.icon} size={22} />
-      {n.label}
-    </button>
-  )
+  // Every slot is the same width, so the icons line up. Add photo sits in the third slot.
+  const slots = [...navItems.slice(0, 2), { id: 'add' }, ...navItems.slice(2)]
+  const pill = 'flex h-8 w-14 items-center justify-center rounded-full'
+  const slot = (n) =>
+    n.id === 'add' ? (
+      <button key="add" onClick={onAddPhoto} aria-label="Add photo" className="flex h-full flex-col items-center justify-center gap-1 text-xs font-semibold text-ink-900">
+        <span className={`${pill} bg-signal-500 text-ink-950 active:bg-signal-600`}>
+          <Icon name="plus" size={22} strokeWidth={2.4} />
+        </span>
+        Add
+      </button>
+    ) : (
+      <button
+        key={n.id}
+        onClick={() => onTab(n.id)}
+        aria-current={tab === n.id ? 'page' : undefined}
+        className={`flex h-full flex-col items-center justify-center gap-1 text-xs font-semibold ${tab === n.id ? 'text-ink-900' : 'text-ink-600'}`}
+      >
+        <span className={`${pill} ${tab === n.id ? 'bg-ink-100' : ''}`}>
+          <Icon name={n.icon} size={22} />
+        </span>
+        {n.label}
+      </button>
+    )
   return (
-    <div className="min-h-screen bg-ink-50 pb-20">
+    <div className="min-h-screen bg-ink-50" style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom) + 16px)' }}>
       {banner}
-      <header className={`sticky ${support ? 'top-9' : 'top-0'} z-10 flex h-14 items-center justify-between bg-ink-950 px-4`}>
+      <header className={`sticky ${support ? 'top-9' : 'top-0'} z-20 flex h-14 items-center justify-between bg-ink-950 pl-4 pr-2`}>
         <Brand />
-        <div className="flex items-center gap-1">
-          <span className="max-w-[6rem] truncate text-xs text-ink-400">{company?.name || email}</span>
-          <NotificationBell onOpenProject={onOpenProject} className="rounded-lg px-2 py-2 text-ink-200 active:bg-ink-800" />
-          <button onClick={() => onTab('search')} aria-label="Search" className="rounded-lg px-2 py-2 text-ink-200 active:bg-ink-800">
-            <Icon name="search" size={18} />
+        <div className="flex items-center">
+          <NotificationBell onOpenProject={onOpenProject} className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-200 active:bg-ink-800" />
+          <button onClick={() => onTab('search')} aria-label="Search" className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-200 active:bg-ink-800">
+            <Icon name="search" size={20} />
           </button>
-          <button onClick={() => setShowFeedback(true)} className="rounded-lg px-2 py-2 text-xs font-medium text-ink-200 active:bg-ink-800">
-            Feedback
-          </button>
-          <button
-            onClick={onSignOut}
-            aria-label="Sign out"
+          <MoreMenu
+            label="Account menu"
+            icon="user"
             className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-200 active:bg-ink-800"
-          >
-            <Icon name="logout" size={20} />
-          </button>
+            header={
+              <div className="border-b border-ink-100 px-4 py-2">
+                {company?.name && <p className="truncate text-sm font-semibold text-ink-900">{company.name}</p>}
+                <p className="truncate text-xs text-ink-600">{email}</p>
+              </div>
+            }
+            items={[
+              { label: 'Send feedback', icon: 'feedback', onClick: () => setShowFeedback(true) },
+              { label: 'Sign out', icon: 'logout', onClick: onSignOut }
+            ]}
+          />
         </div>
       </header>
       {children}
       {feedback}
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-10 flex h-[68px] items-center justify-around border-t border-ink-100 bg-white"
+        className="fixed inset-x-0 bottom-0 z-10 border-t border-ink-100 bg-white"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {left.map(item)}
-        <button
-          onClick={onAddPhoto}
-          aria-label="Add photo"
-          className="-mt-6 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-signal-500 text-ink-950 shadow-lg active:bg-signal-600"
-        >
-          <Icon name="plus" size={24} strokeWidth={2.4} />
-        </button>
-        {right.map(item)}
+        <div className="grid h-[72px]" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(0, 1fr))` }}>
+          {slots.map(slot)}
+        </div>
       </nav>
     </div>
   )
